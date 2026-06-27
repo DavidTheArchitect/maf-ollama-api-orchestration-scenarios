@@ -17,7 +17,9 @@ This repository is designed to teach two separate choices that often get mixed t
    These examples cover HR onboarding, vendor risk, customer entitlement routing, quarterly planning, and supply chain disruption response.
 5. Run scenarios `11` to `15` to learn MCP tool usage, one scenario per orchestration pattern.
    These attach a local `enterprise-context` MCP server (no network, credentials, or setup) and cover procurement approval, security alert enrichment, claims exception routing, a policy exception board, and a business continuity drill. Each MCP notebook adds an MCP tool context section and dashed tool links in the flow diagram.
-6. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
+6. Run the Scenario 16 quote-to-cash family (`16a` to `16e`) to compare all five patterns over one shared business story.
+   These reframe a rigid RPA/API quote flow as goal-oriented agents with orchestration-managed state, tool use, and transient agent waves. They reuse the same six roles (trigger, customer context, SKU discovery, product fit, pricing/terms, quote generation) grounded by a local `quote-to-cash-context` MCP server, and each notebook explains how its pattern maps back to (and differs from) the original RPA sequence.
+7. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
 
 ## Responses API vs Invocations API
 

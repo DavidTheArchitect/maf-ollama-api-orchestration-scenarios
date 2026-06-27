@@ -15,7 +15,6 @@ class NotebookCompanionTests(unittest.TestCase):
         project_root = Path(__file__).resolve().parents[1]
         notebooks = sorted((project_root / "notebooks").glob("*.ipynb"))
         self.assertEqual(len(notebooks), len(SCENARIOS))
-        self.assertEqual(len(notebooks), 15)
 
         seen: set[str] = set()
         for path in notebooks:

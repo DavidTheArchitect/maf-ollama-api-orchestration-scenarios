@@ -52,6 +52,33 @@ def _agents_for(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> list[An
     return [create_ollama_agent(spec, config=config) for spec in scenario.agents]
 
 
+def default_sample_max_tokens(scenario: ScenarioSpec) -> int:
+    """Token budget for a sample run: 500 for Magentic, 250 for the rest."""
+
+    return 500 if scenario.pattern == "magentic" else 250
+
+
+async def run_scenario_sample(
+    scenario_id: str | None = None,
+    *,
+    max_tokens: int | None = None,
+    **config_overrides: Any,
+) -> str:
+    """Build and run a scenario in-process and return readable output text.
+
+    Used by each scenario module's ``run_sample`` and by ``python -m`` execution.
+    Importing this module has no side effects; the run only happens when called.
+    """
+
+    from .notebook_helpers import workflow_result_to_text
+
+    scenario = get_scenario(scenario_id)
+    tokens = max_tokens if max_tokens is not None else default_sample_max_tokens(scenario)
+    workflow = build_release_workflow(scenario.id, max_tokens=tokens, **config_overrides)
+    result = await workflow.run(scenario.sample_input)
+    return workflow_result_to_text(result)
+
+
 def build_sequential_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
     from agent_framework.orchestrations import SequentialBuilder
 
