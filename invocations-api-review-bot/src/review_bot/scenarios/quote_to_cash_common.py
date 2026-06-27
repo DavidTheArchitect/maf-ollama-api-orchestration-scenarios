@@ -19,8 +19,21 @@ SAMPLE_REQUEST = (
 )
 
 
-def _agent(name: str, description: str, instructions: str, tools: tuple[str, ...]) -> AgentSpec:
-    return AgentSpec(name, description, instructions, mcp_tools=tools, mcp_server=MCP_SERVER)
+def _agent(
+    name: str,
+    description: str,
+    instructions: str,
+    tools: tuple[str, ...],
+    code_tools: tuple[str, ...],
+) -> AgentSpec:
+    return AgentSpec(
+        name,
+        description,
+        instructions,
+        mcp_tools=tools,
+        mcp_server=MCP_SERVER,
+        code_tools=code_tools,
+    )
 
 
 QUOTE_TRIGGER_AGENT = _agent(
@@ -29,6 +42,7 @@ QUOTE_TRIGGER_AGENT = _agent(
     "Check whether the CRM conditions to create a quote exist. Use crm_get_quote_trigger to report "
     "quote-readiness, which trigger conditions are met, and any blockers. Do not invent CRM data.",
     ("crm_get_quote_trigger",),
+    ("note_observation", "make_checklist"),
 )
 CUSTOMER_CONTEXT_AGENT = _agent(
     "CustomerContextAgent",
@@ -36,6 +50,7 @@ CUSTOMER_CONTEXT_AGENT = _agent(
     "Enrich the customer profile. Use crm_get_customer_profile to capture customer name, address, MSA "
     "status, account status, segment, and buying context for the quote.",
     ("crm_get_customer_profile",),
+    ("note_observation", "compose_summary"),
 )
 SKU_DISCOVERY_AGENT = _agent(
     "SkuDiscoveryAgent",
@@ -43,6 +58,7 @@ SKU_DISCOVERY_AGENT = _agent(
     "Identify candidate SKUs, bundles, and catalog entries that fit the customer's need. Use "
     "product_search_catalog and list the matching SKUs with names and list prices.",
     ("product_search_catalog",),
+    ("note_observation", "make_checklist"),
 )
 PRODUCT_FIT_AGENT = _agent(
     "ProductFitAgent",
@@ -50,6 +66,7 @@ PRODUCT_FIT_AGENT = _agent(
     "Validate product compatibility, availability, and SKU completeness. Use product_validate_skus and "
     "flag any unknown, unavailable, or incompatible SKUs before pricing.",
     ("product_validate_skus",),
+    ("note_observation", "make_checklist"),
 )
 PRICING_TERMS_AGENT = _agent(
     "PricingTermsAgent",
@@ -57,6 +74,7 @@ PRICING_TERMS_AGENT = _agent(
     "Resolve pricing, discount, finance, and legal constraints. Use pricing_calculate_quote for totals "
     "and legal_evaluate_terms for clauses and required approvals.",
     ("pricing_calculate_quote", "legal_evaluate_terms"),
+    ("note_observation", "rate_risk"),
 )
 QUOTE_GENERATION_AGENT = _agent(
     "QuoteGenerationAgent",
@@ -65,6 +83,7 @@ QUOTE_GENERATION_AGENT = _agent(
     "Use quote_format_package. When you coordinate other specialists, plan the path to a complete quote, "
     "delegate the missing context, and stop once the package is ready.",
     ("quote_format_package",),
+    ("compose_summary", "extract_action_items"),
 )
 
 #: The six roles in their natural quote-to-cash staging order.

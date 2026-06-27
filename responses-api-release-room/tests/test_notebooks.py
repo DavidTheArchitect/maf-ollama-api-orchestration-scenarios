@@ -29,6 +29,9 @@ class NotebookCompanionTests(unittest.TestCase):
                 self.assertIn("Pattern Anatomy", source_text)
                 self.assertIn("Flow Diagram", source_text)
                 self.assertIn("display_scenario_flow", source_text)
+                self.assertIn("apply_notebook_style", source_text)
+                self.assertIn("coded_agent_tool_map", source_text)
+                self.assertIn("Coded Agents", source_text)
 
                 if _scenario_uses_mcp(SCENARIOS_BY_ID[scenario_ids[0]]):
                     self.assertIn("MCP Tool Context", source_text)

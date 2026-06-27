@@ -49,6 +49,15 @@ Both MCP servers need no network, credentials, or manual setup. Agents with decl
 Each scenario is defined in its own Python module inside the API directory's `src/.../scenarios/` package. Each API directory also has a `notebooks/` folder with one companion notebook per scenario for step-by-step learning and live in-process Ollama execution. MCP scenario notebooks add an MCP tool context section and dashed tool links in the flow diagram.
 Each notebook includes a runtime Mermaid flow diagram that renders through `mermaid.ink` and also exposes the generated Mermaid source.
 
+## Coded Agents And Advanced Orchestration
+
+Every agent is a **coded agent**, never a prompt-only agent. Two code layers make this true:
+
+- **Code-defined function tools** (`src/.../code_tools.py`): deterministic Python callables — `note_observation`, `rate_risk`, `make_checklist`, `extract_action_items`, `tally_votes`, `compose_summary` — attached to each agent (alongside any MCP tools). A role-based mapping (`effective_code_tools`) guarantees every agent receives tools, so none rely on instructions alone.
+- **Code-defined orchestration** (`src/.../executors.py`, `workflows.py`): Sequential, Concurrent, and Handoff are built as explicit `WorkflowBuilder` graphs of custom `Executor` subclasses with agent nodes wrapped in `AgentExecutor`. They use typed `@handler` methods, shared `WorkflowContext` state, conditional routing, and fan-out/fan-in — for example `PromptDispatchExecutor`, `StageGateExecutor`, `ConcurrentAggregatorExecutor`, and `HandoffRouterExecutor`. Group Chat and Magentic use the framework's code-driven builders (custom selection function, manager planning, ledger limits).
+
+This raises every scenario to the complexity of the advanced [Microsoft Agent Framework samples](https://github.com/microsoft/Agent-Framework-Samples/tree/main) (custom executors, typed handlers, conditional routing, fan-in, shared state, function tools). The custom-executor graphs are validated offline with a deterministic stub agent, so the wiring is exercised without a model; live runs use Ollama. Notebooks render in the **Aptos** font (with a graceful fallback) and include a coded-agent tool map.
+
 ## Learning Artifacts
 
 | Artifact | Purpose |

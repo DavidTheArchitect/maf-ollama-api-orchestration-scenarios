@@ -42,6 +42,7 @@ class AgentSpec:
     instructions: str
     mcp_tools: tuple[str, ...] = ()
     mcp_server: str = "enterprise_context"
+    code_tools: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -139,14 +140,18 @@ def create_ollama_agent(spec: AgentSpec, *, config: OllamaAgentConfig | None = N
             }
             return super()._prepare_options(messages, filtered_options)
 
+    from .code_tools import effective_code_tools, resolve_code_tools
+
     resolved = config or build_ollama_config()
     instructions = f"You are {spec.name}. {spec.instructions}"
-    tools = [build_mcp_tool(spec)] if spec.mcp_tools else None
+    tools: list[Any] = list(resolve_code_tools(effective_code_tools(spec)))
+    if spec.mcp_tools:
+        tools.append(build_mcp_tool(spec))
     return ScenarioOllamaChatClient(host=resolved.host, model=resolved.model).as_agent(
         name=spec.name,
         description=spec.description,
         instructions=instructions,
-        tools=tools,
+        tools=tools or None,
         default_options=resolved.default_options(),
         require_per_service_call_history_persistence=True,
     )

@@ -1,11 +1,33 @@
+"""Workflow construction for the Responses API sample.
+
+Sequential, Concurrent, and Handoff are built as explicit
+:class:`~agent_framework.WorkflowBuilder` graphs of code-defined executors
+(see :mod:`release_room.executors`) with agent nodes wrapped in
+:class:`~agent_framework.AgentExecutor`. Group Chat and Magentic use the
+framework's code-driven orchestration builders (custom selection function,
+manager planning, and ledger logic). Every agent is a coded agent: it carries
+code-defined function tools (and MCP tools where declared), never a bare prompt.
+"""
+
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .agents import OllamaAgentConfig, build_ollama_config, create_ollama_agent
+from .executors import (
+    ConcurrentAggregatorExecutor,
+    HandoffOutputExecutor,
+    HandoffRouterExecutor,
+    PromptDispatchExecutor,
+    SequentialOutputExecutor,
+    StageGateExecutor,
+)
 from .scenarios import SCENARIO_IDS, ScenarioSpec, get_scenario, normalize_scenario_id
 
 WORKFLOW_NAMES: tuple[str, ...] = SCENARIO_IDS
+
+_STOPWORDS = {"agent", "specialist", "the", "and", "for", "with", "that", "from", "into"}
 
 
 def normalize_workflow_name(value: str | None) -> str:
@@ -35,21 +57,40 @@ def build_release_workflow(
         keep_alive=keep_alive,
         think=think,
     )
-    if scenario.pattern == "sequential":
-        return build_sequential_workflow(scenario, config=config)
-    if scenario.pattern == "concurrent":
-        return build_concurrent_workflow(scenario, config=config)
-    if scenario.pattern == "handoff":
-        return build_handoff_workflow(scenario, config=config)
-    if scenario.pattern == "group-chat":
-        return build_group_chat_workflow(scenario, config=config)
-    if scenario.pattern == "magentic":
-        return build_magentic_workflow(scenario, config=config)
-    raise ValueError(f"Unsupported pattern '{scenario.pattern}' for scenario '{scenario.id}'.")
+    builders = {
+        "sequential": build_sequential_workflow,
+        "concurrent": build_concurrent_workflow,
+        "handoff": build_handoff_workflow,
+        "group-chat": build_group_chat_workflow,
+        "magentic": build_magentic_workflow,
+    }
+    try:
+        builder = builders[scenario.pattern]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported pattern '{scenario.pattern}' for scenario '{scenario.id}'.") from exc
+    return builder(scenario, config=config)
+
+
+def _slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
 
 def _agents_for(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> list[Any]:
     return [create_ollama_agent(spec, config=config) for spec in scenario.agents]
+
+
+def _agent_executor(spec_index: int, scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
+    from agent_framework import AgentExecutor
+
+    spec = scenario.agents[spec_index]
+    agent = create_ollama_agent(spec, config=config)
+    return AgentExecutor(agent, id=_slug(spec.name))
+
+
+def _route_keywords(spec: Any) -> tuple[str, ...]:
+    tokens = re.findall(r"[a-z]+", f"{spec.name} {spec.description}".lower())
+    keywords = [token for token in tokens if len(token) > 3 and token not in _STOPWORDS]
+    return tuple(dict.fromkeys(keywords))[:6]
 
 
 def default_sample_max_tokens(scenario: ScenarioSpec) -> int:
@@ -64,11 +105,7 @@ async def run_scenario_sample(
     max_tokens: int | None = None,
     **config_overrides: Any,
 ) -> str:
-    """Build and run a scenario in-process and return readable output text.
-
-    Used by each scenario module's ``run_sample`` and by ``python -m`` execution.
-    Importing this module has no side effects; the run only happens when called.
-    """
+    """Build and run a scenario in-process and return readable output text."""
 
     from .notebook_helpers import workflow_result_to_text
 
@@ -80,48 +117,72 @@ async def run_scenario_sample(
 
 
 def build_sequential_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
-    from agent_framework.orchestrations import SequentialBuilder
+    """Sequential graph: dispatch -> agent -> gate -> ... -> agent -> output."""
 
-    participants = _agents_for(scenario, config=config or build_ollama_config())
-    return SequentialBuilder(
-        participants=participants,
-        chain_only_agent_responses=True,
-        intermediate_output_from=participants[:-1],
-    ).build()
+    from agent_framework import WorkflowBuilder
+
+    config = config or build_ollama_config()
+    agents = [_agent_executor(i, scenario, config=config) for i in range(len(scenario.agents))]
+    dispatch = PromptDispatchExecutor(id="dispatch")
+    last_name = scenario.agents[-1].name
+    output = SequentialOutputExecutor(id="final_output", stage_name=last_name)
+
+    builder = WorkflowBuilder(start_executor=dispatch, output_from=[output])
+    builder.add_edge(dispatch, agents[0])
+    for index in range(len(agents) - 1):
+        gate = StageGateExecutor(id=f"gate_{index}", stage_name=scenario.agents[index].name)
+        builder.add_edge(agents[index], gate)
+        builder.add_edge(gate, agents[index + 1])
+    builder.add_edge(agents[-1], output)
+    return builder.build()
 
 
 def build_concurrent_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
-    from agent_framework.orchestrations import ConcurrentBuilder
+    """Concurrent graph: dispatch fans out to all agents, aggregator fans in."""
 
-    participants = _agents_for(scenario, config=config or build_ollama_config())
-    return ConcurrentBuilder(participants=participants).build()
+    from agent_framework import WorkflowBuilder
+
+    config = config or build_ollama_config()
+    agents = [_agent_executor(i, scenario, config=config) for i in range(len(scenario.agents))]
+    dispatch = PromptDispatchExecutor(id="dispatch")
+    aggregator = ConcurrentAggregatorExecutor(
+        id="aggregator", agent_names=[spec.name for spec in scenario.agents]
+    )
+
+    builder = WorkflowBuilder(start_executor=dispatch, output_from=[aggregator])
+    builder.add_fan_out_edges(dispatch, agents)
+    builder.add_fan_in_edges(agents, aggregator)
+    return builder.build()
 
 
 def build_handoff_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
-    from agent_framework.orchestrations import HandoffBuilder
+    """Handoff graph: dispatch -> triage -> code router -> one specialist -> output."""
 
-    participants = _agents_for(scenario, config=config or build_ollama_config())
-    triage = participants[0]
-    specialists = participants[1:]
+    from agent_framework import WorkflowBuilder
 
-    def stop_after_specialist(messages: list[Any]) -> bool:
-        assistant_messages = [m for m in messages if getattr(m, "role", None) == "assistant"]
-        return len(assistant_messages) >= 3
+    config = config or build_ollama_config()
+    triage = _agent_executor(0, scenario, config=config)
+    specialists = [_agent_executor(i, scenario, config=config) for i in range(1, len(scenario.agents))]
+    specialist_ids = [_slug(scenario.agents[i].name) for i in range(1, len(scenario.agents))]
+    routes = {
+        specialist_ids[i - 1]: _route_keywords(scenario.agents[i]) for i in range(1, len(scenario.agents))
+    }
+    dispatch = PromptDispatchExecutor(id="dispatch")
+    router = HandoffRouterExecutor(id="router", routes=routes, default_route=specialist_ids[0])
+    output = HandoffOutputExecutor(id="final_output")
 
-    builder = HandoffBuilder(
-        name=scenario.id,
-        participants=participants,
-        termination_condition=stop_after_specialist,
-    ).with_start_agent(triage)
-
-    builder = builder.add_handoff(triage, specialists)
+    builder = WorkflowBuilder(start_executor=dispatch, output_from=[output])
+    builder.add_edge(dispatch, triage)
+    builder.add_edge(triage, router)
     for specialist in specialists:
-        builder = builder.add_handoff(specialist, [triage])
-
+        builder.add_edge(router, specialist)
+        builder.add_edge(specialist, output)
     return builder.build()
 
 
 def build_group_chat_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
+    """Group Chat: code-defined round-robin selection and termination."""
+
     from agent_framework.orchestrations import GroupChatBuilder, GroupChatState
 
     participants = _agents_for(scenario, config=config or build_ollama_config())
@@ -146,6 +207,8 @@ def build_group_chat_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConf
 
 
 def build_magentic_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
+    """Magentic: code-defined manager plans and delegates to specialists."""
+
     from agent_framework.orchestrations import MagenticBuilder
 
     agents = _agents_for(scenario, config=config or build_ollama_config())
