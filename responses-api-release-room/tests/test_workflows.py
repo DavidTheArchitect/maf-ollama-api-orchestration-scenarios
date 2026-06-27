@@ -1,7 +1,7 @@
 import unittest
 from importlib import import_module
 
-from release_room.notebook_helpers import pattern_anatomy, responses_api_reference
+from release_room.notebook_helpers import agent_response_to_text, pattern_anatomy, responses_api_reference, workflow_result_to_text
 from release_room.scenarios import PATTERNS, SCENARIOS, normalize_scenario_id
 from release_room.workflows import normalize_workflow_name
 
@@ -50,6 +50,36 @@ class WorkflowSelectionTests(unittest.TestCase):
                 reference = responses_api_reference(scenario)
                 self.assertEqual(reference["payload"]["input"], scenario.sample_input)
                 self.assertIn(scenario.id, reference["server_command"])
+
+    def test_extracts_nested_message_text_without_object_repr(self):
+        class NestedMessage:
+            text = "Approve after validating rollback."
+
+        class WrappedMessage:
+            author_name = "LaunchCoordinatorAgent"
+            role = "assistant"
+            text = ""
+            contents = [NestedMessage()]
+
+        class WrappedResponse:
+            text = ""
+            messages = [WrappedMessage()]
+
+        text = agent_response_to_text(WrappedResponse())
+
+        self.assertIn("LaunchCoordinatorAgent", text)
+        self.assertIn("Approve after validating rollback.", text)
+        self.assertNotIn(" object at 0x", text)
+
+    def test_uses_intermediate_outputs_for_framework_termination_marker(self):
+        class FakeEvents:
+            def get_outputs(self):
+                return ["The group chat has reached its termination condition."]
+
+            def get_intermediate_outputs(self):
+                return ["Useful launch council transcript."]
+
+        self.assertEqual(workflow_result_to_text(FakeEvents()), "Useful launch council transcript.")
 
 
 if __name__ == "__main__":
