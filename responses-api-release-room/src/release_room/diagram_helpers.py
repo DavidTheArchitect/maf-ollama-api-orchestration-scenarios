@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import html
 from dataclasses import dataclass
+from typing import Any
 
 from .scenarios import ScenarioSpec
 
@@ -60,22 +61,28 @@ def _diagram_source(scenario: ScenarioSpec, *, api_boundary: str, input_label: s
 def _sequential_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
     lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
     previous = "orchestrator"
+    pairs: list[tuple[Any, str]] = []
     for index, agent in enumerate(scenario.agents, start=1):
         node = f"agent{index}"
         lines.append(f"    {previous} -->|stage {index}| {node}[{_label(agent.name)}]")
         previous = node
+        pairs.append((agent, node))
     lines.append(f"    {previous} --> output[Responses output]")
+    lines.extend(_mcp_tool_links(pairs))
     return "\n".join(lines)
 
 
 def _concurrent_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
     lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
     lines.append("    orchestrator --> fanout{{Fan out same request}}")
+    pairs: list[tuple[Any, str]] = []
     for index, agent in enumerate(scenario.agents, start=1):
         node = f"agent{index}"
         lines.append(f"    fanout --> {node}[{_label(agent.name)}]")
         lines.append(f"    {node} --> aggregate{{Aggregate findings}}")
+        pairs.append((agent, node))
     lines.append("    aggregate --> output[Responses output]")
+    lines.extend(_mcp_tool_links(pairs))
     return "\n".join(lines)
 
 
@@ -84,11 +91,14 @@ def _handoff_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: 
     lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
     lines.append(f"    orchestrator --> triage[{_label(triage.name)}]")
     lines.append("    triage --> decision{Ownership decision}")
+    pairs: list[tuple[Any, str]] = [(triage, "triage")]
     for index, agent in enumerate(specialists, start=1):
         node = f"specialist{index}"
         lines.append(f"    decision -->|handoff| {node}[{_label(agent.name)}]")
         lines.append(f"    {node} --> triage")
+        pairs.append((agent, node))
     lines.append("    triage --> output[Responses output]")
+    lines.extend(_mcp_tool_links(pairs))
     return "\n".join(lines)
 
 
@@ -96,13 +106,16 @@ def _group_chat_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_labe
     lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
     lines.append("    orchestrator --> selector{Round-robin selector}")
     previous = "selector"
+    pairs: list[tuple[Any, str]] = []
     for index, agent in enumerate(scenario.agents, start=1):
         node = f"agent{index}"
         lines.append(f"    {previous} --> {node}[{_label(agent.name)}]")
         previous = node
+        pairs.append((agent, node))
     lines.append(f"    {previous} --> stop{{Termination condition}}")
     lines.append("    stop -->|continue| selector")
     lines.append("    stop -->|done| output[Responses output]")
+    lines.extend(_mcp_tool_links(pairs))
     return "\n".join(lines)
 
 
@@ -111,12 +124,15 @@ def _magentic_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label:
     lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
     lines.append(f"    orchestrator --> manager[{_label(manager.name)}]")
     lines.append("    manager --> plan{Plan and delegate}")
+    pairs: list[tuple[Any, str]] = [(manager, "manager")]
     for index, agent in enumerate(specialists, start=1):
         node = f"specialist{index}"
         lines.append(f"    plan --> {node}[{_label(agent.name)}]")
         lines.append(f"    {node} --> progress{{Progress ledger}}")
+        pairs.append((agent, node))
     lines.append("    progress -->|replan| manager")
     lines.append("    progress -->|complete or stop| output[Responses output]")
+    lines.extend(_mcp_tool_links(pairs))
     return "\n".join(lines)
 
 
@@ -127,6 +143,24 @@ def _header(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> l
         f"    api --> scenario[{_label('Server-selected scenario: ' + scenario.id)}]",
         f"    scenario --> orchestrator{{{_label(scenario.pattern + ' orchestration')}}}",
     ]
+
+
+def _mcp_tool_links(pairs: list[tuple[Any, str]]) -> list[str]:
+    """Render dashed Mermaid links from MCP-enabled agents to their tools.
+
+    ``pairs`` maps each agent to the diagram node id that represents it. Agents
+    without ``mcp_tools`` produce no links, so non-MCP scenarios are unchanged.
+    Tool nodes are shared across agents so a tool used by several agents shows up
+    once with multiple dashed edges pointing at it.
+    """
+
+    if not any(getattr(agent, "mcp_tools", ()) for agent, _ in pairs):
+        return []
+    lines: list[str] = []
+    for agent, node_id in pairs:
+        for tool in getattr(agent, "mcp_tools", ()):
+            lines.append(f"    {node_id} -.->|mcp tool| tool_{tool}([{_label(tool)}])")
+    return lines
 
 
 def _label(value: str) -> str:

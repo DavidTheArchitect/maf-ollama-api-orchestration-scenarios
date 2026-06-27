@@ -1,0 +1,14 @@
+{
+  "scenario": "concurrent-security-alert-enrichment",
+  "task": "Run an enrichment job for security alert ALERT-2298 across identity, endpoint, network, and data-loss dimensions.",
+  "subject": "ALERT-2298 security alert",
+  "artifacts": [
+    "records/ALERT-2298.json",
+    "playbooks/security-enrichment.md"
+  ],
+  "constraints": [
+    "Enrich each dimension independently using MCP tools.",
+    "Return a single incident summary."
+  ],
+  "stream": false
+}

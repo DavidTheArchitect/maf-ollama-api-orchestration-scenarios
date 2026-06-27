@@ -3,7 +3,11 @@ import json
 import unittest
 from pathlib import Path
 
-from release_room.scenarios import SCENARIOS
+from release_room.scenarios import SCENARIOS, SCENARIOS_BY_ID
+
+
+def _scenario_uses_mcp(scenario):
+    return any(agent.mcp_tools for agent in scenario.agents)
 
 
 class NotebookCompanionTests(unittest.TestCase):
@@ -11,6 +15,7 @@ class NotebookCompanionTests(unittest.TestCase):
         project_root = Path(__file__).resolve().parents[1]
         notebooks = sorted((project_root / "notebooks").glob("*.ipynb"))
         self.assertEqual(len(notebooks), len(SCENARIOS))
+        self.assertEqual(len(notebooks), 15)
 
         seen: set[str] = set()
         for path in notebooks:
@@ -25,6 +30,11 @@ class NotebookCompanionTests(unittest.TestCase):
                 self.assertIn("Pattern Anatomy", source_text)
                 self.assertIn("Flow Diagram", source_text)
                 self.assertIn("display_scenario_flow", source_text)
+
+                if _scenario_uses_mcp(SCENARIOS_BY_ID[scenario_ids[0]]):
+                    self.assertIn("MCP Tool Context", source_text)
+                    self.assertIn("release_room.mcp_servers", source_text)
+                    self.assertIn("mcp_tool_context", source_text)
 
                 for index, cell in enumerate(data.get("cells", [])):
                     self.assertIsNone(cell.get("execution_count"))

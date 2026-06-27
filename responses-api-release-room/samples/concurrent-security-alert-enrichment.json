@@ -1,0 +1,4 @@
+{
+  "input": "Enrich security alert ALERT-2298 (anomalous OAuth token usage) across identity, endpoint, network, and data-loss dimensions, then summarize.",
+  "stream": false
+}

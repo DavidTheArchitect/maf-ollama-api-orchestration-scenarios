@@ -30,6 +30,24 @@ class ScenarioDiagramTests(unittest.TestCase):
                 for marker in PATTERN_MARKERS[scenario.pattern]:
                     self.assertIn(marker, diagram.mermaid)
 
+    def test_mcp_scenarios_show_dashed_tool_links(self):
+        for scenario in SCENARIOS:
+            declared_tools = {tool for agent in scenario.agents for tool in agent.mcp_tools}
+            if not declared_tools:
+                continue
+            with self.subTest(scenario=scenario.id):
+                mermaid = scenario_flow_diagram(scenario).mermaid
+                self.assertIn("-.->|mcp tool|", mermaid)
+                for tool in declared_tools:
+                    self.assertIn(f"tool_{tool}", mermaid)
+
+    def test_non_mcp_scenarios_have_no_tool_links(self):
+        for scenario in SCENARIOS:
+            if any(agent.mcp_tools for agent in scenario.agents):
+                continue
+            with self.subTest(scenario=scenario.id):
+                self.assertNotIn("-.->|mcp tool|", scenario_flow_diagram(scenario).mermaid)
+
 
 if __name__ == "__main__":
     unittest.main()

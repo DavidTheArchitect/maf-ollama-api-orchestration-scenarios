@@ -15,7 +15,9 @@ This repository is designed to teach two separate choices that often get mixed t
    Keep the scenario number the same when comparing APIs so only the API boundary changes.
 4. Run scenarios `06` to `10` to see the same five patterns inside enterprise application workflows.
    These examples cover HR onboarding, vendor risk, customer entitlement routing, quarterly planning, and supply chain disruption response.
-5. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
+5. Run scenarios `11` to `15` to learn MCP tool usage, one scenario per orchestration pattern.
+   These attach a local `enterprise-context` MCP server (no network, credentials, or setup) and cover procurement approval, security alert enrichment, claims exception routing, a policy exception board, and a business continuity drill. Each MCP notebook adds an MCP tool context section and dashed tool links in the flow diagram.
+6. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
 
 ## Responses API vs Invocations API
 

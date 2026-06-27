@@ -15,7 +15,7 @@ Start with [LEARNING_PATH.md](LEARNING_PATH.md) if your goal is to compare when 
 
 ## Scenario Catalog
 
-Both directories now contain the same ten learning scenarios so the API differences are easy to compare. The first five focus on software delivery/support workflows; the second five focus on enterprise application workflows:
+Both directories now contain the same fifteen learning scenarios so the API differences are easy to compare. The first five focus on software delivery/support workflows; the next five focus on enterprise application workflows; the final five teach MCP tool usage, with one scenario per Microsoft Agent Framework orchestration pattern:
 
 | Scenario | Pattern | Core lesson |
 | --- | --- | --- |
@@ -29,8 +29,15 @@ Both directories now contain the same ten learning scenarios so the API differen
 | `handoff-customer-entitlement` | Handoff | Customer entitlement case routing across billing, contract, support, and engineering. |
 | `group-chat-quarterly-planning` | Group chat | Cross-functional business planning discussion with stakeholder tradeoffs. |
 | `magentic-supply-chain-disruption` | Magentic | Manager-led response to a supply chain disruption across enterprise functions. |
+| `sequential-procurement-approval` | Sequential | MCP-grounded approval pipeline across intake, budget, security, legal, and packaging. |
+| `concurrent-security-alert-enrichment` | Concurrent | Independent identity, endpoint, network, and data-loss enrichment of one alert via MCP tools. |
+| `handoff-claims-exception-routing` | Handoff | Triage routes a claim exception to payment, fraud, compliance, or customer comms using MCP facts. |
+| `group-chat-policy-exception-board` | Group chat | Board debates a policy exception with MCP-grounded risk, business need, and compliance. |
+| `magentic-business-continuity-drill` | Magentic | Manager plans and delegates a continuity drill across facilities, IT, comms, finance, and operations. |
 
-Each scenario is now defined in its own Python module inside the API directory's `src/.../scenarios/` package. Each API directory also has a `notebooks/` folder with one companion notebook per scenario for step-by-step learning and live in-process Ollama execution.
+The final five scenarios attach a local, deterministic `enterprise-context` MCP server (FastMCP over stdio) that needs no network, credentials, or manual setup. It exposes `lookup_enterprise_record`, `search_policy`, `calculate_priority_score`, `list_playbook_steps`, and `create_decision_log_entry`. Agents with declared `mcp_tools` receive the tool via Agent Framework `MCPStdioTool` (`approval_mode="never_require"`, per-agent `allowed_tools`); the server module lives at `src/.../mcp_servers/enterprise_context.py` in each package.
+
+Each scenario is defined in its own Python module inside the API directory's `src/.../scenarios/` package. Each API directory also has a `notebooks/` folder with one companion notebook per scenario for step-by-step learning and live in-process Ollama execution. MCP scenario notebooks add an MCP tool context section and dashed tool links in the flow diagram.
 Each notebook includes a runtime Mermaid flow diagram that renders through `mermaid.ink` and also exposes the generated Mermaid source.
 
 ## Learning Artifacts
