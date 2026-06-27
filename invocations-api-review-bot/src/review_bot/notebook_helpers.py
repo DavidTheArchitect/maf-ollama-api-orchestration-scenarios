@@ -77,6 +77,22 @@ def pattern_anatomy(scenario: ScenarioSpec) -> dict[str, str]:
     return PATTERN_ANATOMY[scenario.pattern]
 
 
+def mcp_tool_context(scenario: ScenarioSpec) -> dict[str, Any]:
+    """Summarize the local MCP tools each agent in the scenario may call.
+
+    Returns the per-agent allowed-tool lists and the de-duplicated set of tools
+    used across the scenario. Scenarios with no MCP tools return empty mappings.
+    """
+
+    tools_by_agent = {spec.name: list(spec.mcp_tools) for spec in scenario.agents if spec.mcp_tools}
+    all_tools_used = sorted({tool for spec in scenario.agents for tool in spec.mcp_tools})
+    return {
+        "uses_mcp": bool(all_tools_used),
+        "tools_by_agent": tools_by_agent,
+        "all_tools_used": all_tools_used,
+    }
+
+
 def load_sample_payload(project_root: Path, scenario: ScenarioSpec) -> dict[str, Any]:
     sample_path = project_root / "samples" / f"{scenario.id}.json"
     return json.loads(sample_path.read_text(encoding="utf-8"))

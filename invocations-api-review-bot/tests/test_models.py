@@ -51,13 +51,13 @@ class ReviewRequestTests(unittest.TestCase):
         self.assertIn("a.py", prompt)
         self.assertIn("prior summary", prompt)
 
-    def test_has_all_patterns_with_original_and_enterprise_examples(self):
+    def test_has_all_patterns_with_original_enterprise_and_mcp_examples(self):
         self.assertEqual(set(PATTERNS), {"sequential", "concurrent", "handoff", "group-chat", "magentic"})
-        self.assertEqual(len(SCENARIOS), 10)
+        self.assertEqual(len(SCENARIOS), 15)
         pattern_counts = {pattern: [scenario.pattern for scenario in SCENARIOS].count(pattern) for pattern in PATTERNS}
         self.assertEqual(
             pattern_counts,
-            {"sequential": 2, "concurrent": 2, "handoff": 2, "group-chat": 2, "magentic": 2},
+            {"sequential": 3, "concurrent": 3, "handoff": 3, "group-chat": 3, "magentic": 3},
         )
 
     def test_each_scenario_has_four_to_eight_agents(self):

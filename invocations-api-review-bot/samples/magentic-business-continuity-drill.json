@@ -1,0 +1,14 @@
+{
+  "scenario": "magentic-business-continuity-drill",
+  "task": "Run a business continuity drill planning job for FACILITY-DC-EAST (overdue tier-1 site) across facilities, IT, communications, finance, and operations.",
+  "subject": "FACILITY-DC-EAST continuity drill",
+  "artifacts": [
+    "records/FACILITY-DC-EAST.json",
+    "playbooks/continuity-drill.md"
+  ],
+  "constraints": [
+    "Delegate across all five functions.",
+    "Use MCP tools for facility and policy facts."
+  ],
+  "stream": false
+}

@@ -1,0 +1,14 @@
+{
+  "scenario": "group-chat-policy-exception-board",
+  "task": "Run a policy exception board job for POLICY-EX-77 (temporary data residency waiver) and return an approved recommendation with a compensating control and expiry.",
+  "subject": "POLICY-EX-77 exception request",
+  "artifacts": [
+    "records/POLICY-EX-77.json",
+    "policies/policy-exception-board.md"
+  ],
+  "constraints": [
+    "Require a compensating control and an expiry.",
+    "Record the decision with the MCP decision-log tool."
+  ],
+  "stream": false
+}

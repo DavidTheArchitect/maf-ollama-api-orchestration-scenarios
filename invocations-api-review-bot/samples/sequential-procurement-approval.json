@@ -1,0 +1,14 @@
+{
+  "scenario": "sequential-procurement-approval",
+  "task": "Run a procurement approval job for vendor VENDOR-4471 (Northwind Analytics) and return an approval packet.",
+  "subject": "VENDOR-4471 procurement request",
+  "artifacts": [
+    "records/VENDOR-4471.json",
+    "policies/spend-authorization.md"
+  ],
+  "constraints": [
+    "Use the bundled enterprise-context MCP tools for vendor and policy facts.",
+    "Return a go/no-go recommendation."
+  ],
+  "stream": false
+}

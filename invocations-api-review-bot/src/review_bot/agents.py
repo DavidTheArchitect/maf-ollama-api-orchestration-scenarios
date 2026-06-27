@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from typing import Any
+
+#: Top-level package name, used to locate the bundled stdio MCP server.
+_ROOT_PACKAGE = (__package__ or "review_bot").split(".")[0]
+#: Module path of the local enterprise-context MCP server (run with ``-m``).
+ENTERPRISE_MCP_MODULE = f"{_ROOT_PACKAGE}.mcp_servers.enterprise_context"
 
 DEFAULT_OLLAMA_MODEL = "qwen3:14b"
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
@@ -27,6 +33,7 @@ class AgentSpec:
     name: str
     description: str
     instructions: str
+    mcp_tools: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -86,6 +93,25 @@ def build_ollama_config(
     )
 
 
+def build_enterprise_mcp_tool(spec: AgentSpec) -> Any:
+    """Build a local stdio MCP tool restricted to ``spec.mcp_tools``.
+
+    The tool launches the bundled ``enterprise_context`` server with the current
+    interpreter, requires no approval prompts, and exposes only the tools the
+    agent is allowed to call.
+    """
+
+    from agent_framework import MCPStdioTool
+
+    return MCPStdioTool(
+        name=f"enterprise-context-{spec.name}",
+        command=sys.executable,
+        args=["-m", ENTERPRISE_MCP_MODULE],
+        approval_mode="never_require",
+        allowed_tools=list(spec.mcp_tools),
+    )
+
+
 def create_ollama_agent(spec: AgentSpec, *, config: OllamaAgentConfig | None = None) -> Any:
     from agent_framework.ollama import OllamaChatClient
 
@@ -98,10 +124,12 @@ def create_ollama_agent(spec: AgentSpec, *, config: OllamaAgentConfig | None = N
 
     resolved = config or build_ollama_config()
     instructions = f"You are {spec.name}. {spec.instructions}"
+    tools = [build_enterprise_mcp_tool(spec)] if spec.mcp_tools else None
     return ScenarioOllamaChatClient(host=resolved.host, model=resolved.model).as_agent(
         name=spec.name,
         description=spec.description,
         instructions=instructions,
+        tools=tools,
         default_options=resolved.default_options(),
         require_per_service_call_history_persistence=True,
     )
