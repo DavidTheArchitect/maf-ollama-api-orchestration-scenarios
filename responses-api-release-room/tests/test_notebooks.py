@@ -21,7 +21,10 @@ class NotebookCompanionTests(unittest.TestCase):
                 self.assertEqual(len(scenario_ids), 1)
                 seen.add(scenario_ids[0])
                 self.assertIn("release_room.notebook_helpers", source_text)
+                self.assertIn("release_room.diagram_helpers", source_text)
                 self.assertIn("Pattern Anatomy", source_text)
+                self.assertIn("Flow Diagram", source_text)
+                self.assertIn("display_scenario_flow", source_text)
 
                 for index, cell in enumerate(data.get("cells", [])):
                     self.assertIsNone(cell.get("execution_count"))

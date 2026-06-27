@@ -35,6 +35,7 @@ Supported scenarios:
 | `magentic-supply-chain-disruption` | Magentic | 6 | A manager-led operations job coordinates dynamic disruption response planning. |
 
 Each scenario definition lives in its own module under `src/review_bot/scenarios/`. The `notebooks/` directory contains one companion notebook per scenario with executable learning cells.
+Each notebook includes a Mermaid flow diagram cell that renders through `mermaid.ink` at runtime and returns the Mermaid source for inspection or copy/paste.
 
 ## API And Pattern Comparison
 

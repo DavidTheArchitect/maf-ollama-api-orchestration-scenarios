@@ -28,6 +28,7 @@ Supported scenarios:
 | `magentic-supply-chain-disruption` | Magentic | 6 | A manager agent coordinates dynamic response planning for a supply chain disruption. |
 
 Each scenario definition lives in its own module under `src/release_room/scenarios/`. The `notebooks/` directory contains one companion notebook per scenario with executable learning cells.
+Each notebook includes a Mermaid flow diagram cell that renders through `mermaid.ink` at runtime and returns the Mermaid source for inspection or copy/paste.
 
 ## API And Pattern Comparison
 

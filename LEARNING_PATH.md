@@ -40,6 +40,7 @@ This repository is designed to teach two separate choices that often get mixed t
 ## Local Runtime Notes
 
 - The notebooks call Ollama by default, so `ollama serve` must be running and `qwen3:14b` must be pulled.
+- Each notebook renders a Mermaid flow diagram through `mermaid.ink`; if remote image rendering is unavailable, inspect the `flow_diagram.mermaid` source returned by the diagram cell.
 - `max_tokens` defaults to `500` per agent turn to keep local multi-agent runs practical.
 - Group chat and magentic scenarios usually take longer than sequential, concurrent, and handoff scenarios.
 - Notebook outputs are intentionally not committed. Re-run cells locally when you want fresh output.

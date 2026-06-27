@@ -31,6 +31,7 @@ Both directories now contain the same ten learning scenarios so the API differen
 | `magentic-supply-chain-disruption` | Magentic | Manager-led response to a supply chain disruption across enterprise functions. |
 
 Each scenario is now defined in its own Python module inside the API directory's `src/.../scenarios/` package. Each API directory also has a `notebooks/` folder with one companion notebook per scenario for step-by-step learning and live in-process Ollama execution.
+Each notebook includes a runtime Mermaid flow diagram that renders through `mermaid.ink` and also exposes the generated Mermaid source.
 
 ## Learning Artifacts
 
