@@ -22,6 +22,18 @@ Supported scenarios:
 | `group-chat-launch-council` | Group chat | 5 | A visible council iteratively critiques and refines a launch decision. |
 | `magentic-incident-response` | Magentic | 6 | A manager agent dynamically coordinates specialists for open-ended incident work. |
 
+Each scenario definition lives in its own module under `src/release_room/scenarios/`. The `notebooks/` directory contains one companion notebook per scenario with executable learning cells.
+
+## API And Pattern Comparison
+
+| Pattern | API boundary | Scenario choice | Best learning use |
+| --- | --- | --- | --- |
+| Sequential | `/responses` | Server startup | Hide a fixed multi-agent pipeline behind a chat-compatible endpoint. |
+| Concurrent | `/responses` | Server startup | Fan out one conversational request to independent reviewers. |
+| Handoff | `/responses` | Server startup | Let a conversation route itself while the client keeps the same request shape. |
+| Group chat | `/responses` | Server startup | Surface collaborative discussion through a standard response stream. |
+| Magentic | `/responses` | Server startup | Coordinate open-ended work while preserving a Responses-compatible client contract. |
+
 ## Install
 
 ```powershell
@@ -67,5 +79,6 @@ Invoke-WebRequest -Uri http://localhost:8088/responses -Method POST -ContentType
 - This sample uses the native `agent-framework-ollama` provider, so model calls stay local.
 - Use `--ollama-host`, `--temperature`, `--num-ctx`, `--max-tokens`, `--keep-alive`, and `--think` to tune the local Ollama runtime without changing the API shape.
 - `--max-tokens` defaults to `500` per agent turn so local multi-agent runs finish predictably.
+- Notebook outputs are intentionally not committed. Run a notebook from this project virtual environment after installing with `python -m pip install -e . --no-deps`.
 - Ollama supports local function tools through Agent Framework, but it does not provide hosted tools such as hosted code interpreter, file search, web search, or hosted MCP.
 - `--workflow` still works as a deprecated alias for the old sample and maps pattern names to the matching scenario.

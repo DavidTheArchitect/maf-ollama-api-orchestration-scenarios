@@ -1,0 +1,22 @@
+"""Concurrent pull request review job scenario for the Invocations API sample."""
+
+from __future__ import annotations
+
+from ..agents import AgentSpec
+from .types import ScenarioSpec
+
+SCENARIO = ScenarioSpec(
+    id="concurrent-pr-review",
+    pattern="concurrent",
+    title="Concurrent Pull Request Review Job",
+    learning_goal="Learn how an invocation can fan out a structured review payload to multiple independent reviewers.",
+    when_to_use="Use Invocations plus concurrent orchestration for CI, webhook, and batch reviews where each expert can run independently.",
+    sample_task="Review this PR before it is merged into the release branch.",
+    agents=(
+        AgentSpec("SecurityReviewerAgent", "Reviews security risk.", "Review auth, data exposure, secrets, privilege boundaries, and abuse cases."),
+        AgentSpec("PerformanceReviewerAgent", "Reviews performance risk.", "Review query cost, concurrency, caching, memory, and throughput risk."),
+        AgentSpec("TestReviewerAgent", "Reviews test and regression risk.", "Review coverage, edge cases, failure modes, migrations, and rollback tests."),
+        AgentSpec("MaintainabilityReviewerAgent", "Reviews maintainability risk.", "Review readability, interfaces, operational debugging, and future change cost."),
+        AgentSpec("ReleaseRiskAgent", "Reviews merge and rollout risk.", "Review release gates, feature flags, monitoring, and customer-impact risk."),
+    ),
+)

@@ -1,6 +1,8 @@
 import unittest
+from importlib import import_module
 
 from review_bot.models import RequestValidationError, build_review_prompt, parse_review_request
+from review_bot.notebook_helpers import invocation_reference, pattern_anatomy
 from review_bot.scenarios import PATTERNS, SCENARIOS
 
 
@@ -60,6 +62,24 @@ class ReviewRequestTests(unittest.TestCase):
                 self.assertEqual(len(names), len(set(names)))
                 self.assertTrue(scenario.learning_goal)
                 self.assertTrue(scenario.when_to_use)
+
+    def test_each_scenario_has_companion_module(self):
+        for scenario in SCENARIOS:
+            with self.subTest(scenario=scenario.id):
+                module_name = scenario.id.replace("-", "_")
+                module = import_module(f"review_bot.scenarios.{module_name}")
+                self.assertIs(module.SCENARIO, scenario)
+
+    def test_notebook_helpers_describe_each_pattern(self):
+        for scenario in SCENARIOS:
+            with self.subTest(scenario=scenario.id):
+                anatomy = pattern_anatomy(scenario)
+                self.assertIn("control_flow", anatomy)
+                self.assertIn("best_when", anatomy)
+                request = parse_review_request({"scenario": scenario.id, "task": scenario.sample_task})
+                reference = invocation_reference(scenario, request)
+                self.assertEqual(reference["scenario"], scenario.id)
+                self.assertEqual(reference["pattern"], scenario.pattern)
 
 
 if __name__ == "__main__":

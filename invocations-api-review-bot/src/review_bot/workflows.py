@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 from typing import Any
 
 from .agents import OllamaAgentConfig, build_ollama_config, create_ollama_agent
 from .models import ReviewRequest, ReviewResponse, build_review_prompt
+from .output_formatting import workflow_result_to_text
 from .scenarios import ScenarioSpec, get_scenario
 
 
@@ -13,7 +13,7 @@ def _agents_for(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> list[An
 
 
 def build_review_workflow(
-    scenario: ScenarioSpec,
+    scenario: ScenarioSpec | str | None = None,
     *,
     model: str | None = None,
     ollama_host: str | None = None,
@@ -23,6 +23,7 @@ def build_review_workflow(
     keep_alive: str | None = None,
     think: bool | None = None,
 ) -> Any:
+    scenario = scenario if isinstance(scenario, ScenarioSpec) else get_scenario(scenario)
     config = build_ollama_config(
         model=model,
         host=ollama_host,
@@ -168,103 +169,7 @@ async def run_review(
 
 async def _run_workflow_for_text(workflow: Any, prompt: str) -> str:
     events = await workflow.run(prompt)
-    outputs = events.get_outputs() if hasattr(events, "get_outputs") else events
-    intermediate_outputs = events.get_intermediate_outputs() if hasattr(events, "get_intermediate_outputs") else []
-    if not outputs:
-        intermediate_text = _join_readable_outputs(intermediate_outputs)
-        return intermediate_text or "No workflow output was produced."
-    output_text = _join_readable_outputs(outputs)
-
-    if intermediate_outputs and _should_use_intermediate_outputs(output_text):
-        intermediate_text = _join_readable_outputs(intermediate_outputs)
-        if intermediate_text:
-            return intermediate_text
-
-    return output_text or "No readable workflow text was produced."
-
-
-def _join_readable_outputs(outputs: Any) -> str:
-    return "\n\n".join(text for output in outputs if (text := _agent_response_to_text(output)))
-
-
-def _should_use_intermediate_outputs(output_text: str) -> bool:
-    normalized = output_text.strip().lower()
-    if not normalized:
-        return True
-    if len(normalized) >= 160:
-        return False
-    framework_markers = (
-        "termination condition",
-        "maximum reset count",
-        "maximum stall count",
-        "workflow terminated",
-    )
-    return any(marker in normalized for marker in framework_markers)
-
-
-def _agent_response_to_text(response: Any) -> str:
-    text = _extract_text(response)
-    return text or "No readable workflow text was produced."
-
-
-def _extract_text(value: Any, seen: set[int] | None = None) -> str:
-    if value is None:
-        return ""
-    if seen is None:
-        seen = set()
-    value_id = id(value)
-    if value_id in seen:
-        return ""
-    seen.add(value_id)
-
-    if value is None:
-        return ""
-    if isinstance(value, str):
-        return "" if _is_object_repr(value) else value
-
-    text = getattr(value, "text", None)
-    if isinstance(text, str) and text and not _is_object_repr(text):
-        return text
-
-    messages = getattr(value, "messages", None)
-    if messages:
-        parts: list[str] = []
-        for message in messages:
-            author = getattr(message, "author_name", None) or getattr(message, "role", None) or "assistant"
-            message_text = _extract_text(message, seen)
-            if message_text:
-                parts.append(f"[{author}] {message_text}")
-        if parts:
-            return "\n".join(parts)
-
-    contents = getattr(value, "contents", None)
-    if contents:
-        parts = [_extract_text(content, seen) for content in contents]
-        return "\n".join(part for part in parts if part)
-
-    items = getattr(value, "items", None)
-    if items and not callable(items):
-        parts = [_extract_text(item, seen) for item in items]
-        return "\n".join(part for part in parts if part)
-
-    result = getattr(value, "result", None)
-    if result is not None:
-        return _extract_text(result, seen)
-
-    if isinstance(value, Mapping):
-        parts = [_extract_text(value.get(key), seen) for key in ("text", "content", "message", "summary", "result")]
-        return "\n".join(part for part in parts if part)
-
-    if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray, str)):
-        parts = [_extract_text(item, seen) for item in value]
-        return "\n".join(part for part in parts if part)
-
-    fallback = str(value)
-    return "" if _is_object_repr(fallback) else fallback
-
-
-def _is_object_repr(value: str) -> bool:
-    return value.startswith("<") and " object at 0x" in value and value.endswith(">")
+    return workflow_result_to_text(events)
 
 
 def _recommendations_from_text(text: str) -> list[str]:

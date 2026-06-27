@@ -1,5 +1,7 @@
 import unittest
+from importlib import import_module
 
+from release_room.notebook_helpers import pattern_anatomy, responses_api_reference
 from release_room.scenarios import PATTERNS, SCENARIOS, normalize_scenario_id
 from release_room.workflows import normalize_workflow_name
 
@@ -31,6 +33,23 @@ class WorkflowSelectionTests(unittest.TestCase):
                 self.assertTrue(scenario.learning_goal)
                 self.assertTrue(scenario.when_to_use)
                 self.assertTrue(all(spec.instructions for spec in scenario.agents))
+
+    def test_each_scenario_has_companion_module(self):
+        for scenario in SCENARIOS:
+            with self.subTest(scenario=scenario.id):
+                module_name = scenario.id.replace("-", "_")
+                module = import_module(f"release_room.scenarios.{module_name}")
+                self.assertIs(module.SCENARIO, scenario)
+
+    def test_notebook_helpers_describe_each_pattern(self):
+        for scenario in SCENARIOS:
+            with self.subTest(scenario=scenario.id):
+                anatomy = pattern_anatomy(scenario)
+                self.assertIn("control_flow", anatomy)
+                self.assertIn("best_when", anatomy)
+                reference = responses_api_reference(scenario)
+                self.assertEqual(reference["payload"]["input"], scenario.sample_input)
+                self.assertIn(scenario.id, reference["server_command"])
 
 
 if __name__ == "__main__":

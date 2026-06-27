@@ -6,6 +6,8 @@ The goal is to compare the API boundary while keeping the orchestration patterns
 
 Repository URL: https://github.com/DavidTheArchitect/maf-ollama-api-orchestration-scenarios
 
+Start with [LEARNING_PATH.md](LEARNING_PATH.md) if your goal is to compare when to use Responses API, Invocations API, and each orchestration pattern.
+
 | Directory | Hosted API | Scenario selection | Best for | Patterns shown |
 | --- | --- | --- | --- | --- |
 | `responses-api-release-room/` | OpenAI-compatible Responses API | Server startup via `--scenario` | Conversational apps, streaming chat clients, OpenAI-compatible tooling, multi-turn chat state | Sequential, concurrent, handoff, group chat, magentic |
@@ -22,6 +24,17 @@ Both directories now contain the same five learning scenarios so the API differe
 | `handoff-support-triage` | Handoff | Dynamic routing between specialists based on context. |
 | `group-chat-launch-council` | Group chat | Iterative multi-agent discussion and critique. |
 | `magentic-incident-response` | Magentic | Manager-led dynamic planning and coordination. |
+
+Each scenario is now defined in its own Python module inside the API directory's `src/.../scenarios/` package. Each API directory also has a `notebooks/` folder with one companion notebook per scenario for step-by-step learning and live in-process Ollama execution.
+
+## Learning Artifacts
+
+| Artifact | Purpose |
+| --- | --- |
+| `LEARNING_PATH.md` | Recommended study order and API/pattern decision guide. |
+| `responses-api-release-room/notebooks/` | One notebook per Responses scenario, using in-process workflow execution by default. |
+| `invocations-api-review-bot/notebooks/` | One notebook per Invocations scenario, using the custom payload and response contract. |
+| `src/.../scenarios/*.py` | One Python module per scenario so learners can inspect scenario definitions directly. |
 
 ## Prerequisites
 

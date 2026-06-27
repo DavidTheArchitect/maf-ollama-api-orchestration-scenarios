@@ -29,6 +29,18 @@ Supported scenarios:
 | `group-chat-launch-council` | Group chat | 5 | A change advisory record is produced from a stakeholder discussion. |
 | `magentic-incident-response` | Magentic | 6 | A manager-led incident workflow dynamically coordinates specialists. |
 
+Each scenario definition lives in its own module under `src/review_bot/scenarios/`. The `notebooks/` directory contains one companion notebook per scenario with executable learning cells.
+
+## API And Pattern Comparison
+
+| Pattern | API boundary | Scenario choice | Best learning use |
+| --- | --- | --- | --- |
+| Sequential | `/invocations` | Per request | Run a structured job through required stages. |
+| Concurrent | `/invocations` | Per request | Fan out a CI or webhook payload to independent reviewers. |
+| Handoff | `/invocations` | Per request | Route a ticket or job to the right specialist. |
+| Group chat | `/invocations` | Per request | Return a decision record from a stakeholder-style discussion. |
+| Magentic | `/invocations` | Per request | Coordinate dynamic incident-style work from a custom payload. |
+
 ## Install
 
 ```powershell
@@ -88,4 +100,5 @@ This sample stores session summaries in memory. That is useful for local learnin
 - This sample uses the native `agent-framework-ollama` provider, so model calls stay local.
 - Use `--ollama-host`, `--temperature`, `--num-ctx`, `--max-tokens`, `--keep-alive`, and `--think` to tune the local Ollama runtime.
 - `--max-tokens` defaults to `500` per agent turn so local multi-agent jobs finish predictably.
+- Notebook outputs are intentionally not committed. Run a notebook from this project virtual environment after installing with `python -m pip install -e . --no-deps`.
 - Ollama supports local function tools through Agent Framework, but it does not provide hosted tools such as hosted code interpreter, file search, web search, or hosted MCP.
