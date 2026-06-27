@@ -3,6 +3,15 @@ from __future__ import annotations
 import argparse
 import os
 
+from .agents import (
+    DEFAULT_OLLAMA_HOST,
+    DEFAULT_OLLAMA_KEEP_ALIVE,
+    DEFAULT_OLLAMA_MODEL,
+    DEFAULT_OLLAMA_NUM_CTX,
+    DEFAULT_OLLAMA_TEMPERATURE,
+    DEFAULT_OLLAMA_THINK,
+    parse_env_bool,
+)
 from .scenarios import SCENARIO_IDS, get_scenario, normalize_scenario_id
 from .workflows import build_release_workflow
 
@@ -24,7 +33,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--workflow", help="Deprecated alias for --scenario; accepts old pattern names.")
     parser.add_argument("--port", type=int, default=int(os.getenv("PORT", "8088")))
-    parser.add_argument("--model", default=os.getenv("GITHUB_COPILOT_MODEL") or None)
+    parser.add_argument("--model", default=os.getenv("OLLAMA_MODEL") or DEFAULT_OLLAMA_MODEL)
+    parser.add_argument("--ollama-host", default=os.getenv("OLLAMA_HOST") or DEFAULT_OLLAMA_HOST)
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=float(os.getenv("OLLAMA_TEMPERATURE", str(DEFAULT_OLLAMA_TEMPERATURE))),
+    )
+    parser.add_argument("--num-ctx", type=int, default=int(os.getenv("OLLAMA_NUM_CTX", str(DEFAULT_OLLAMA_NUM_CTX))))
+    parser.add_argument("--keep-alive", default=os.getenv("OLLAMA_KEEP_ALIVE") or DEFAULT_OLLAMA_KEEP_ALIVE)
+    parser.add_argument(
+        "--think",
+        action=argparse.BooleanOptionalAction,
+        default=parse_env_bool("OLLAMA_THINK", DEFAULT_OLLAMA_THINK),
+        help="Enable or disable Ollama thinking mode for models that support it.",
+    )
     return parser
 
 
@@ -36,14 +59,22 @@ def main() -> None:
     scenario = get_scenario(scenario_id)
     os.environ["PORT"] = str(args.port)
 
-    workflow = build_release_workflow(scenario_id, model=args.model)
+    workflow = build_release_workflow(
+        scenario_id,
+        model=args.model,
+        ollama_host=args.ollama_host,
+        temperature=args.temperature,
+        num_ctx=args.num_ctx,
+        keep_alive=args.keep_alive,
+        think=args.think,
+    )
 
     from agent_framework_foundry_hosting import ResponsesHostServer
 
     server = ResponsesHostServer(workflow)
     print(
         f"Serving {scenario.id} ({scenario.pattern}) release-room scenario "
-        f"on http://localhost:{args.port}/responses"
+        f"with Ollama model {args.model} on http://localhost:{args.port}/responses"
     )
     try:
         server.run(port=args.port)

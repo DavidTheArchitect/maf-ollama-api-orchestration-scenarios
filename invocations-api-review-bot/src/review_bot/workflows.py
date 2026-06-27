@@ -2,33 +2,50 @@ from __future__ import annotations
 
 from typing import Any
 
-from .agents import create_copilot_agent
+from .agents import OllamaAgentConfig, build_ollama_config, create_ollama_agent
 from .models import ReviewRequest, ReviewResponse, build_review_prompt
 from .scenarios import ScenarioSpec, get_scenario
 
 
-def _agents_for(scenario: ScenarioSpec, *, model: str | None) -> list[Any]:
-    return [create_copilot_agent(spec, model=model) for spec in scenario.agents]
+def _agents_for(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> list[Any]:
+    return [create_ollama_agent(spec, config=config) for spec in scenario.agents]
 
 
-def build_review_workflow(scenario: ScenarioSpec, *, model: str | None = None) -> Any:
+def build_review_workflow(
+    scenario: ScenarioSpec,
+    *,
+    model: str | None = None,
+    ollama_host: str | None = None,
+    temperature: float | None = None,
+    num_ctx: int | None = None,
+    keep_alive: str | None = None,
+    think: bool | None = None,
+) -> Any:
+    config = build_ollama_config(
+        model=model,
+        host=ollama_host,
+        temperature=temperature,
+        num_ctx=num_ctx,
+        keep_alive=keep_alive,
+        think=think,
+    )
     if scenario.pattern == "sequential":
-        return build_sequential_workflow(scenario, model=model)
+        return build_sequential_workflow(scenario, config=config)
     if scenario.pattern == "concurrent":
-        return build_concurrent_workflow(scenario, model=model)
+        return build_concurrent_workflow(scenario, config=config)
     if scenario.pattern == "handoff":
-        return build_handoff_workflow(scenario, model=model)
+        return build_handoff_workflow(scenario, config=config)
     if scenario.pattern == "group-chat":
-        return build_group_chat_workflow(scenario, model=model)
+        return build_group_chat_workflow(scenario, config=config)
     if scenario.pattern == "magentic":
-        return build_magentic_workflow(scenario, model=model)
+        return build_magentic_workflow(scenario, config=config)
     raise ValueError(f"Unsupported pattern '{scenario.pattern}' for scenario '{scenario.id}'.")
 
 
-def build_sequential_workflow(scenario: ScenarioSpec, *, model: str | None = None) -> Any:
+def build_sequential_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
     from agent_framework.orchestrations import SequentialBuilder
 
-    participants = _agents_for(scenario, model=model)
+    participants = _agents_for(scenario, config=config or build_ollama_config())
     return SequentialBuilder(
         participants=participants,
         chain_only_agent_responses=True,
@@ -36,17 +53,17 @@ def build_sequential_workflow(scenario: ScenarioSpec, *, model: str | None = Non
     ).build()
 
 
-def build_concurrent_workflow(scenario: ScenarioSpec, *, model: str | None = None) -> Any:
+def build_concurrent_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
     from agent_framework.orchestrations import ConcurrentBuilder
 
-    participants = _agents_for(scenario, model=model)
+    participants = _agents_for(scenario, config=config or build_ollama_config())
     return ConcurrentBuilder(participants=participants).build()
 
 
-def build_handoff_workflow(scenario: ScenarioSpec, *, model: str | None = None) -> Any:
+def build_handoff_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
     from agent_framework.orchestrations import HandoffBuilder
 
-    participants = _agents_for(scenario, model=model)
+    participants = _agents_for(scenario, config=config or build_ollama_config())
     triage = participants[0]
     specialists = participants[1:]
 
@@ -67,10 +84,10 @@ def build_handoff_workflow(scenario: ScenarioSpec, *, model: str | None = None) 
     return builder.build()
 
 
-def build_group_chat_workflow(scenario: ScenarioSpec, *, model: str | None = None) -> Any:
+def build_group_chat_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
     from agent_framework.orchestrations import GroupChatBuilder, GroupChatState
 
-    participants = _agents_for(scenario, model=model)
+    participants = _agents_for(scenario, config=config or build_ollama_config())
 
     def round_robin_selector(state: GroupChatState) -> str:
         participant_names = list(state.participants.keys())
@@ -91,10 +108,10 @@ def build_group_chat_workflow(scenario: ScenarioSpec, *, model: str | None = Non
     ).build()
 
 
-def build_magentic_workflow(scenario: ScenarioSpec, *, model: str | None = None) -> Any:
+def build_magentic_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
     from agent_framework.orchestrations import MagenticBuilder
 
-    agents = _agents_for(scenario, model=model)
+    agents = _agents_for(scenario, config=config or build_ollama_config())
     manager_agent = agents[0]
     participants = agents[1:]
     return MagenticBuilder(
@@ -113,10 +130,23 @@ async def run_review(
     session_id: str | None = None,
     previous_turns: list[str] | None = None,
     model: str | None = None,
+    ollama_host: str | None = None,
+    temperature: float | None = None,
+    num_ctx: int | None = None,
+    keep_alive: str | None = None,
+    think: bool | None = None,
 ) -> ReviewResponse:
     scenario = get_scenario(request.scenario)
     prompt = build_review_prompt(request, previous_turns)
-    workflow = build_review_workflow(scenario, model=model)
+    workflow = build_review_workflow(
+        scenario,
+        model=model,
+        ollama_host=ollama_host,
+        temperature=temperature,
+        num_ctx=num_ctx,
+        keep_alive=keep_alive,
+        think=think,
+    )
     output_text = await _run_workflow_for_text(workflow, prompt)
 
     return ReviewResponse(

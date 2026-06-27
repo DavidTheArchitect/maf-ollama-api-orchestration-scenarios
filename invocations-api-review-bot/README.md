@@ -32,19 +32,19 @@ Supported scenarios:
 ## Install
 
 ```powershell
+ollama pull qwen3:14b
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install --pre -r requirements.txt
 python -m pip install -e . --no-deps
 Copy-Item .env.example .env
-python -m copilot download-runtime
 ```
 
 ## Run And Invoke
 
 ```powershell
-python -m review_bot --port 8089
+python -m review_bot --model qwen3:14b --port 8089
 ```
 
 Invoke a scenario:
@@ -82,3 +82,9 @@ Invoke-WebRequest -Uri http://localhost:8089/invocations -Method POST -ContentTy
 ## Local Session Warning
 
 This sample stores session summaries in memory. That is useful for local learning, but it is lost when the process restarts. Use durable storage for production.
+
+## Ollama Notes
+
+- This sample uses the native `agent-framework-ollama` provider, so model calls stay local.
+- Use `--ollama-host`, `--temperature`, `--num-ctx`, `--keep-alive`, and `--think` to tune the local Ollama runtime.
+- Ollama supports local function tools through Agent Framework, but it does not provide hosted tools such as hosted code interpreter, file search, web search, or hosted MCP.

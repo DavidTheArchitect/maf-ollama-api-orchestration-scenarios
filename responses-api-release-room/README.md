@@ -25,13 +25,13 @@ Supported scenarios:
 ## Install
 
 ```powershell
+ollama pull qwen3:14b
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install --pre -r requirements.txt
 python -m pip install -e . --no-deps
 Copy-Item .env.example .env
-python -m copilot download-runtime
 ```
 
 ## Run And Invoke
@@ -39,7 +39,7 @@ python -m copilot download-runtime
 Start one scenario:
 
 ```powershell
-python -m release_room --scenario group-chat-launch-council --port 8088
+python -m release_room --scenario group-chat-launch-council --model qwen3:14b --port 8088
 ```
 
 Invoke with a normal Responses-style payload:
@@ -51,7 +51,7 @@ Invoke with a normal Responses-style payload:
 Streaming:
 
 ```powershell
-python -m release_room --scenario magentic-incident-response --port 8088
+python -m release_room --scenario magentic-incident-response --model qwen3:14b --port 8088
 Invoke-WebRequest -Uri http://localhost:8088/responses -Method POST -ContentType "application/json" -Body (Get-Content .\samples\magentic-incident-response-streaming.json -Raw)
 ```
 
@@ -64,5 +64,7 @@ Invoke-WebRequest -Uri http://localhost:8088/responses -Method POST -ContentType
 
 ## Notes
 
-- This sample denies Copilot tool permissions by default. It is meant to teach orchestration and protocol shape, not autonomous file edits.
+- This sample uses the native `agent-framework-ollama` provider, so model calls stay local.
+- Use `--ollama-host`, `--temperature`, `--num-ctx`, `--keep-alive`, and `--think` to tune the local Ollama runtime without changing the API shape.
+- Ollama supports local function tools through Agent Framework, but it does not provide hosted tools such as hosted code interpreter, file search, web search, or hosted MCP.
 - `--workflow` still works as a deprecated alias for the old sample and maps pattern names to the matching scenario.

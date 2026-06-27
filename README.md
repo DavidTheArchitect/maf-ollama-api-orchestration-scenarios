@@ -1,10 +1,10 @@
 # Microsoft Agent Framework: Responses API vs Invocations API
 
-This workspace contains two local Python learning samples that use Microsoft Agent Framework (MAF) multi-agent orchestration with GitHub Copilot as the model provider.
+This workspace contains two local Python learning samples that use Microsoft Agent Framework (MAF) multi-agent orchestration with Ollama as the local model provider.
 
 The goal is to compare the API boundary while keeping the orchestration patterns parallel:
 
-Repository URL: https://github.com/DavidTheArchitect/maf-copilot-api-orchestration-scenarios
+Repository URL: https://github.com/DavidTheArchitect/maf-ollama-api-orchestration-scenarios
 
 | Directory | Hosted API | Scenario selection | Best for | Patterns shown |
 | --- | --- | --- | --- | --- |
@@ -26,16 +26,16 @@ Both directories now contain the same five learning scenarios so the API differe
 ## Prerequisites
 
 - Python 3.11 or later. This machine has Python 3.13.5.
-- GitHub Copilot subscription.
+- Ollama installed and running locally.
 - GitHub CLI and Git if you want to clone or contribute to the repository.
-- GitHub Copilot SDK runtime:
+- Recommended local model:
 
 ```powershell
-python -m pip install github-copilot-sdk
-python -m copilot download-runtime
+ollama pull qwen3:14b
+ollama run qwen3:14b "Return only OK"
 ```
 
-Each sample has its own `requirements.txt`. The Copilot integration package is still preview, so install with `--pre`.
+Each sample has its own `requirements.txt`. The Agent Framework packages are still preview, so install with `--pre`.
 
 ## Responses API Quick Start
 
@@ -47,7 +47,7 @@ python -m pip install --upgrade pip
 python -m pip install --pre -r requirements.txt
 python -m pip install -e . --no-deps
 Copy-Item .env.example .env
-python -m release_room --scenario sequential-release-readiness --port 8088
+python -m release_room --scenario sequential-release-readiness --model qwen3:14b --port 8088
 ```
 
 In a second terminal:
@@ -66,7 +66,7 @@ python -m pip install --upgrade pip
 python -m pip install --pre -r requirements.txt
 python -m pip install -e . --no-deps
 Copy-Item .env.example .env
-python -m review_bot --port 8089
+python -m review_bot --model qwen3:14b --port 8089
 ```
 
 In a second terminal:
@@ -82,6 +82,7 @@ In a second terminal:
 - Client compatibility: Responses can be called by OpenAI-compatible clients; Invocations is better when your app already has a custom payload.
 - State: Responses is designed around conversation/session lifecycle; Invocations can still support sessions, but the handler decides how.
 - Streaming: Responses emits Responses API events; Invocations can stream any protocol you choose.
+- Model provider: both samples use the native `agent-framework-ollama` provider. This keeps model access local.
 
 ## Local Verification
 
@@ -94,15 +95,17 @@ $env:PYTHONPATH='src'; $env:PYTHONDONTWRITEBYTECODE='1'; python -m unittest disc
 cd ..\invocations-api-review-bot
 $env:PYTHONPATH='src'; $env:PYTHONDONTWRITEBYTECODE='1'; python -m unittest discover -s tests
 cd ..
-Get-ChildItem -Recurse -Filter *.json | ForEach-Object { $null = Get-Content $_.FullName -Raw | ConvertFrom-Json; $_.FullName }
+$files = rg --files -g "*.json" -g "!**/.venv/**"
+foreach ($file in $files) { $null = Get-Content $file -Raw | ConvertFrom-Json; $file }
 ```
 
-Live scenario runs require authenticated GitHub Copilot access and may consume Copilot requests.
+Live scenario runs require Ollama to be running with `qwen3:14b` or your selected `OLLAMA_MODEL` already pulled.
 
 ## References
 
 - Microsoft Agent Framework overview: https://learn.microsoft.com/en-us/agent-framework/overview/
-- GitHub Copilot provider: https://learn.microsoft.com/en-us/agent-framework/agents/providers/github-copilot
+- Ollama provider: https://learn.microsoft.com/en-us/agent-framework/agents/providers/ollama
+- Ollama qwen3 model library: https://ollama.com/library/qwen3
 - Foundry Responses and Invocations hosting: https://learn.microsoft.com/en-us/agent-framework/hosting/foundry-hosted-agent
 - OpenAI-compatible endpoints: https://learn.microsoft.com/en-us/agent-framework/integrations/openai-endpoints
 - Workflow orchestrations: https://learn.microsoft.com/en-us/agent-framework/workflows/orchestrations/

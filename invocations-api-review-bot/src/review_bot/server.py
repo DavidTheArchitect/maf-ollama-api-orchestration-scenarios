@@ -5,6 +5,15 @@ import json
 import os
 from collections.abc import AsyncGenerator
 
+from .agents import (
+    DEFAULT_OLLAMA_HOST,
+    DEFAULT_OLLAMA_KEEP_ALIVE,
+    DEFAULT_OLLAMA_MODEL,
+    DEFAULT_OLLAMA_NUM_CTX,
+    DEFAULT_OLLAMA_TEMPERATURE,
+    DEFAULT_OLLAMA_THINK,
+    parse_env_bool,
+)
 from .models import RequestValidationError, parse_review_request
 from .scenarios import PATTERNS, SCENARIO_IDS
 from .workflows import run_review
@@ -23,7 +32,21 @@ def _load_dotenv_if_available() -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the review-bot Invocations API sample.")
     parser.add_argument("--port", type=int, default=int(os.getenv("PORT", "8089")))
-    parser.add_argument("--model", default=os.getenv("GITHUB_COPILOT_MODEL") or None)
+    parser.add_argument("--model", default=os.getenv("OLLAMA_MODEL") or DEFAULT_OLLAMA_MODEL)
+    parser.add_argument("--ollama-host", default=os.getenv("OLLAMA_HOST") or DEFAULT_OLLAMA_HOST)
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=float(os.getenv("OLLAMA_TEMPERATURE", str(DEFAULT_OLLAMA_TEMPERATURE))),
+    )
+    parser.add_argument("--num-ctx", type=int, default=int(os.getenv("OLLAMA_NUM_CTX", str(DEFAULT_OLLAMA_NUM_CTX))))
+    parser.add_argument("--keep-alive", default=os.getenv("OLLAMA_KEEP_ALIVE") or DEFAULT_OLLAMA_KEEP_ALIVE)
+    parser.add_argument(
+        "--think",
+        action=argparse.BooleanOptionalAction,
+        default=parse_env_bool("OLLAMA_THINK", DEFAULT_OLLAMA_THINK),
+        help="Enable or disable Ollama thinking mode for models that support it.",
+    )
     return parser
 
 
@@ -85,7 +108,17 @@ def main() -> None:
 
         if review_request.stream:
             return StreamingResponse(
-                _stream_review(review_request, prior_turns=prior_turns, session_id=session_id, model=args.model),
+                _stream_review(
+                    review_request,
+                    prior_turns=prior_turns,
+                    session_id=session_id,
+                    model=args.model,
+                    ollama_host=args.ollama_host,
+                    temperature=args.temperature,
+                    num_ctx=args.num_ctx,
+                    keep_alive=args.keep_alive,
+                    think=args.think,
+                ),
                 media_type="text/event-stream",
                 headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
             )
@@ -95,12 +128,17 @@ def main() -> None:
             session_id=session_id,
             previous_turns=prior_turns,
             model=args.model,
+            ollama_host=args.ollama_host,
+            temperature=args.temperature,
+            num_ctx=args.num_ctx,
+            keep_alive=args.keep_alive,
+            think=args.think,
         )
         if session_id:
             prior_turns.extend([f"user: {review_request.task}", f"assistant: {response.summary}"])
         return JSONResponse(response.to_dict())
 
-    print(f"Serving review-bot invocations on http://localhost:{args.port}/invocations")
+    print(f"Serving review-bot invocations with Ollama model {args.model} on http://localhost:{args.port}/invocations")
     try:
         app.run(port=args.port)
     except TypeError:
@@ -113,12 +151,22 @@ async def _stream_review(
     prior_turns: list[str],
     session_id: str | None,
     model: str | None,
+    ollama_host: str | None,
+    temperature: float | None,
+    num_ctx: int | None,
+    keep_alive: str | None,
+    think: bool | None,
 ) -> AsyncGenerator[bytes]:
     response = await run_review(
         review_request,
         session_id=session_id,
         previous_turns=prior_turns,
         model=model,
+        ollama_host=ollama_host,
+        temperature=temperature,
+        num_ctx=num_ctx,
+        keep_alive=keep_alive,
+        think=think,
     )
     if session_id:
         prior_turns.extend([f"user: {review_request.task}", f"assistant: {response.summary}"])

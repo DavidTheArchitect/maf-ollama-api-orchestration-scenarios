@@ -1,5 +1,6 @@
-agent-framework>=1.0.0
-agent-framework-github-copilot
+agent-framework-core>=1.9.0
+agent-framework-orchestrations>=1.0.0
+agent-framework-ollama
 agent-framework-foundry-hosting
-github-copilot-sdk
+httpx<1.0.0
 python-dotenv

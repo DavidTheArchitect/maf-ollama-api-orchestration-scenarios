@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "maf-responses-release-room"
 version = "0.1.0"
-description = "Microsoft Agent Framework Responses API multi-agent sample using GitHub Copilot."
+description = "Microsoft Agent Framework Responses API multi-agent sample using Ollama."
 requires-python = ">=3.11"
 
 [tool.setuptools.packages.find]
