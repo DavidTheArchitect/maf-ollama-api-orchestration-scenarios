@@ -1,0 +1,15 @@
+{
+  "scenario": "handoff-customer-entitlement",
+  "task": "Route and resolve a customer entitlement case.",
+  "subject": "account: Contoso premium reporting entitlement",
+  "artifacts": [
+    "crm/account-renewal.json",
+    "billing/subscription-state.json",
+    "support/case-88421.md"
+  ],
+  "constraints": [
+    "Identify the likely owner and next escalation.",
+    "Return a customer-safe response and internal remediation steps."
+  ],
+  "stream": false
+}

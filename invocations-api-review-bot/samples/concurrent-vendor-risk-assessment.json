@@ -1,0 +1,15 @@
+{
+  "scenario": "concurrent-vendor-risk-assessment",
+  "task": "Assess a vendor intake request before procurement approval.",
+  "subject": "vendor: Northstar Analytics",
+  "artifacts": [
+    "vendor/security-questionnaire.pdf",
+    "vendor/dpa-draft.docx",
+    "procurement/pricing-summary.xlsx"
+  ],
+  "constraints": [
+    "Separate security, privacy, legal, finance, and operations risk.",
+    "Return approval conditions and unresolved blockers."
+  ],
+  "stream": false
+}

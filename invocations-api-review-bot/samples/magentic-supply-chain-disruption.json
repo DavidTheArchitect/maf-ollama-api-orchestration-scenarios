@@ -1,0 +1,15 @@
+{
+  "scenario": "magentic-supply-chain-disruption",
+  "task": "Coordinate response options for a supply chain disruption.",
+  "subject": "supplier disruption: component AX-17",
+  "artifacts": [
+    "supply/supplier-risk-brief.md",
+    "supply/regional-inventory.csv",
+    "finance/forecast-exposure.xlsx"
+  ],
+  "constraints": [
+    "Assess supplier, inventory, manufacturing, customer, and finance impact.",
+    "Return an executive response plan with decision points."
+  ],
+  "stream": false
+}

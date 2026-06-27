@@ -15,7 +15,7 @@ Start with [LEARNING_PATH.md](LEARNING_PATH.md) if your goal is to compare when 
 
 ## Scenario Catalog
 
-Both directories now contain the same five learning scenarios so the API differences are easy to compare:
+Both directories now contain the same ten learning scenarios so the API differences are easy to compare. The first five focus on software delivery/support workflows; the second five focus on enterprise application workflows:
 
 | Scenario | Pattern | Core lesson |
 | --- | --- | --- |
@@ -24,6 +24,11 @@ Both directories now contain the same five learning scenarios so the API differe
 | `handoff-support-triage` | Handoff | Dynamic routing between specialists based on context. |
 | `group-chat-launch-council` | Group chat | Iterative multi-agent discussion and critique. |
 | `magentic-incident-response` | Magentic | Manager-led dynamic planning and coordination. |
+| `sequential-employee-onboarding` | Sequential | Enterprise onboarding pipeline across HR, IT, security, payroll, and enablement. |
+| `concurrent-vendor-risk-assessment` | Concurrent | Parallel vendor review across security, privacy, legal, finance, and operations. |
+| `handoff-customer-entitlement` | Handoff | Customer entitlement case routing across billing, contract, support, and engineering. |
+| `group-chat-quarterly-planning` | Group chat | Cross-functional business planning discussion with stakeholder tradeoffs. |
+| `magentic-supply-chain-disruption` | Magentic | Manager-led response to a supply chain disruption across enterprise functions. |
 
 Each scenario is now defined in its own Python module inside the API directory's `src/.../scenarios/` package. Each API directory also has a `notebooks/` folder with one companion notebook per scenario for step-by-step learning and live in-process Ollama execution.
 

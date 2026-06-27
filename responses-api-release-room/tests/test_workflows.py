@@ -1,5 +1,7 @@
+import json
 import unittest
 from importlib import import_module
+from pathlib import Path
 
 from release_room.notebook_helpers import agent_response_to_text, pattern_anatomy, responses_api_reference, workflow_result_to_text
 from release_room.scenarios import PATTERNS, SCENARIOS, normalize_scenario_id
@@ -19,9 +21,14 @@ class WorkflowSelectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             normalize_workflow_name("unknown")
 
-    def test_has_all_five_patterns(self):
+    def test_has_all_patterns_with_original_and_enterprise_examples(self):
         self.assertEqual(set(PATTERNS), {"sequential", "concurrent", "handoff", "group-chat", "magentic"})
-        self.assertEqual(len(SCENARIOS), 5)
+        self.assertEqual(len(SCENARIOS), 10)
+        pattern_counts = {pattern: [scenario.pattern for scenario in SCENARIOS].count(pattern) for pattern in PATTERNS}
+        self.assertEqual(
+            pattern_counts,
+            {"sequential": 2, "concurrent": 2, "handoff": 2, "group-chat": 2, "magentic": 2},
+        )
 
     def test_each_scenario_has_four_to_eight_agents(self):
         for scenario in SCENARIOS:
@@ -50,6 +57,15 @@ class WorkflowSelectionTests(unittest.TestCase):
                 reference = responses_api_reference(scenario)
                 self.assertEqual(reference["payload"]["input"], scenario.sample_input)
                 self.assertIn(scenario.id, reference["server_command"])
+
+    def test_each_scenario_has_sample_payload(self):
+        project_root = Path(__file__).resolve().parents[1]
+        for scenario in SCENARIOS:
+            with self.subTest(scenario=scenario.id):
+                sample_path = project_root / "samples" / f"{scenario.id}.json"
+                payload = json.loads(sample_path.read_text(encoding="utf-8"))
+                self.assertIsInstance(payload.get("input"), str)
+                self.assertIsInstance(payload.get("stream"), bool)
 
     def test_extracts_nested_message_text_without_object_repr(self):
         class NestedMessage:

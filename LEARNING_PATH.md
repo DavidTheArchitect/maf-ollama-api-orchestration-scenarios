@@ -13,7 +13,9 @@ This repository is designed to teach two separate choices that often get mixed t
    Compare how the same pattern changes when the input is a custom job payload.
 3. Continue through scenarios `02` to `05` in both directories.
    Keep the scenario number the same when comparing APIs so only the API boundary changes.
-4. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
+4. Run scenarios `06` to `10` to see the same five patterns inside enterprise application workflows.
+   These examples cover HR onboarding, vendor risk, customer entitlement routing, quarterly planning, and supply chain disruption response.
+5. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
 
 ## Responses API vs Invocations API
 

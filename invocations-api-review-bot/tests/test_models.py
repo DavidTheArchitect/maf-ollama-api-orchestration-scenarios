@@ -1,5 +1,7 @@
+import json
 import unittest
 from importlib import import_module
+from pathlib import Path
 
 from review_bot.models import RequestValidationError, build_review_prompt, parse_review_request
 from review_bot.notebook_helpers import invocation_reference, pattern_anatomy
@@ -49,9 +51,14 @@ class ReviewRequestTests(unittest.TestCase):
         self.assertIn("a.py", prompt)
         self.assertIn("prior summary", prompt)
 
-    def test_has_all_five_patterns(self):
+    def test_has_all_patterns_with_original_and_enterprise_examples(self):
         self.assertEqual(set(PATTERNS), {"sequential", "concurrent", "handoff", "group-chat", "magentic"})
-        self.assertEqual(len(SCENARIOS), 5)
+        self.assertEqual(len(SCENARIOS), 10)
+        pattern_counts = {pattern: [scenario.pattern for scenario in SCENARIOS].count(pattern) for pattern in PATTERNS}
+        self.assertEqual(
+            pattern_counts,
+            {"sequential": 2, "concurrent": 2, "handoff": 2, "group-chat": 2, "magentic": 2},
+        )
 
     def test_each_scenario_has_four_to_eight_agents(self):
         for scenario in SCENARIOS:
@@ -80,6 +87,16 @@ class ReviewRequestTests(unittest.TestCase):
                 reference = invocation_reference(scenario, request)
                 self.assertEqual(reference["scenario"], scenario.id)
                 self.assertEqual(reference["pattern"], scenario.pattern)
+
+    def test_each_scenario_has_valid_sample_payload(self):
+        project_root = Path(__file__).resolve().parents[1]
+        for scenario in SCENARIOS:
+            with self.subTest(scenario=scenario.id):
+                sample_path = project_root / "samples" / f"{scenario.id}.json"
+                payload = json.loads(sample_path.read_text(encoding="utf-8"))
+                request = parse_review_request(payload)
+                self.assertEqual(request.scenario, scenario.id)
+                self.assertEqual(request.pattern, scenario.pattern)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,15 @@
+{
+  "scenario": "group-chat-quarterly-planning",
+  "task": "Produce a quarterly operating plan recommendation from stakeholder inputs.",
+  "subject": "enterprise retention operating plan",
+  "artifacts": [
+    "planning/customer-health-dashboard.csv",
+    "planning/roadmap-capacity.md",
+    "planning/support-volume-summary.xlsx"
+  ],
+  "constraints": [
+    "Balance retention, roadmap, support capacity, sales commitments, and gross margin.",
+    "Return owners, metrics, and explicit tradeoffs."
+  ],
+  "stream": false
+}

@@ -1,6 +1,6 @@
 # Responses API Release Room
 
-This sample hosts five Microsoft Agent Framework multi-agent scenarios behind the OpenAI-compatible Responses API.
+This sample hosts ten Microsoft Agent Framework multi-agent scenarios behind the OpenAI-compatible Responses API.
 
 Use this shape when the caller is a chat UI, OpenAI-compatible SDK, DevUI-style frontend, or anything that benefits from standard `/responses` semantics.
 
@@ -21,6 +21,11 @@ Supported scenarios:
 | `handoff-support-triage` | Handoff | 5 | A triage agent routes a conversational issue to the right specialist. |
 | `group-chat-launch-council` | Group chat | 5 | A visible council iteratively critiques and refines a launch decision. |
 | `magentic-incident-response` | Magentic | 6 | A manager agent dynamically coordinates specialists for open-ended incident work. |
+| `sequential-employee-onboarding` | Sequential | 5 | An enterprise onboarding request moves through HR, IT, security, payroll, and enablement stages. |
+| `concurrent-vendor-risk-assessment` | Concurrent | 5 | A vendor approval request fans out to independent enterprise risk reviewers. |
+| `handoff-customer-entitlement` | Handoff | 5 | A customer entitlement issue routes to billing, contract, support, or engineering specialists. |
+| `group-chat-quarterly-planning` | Group chat | 5 | A cross-functional planning council debates retention, roadmap, support, revenue, and margin tradeoffs. |
+| `magentic-supply-chain-disruption` | Magentic | 6 | A manager agent coordinates dynamic response planning for a supply chain disruption. |
 
 Each scenario definition lives in its own module under `src/release_room/scenarios/`. The `notebooks/` directory contains one companion notebook per scenario with executable learning cells.
 

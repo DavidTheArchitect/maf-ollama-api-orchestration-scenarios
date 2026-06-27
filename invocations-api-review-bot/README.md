@@ -1,6 +1,6 @@
 # Invocations API Review Bot
 
-This sample hosts five Microsoft Agent Framework multi-agent scenarios behind the custom Invocations API.
+This sample hosts ten Microsoft Agent Framework multi-agent scenarios behind the custom Invocations API.
 
 Use this shape when the caller is not a normal chat client: CI jobs, webhooks, schedulers, internal services, batch processors, or APIs that need a custom payload and response contract.
 
@@ -28,6 +28,11 @@ Supported scenarios:
 | `handoff-support-triage` | Handoff | 5 | A ticket payload routes to the right specialist. |
 | `group-chat-launch-council` | Group chat | 5 | A change advisory record is produced from a stakeholder discussion. |
 | `magentic-incident-response` | Magentic | 6 | A manager-led incident workflow dynamically coordinates specialists. |
+| `sequential-employee-onboarding` | Sequential | 5 | A structured onboarding job moves through required enterprise departments. |
+| `concurrent-vendor-risk-assessment` | Concurrent | 5 | A vendor intake payload fans out to independent enterprise risk reviewers. |
+| `handoff-customer-entitlement` | Handoff | 5 | A customer entitlement case routes to the right enterprise specialist. |
+| `group-chat-quarterly-planning` | Group chat | 5 | A stakeholder planning job returns a decision record from a council discussion. |
+| `magentic-supply-chain-disruption` | Magentic | 6 | A manager-led operations job coordinates dynamic disruption response planning. |
 
 Each scenario definition lives in its own module under `src/review_bot/scenarios/`. The `notebooks/` directory contains one companion notebook per scenario with executable learning cells.
 

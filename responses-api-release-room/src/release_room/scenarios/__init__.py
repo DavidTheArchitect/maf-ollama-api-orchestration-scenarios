@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from .concurrent_pr_review import SCENARIO as CONCURRENT_PR_REVIEW
+from .concurrent_vendor_risk_assessment import SCENARIO as CONCURRENT_VENDOR_RISK_ASSESSMENT
 from .group_chat_launch_council import SCENARIO as GROUP_CHAT_LAUNCH_COUNCIL
+from .group_chat_quarterly_planning import SCENARIO as GROUP_CHAT_QUARTERLY_PLANNING
+from .handoff_customer_entitlement import SCENARIO as HANDOFF_CUSTOMER_ENTITLEMENT
 from .handoff_support_triage import SCENARIO as HANDOFF_SUPPORT_TRIAGE
 from .magentic_incident_response import SCENARIO as MAGENTIC_INCIDENT_RESPONSE
+from .magentic_supply_chain_disruption import SCENARIO as MAGENTIC_SUPPLY_CHAIN_DISRUPTION
+from .sequential_employee_onboarding import SCENARIO as SEQUENTIAL_EMPLOYEE_ONBOARDING
 from .sequential_release_readiness import SCENARIO as SEQUENTIAL_RELEASE_READINESS
 from .types import PatternName, ScenarioSpec
 
@@ -13,12 +18,19 @@ SCENARIOS: tuple[ScenarioSpec, ...] = (
     HANDOFF_SUPPORT_TRIAGE,
     GROUP_CHAT_LAUNCH_COUNCIL,
     MAGENTIC_INCIDENT_RESPONSE,
+    SEQUENTIAL_EMPLOYEE_ONBOARDING,
+    CONCURRENT_VENDOR_RISK_ASSESSMENT,
+    HANDOFF_CUSTOMER_ENTITLEMENT,
+    GROUP_CHAT_QUARTERLY_PLANNING,
+    MAGENTIC_SUPPLY_CHAIN_DISRUPTION,
 )
 
 SCENARIOS_BY_ID: dict[str, ScenarioSpec] = {scenario.id: scenario for scenario in SCENARIOS}
 SCENARIO_IDS: tuple[str, ...] = tuple(scenario.id for scenario in SCENARIOS)
 PATTERNS: tuple[str, ...] = tuple(dict.fromkeys(scenario.pattern for scenario in SCENARIOS))
-PATTERN_DEFAULT_SCENARIO: dict[str, str] = {scenario.pattern: scenario.id for scenario in SCENARIOS}
+PATTERN_DEFAULT_SCENARIO: dict[str, str] = {}
+for scenario in SCENARIOS:
+    PATTERN_DEFAULT_SCENARIO.setdefault(scenario.pattern, scenario.id)
 SCENARIO_ALIASES: dict[str, str] = {
     "sequential": "sequential-release-readiness",
     "concurrent": "concurrent-pr-review",
@@ -44,9 +56,13 @@ def get_scenario(value: str | None) -> ScenarioSpec:
 
 __all__ = [
     "CONCURRENT_PR_REVIEW",
+    "CONCURRENT_VENDOR_RISK_ASSESSMENT",
+    "GROUP_CHAT_QUARTERLY_PLANNING",
     "GROUP_CHAT_LAUNCH_COUNCIL",
+    "HANDOFF_CUSTOMER_ENTITLEMENT",
     "HANDOFF_SUPPORT_TRIAGE",
     "MAGENTIC_INCIDENT_RESPONSE",
+    "MAGENTIC_SUPPLY_CHAIN_DISRUPTION",
     "PATTERN_DEFAULT_SCENARIO",
     "PATTERNS",
     "PatternName",
@@ -54,6 +70,7 @@ __all__ = [
     "SCENARIO_IDS",
     "SCENARIOS",
     "SCENARIOS_BY_ID",
+    "SEQUENTIAL_EMPLOYEE_ONBOARDING",
     "SEQUENTIAL_RELEASE_READINESS",
     "ScenarioSpec",
     "get_scenario",

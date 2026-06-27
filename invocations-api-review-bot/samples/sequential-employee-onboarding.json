@@ -1,0 +1,15 @@
+{
+  "scenario": "sequential-employee-onboarding",
+  "task": "Build an onboarding execution plan for a remote enterprise sales director starting in two weeks.",
+  "subject": "new-hire: regional sales director",
+  "artifacts": [
+    "hris/new-hire-profile.json",
+    "access-templates/sales-director.yaml",
+    "enablement/first-week-plan.md"
+  ],
+  "constraints": [
+    "Include HR, IT, security, payroll, and manager enablement actions.",
+    "Return owners, timing, blockers, and first-week success measures."
+  ],
+  "stream": false
+}
