@@ -1,0 +1,84 @@
+# Invocations API Review Bot
+
+This sample hosts five Microsoft Agent Framework multi-agent scenarios behind the custom Invocations API.
+
+Use this shape when the caller is not a normal chat client: CI jobs, webhooks, schedulers, internal services, batch processors, or APIs that need a custom payload and response contract.
+
+## How Scenario Selection Works
+
+The request body is owned by this application. Choose the scenario per request:
+
+```json
+{
+  "scenario": "concurrent-pr-review",
+  "task": "Review this PR before merge.",
+  "subject": "contoso/orders-api",
+  "artifacts": ["src/orders/reconciliation.py"],
+  "constraints": ["Return actionable findings."],
+  "stream": false
+}
+```
+
+Supported scenarios:
+
+| Scenario | Pattern | Agents | Learning focus |
+| --- | --- | ---: | --- |
+| `sequential-release-readiness` | Sequential | 5 | A structured job moves through fixed review stages. |
+| `concurrent-pr-review` | Concurrent | 5 | A CI-style payload fans out to independent reviewers. |
+| `handoff-support-triage` | Handoff | 5 | A ticket payload routes to the right specialist. |
+| `group-chat-launch-council` | Group chat | 5 | A change advisory record is produced from a stakeholder discussion. |
+| `magentic-incident-response` | Magentic | 6 | A manager-led incident workflow dynamically coordinates specialists. |
+
+## Install
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install --pre -r requirements.txt
+python -m pip install -e . --no-deps
+Copy-Item .env.example .env
+python -m copilot download-runtime
+```
+
+## Run And Invoke
+
+```powershell
+python -m review_bot --port 8089
+```
+
+Invoke a scenario:
+
+```powershell
+(Invoke-WebRequest -Uri http://localhost:8089/invocations -Method POST -ContentType "application/json" -Body (Get-Content .\samples\concurrent-pr-review.json -Raw)).Content
+```
+
+Multi-turn with explicit session:
+
+```powershell
+(Invoke-WebRequest -Uri "http://localhost:8089/invocations?agent_session_id=demo-session" -Method POST -ContentType "application/json" -Body (Get-Content .\samples\handoff-support-triage.json -Raw)).Content
+```
+
+Streaming:
+
+```powershell
+Invoke-WebRequest -Uri http://localhost:8089/invocations -Method POST -ContentType "application/json" -Body (Get-Content .\samples\magentic-incident-response-streaming.json -Raw)
+```
+
+## When Invocations API Fits
+
+- The caller is a webhook, CI system, scheduler, or internal service.
+- The input is not naturally an OpenAI Responses payload.
+- You need custom fields such as `scenario`, `subject`, `artifacts`, or domain-specific options.
+- You want a custom JSON response with application metadata.
+- You want to define your own streaming protocol.
+
+## Backward Compatibility
+
+- `pattern` is accepted as an alias when `scenario` is omitted, mapping to the default scenario for that pattern.
+- Old `repo` maps to `subject`.
+- Old `changed_files` maps to `artifacts`.
+
+## Local Session Warning
+
+This sample stores session summaries in memory. That is useful for local learning, but it is lost when the process restarts. Use durable storage for production.

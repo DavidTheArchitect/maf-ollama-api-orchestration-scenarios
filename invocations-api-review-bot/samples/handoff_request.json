@@ -1,0 +1,15 @@
+{
+  "scenario": "handoff-support-triage",
+  "task": "Review the pull request for the highest release-blocking risk and route it to the best specialist.",
+  "subject": "contoso/orders-api",
+  "artifacts": [
+    "src/orders/reconciliation.py",
+    "src/orders/auth_middleware.py",
+    "migrations/20260626001_add_reconciliation_state.sql"
+  ],
+  "constraints": [
+    "Keep the response under 400 words.",
+    "Call out one next action."
+  ],
+  "stream": false
+}

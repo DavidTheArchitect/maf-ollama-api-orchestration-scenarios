@@ -1,0 +1,15 @@
+{
+  "scenario": "concurrent-pr-review",
+  "task": "Review this PR before it is merged into the release branch.",
+  "subject": "contoso/orders-api pull request 842",
+  "artifacts": [
+    "src/orders/reconciliation.py",
+    "src/orders/export_controller.py",
+    "tests/test_reconciliation.py"
+  ],
+  "constraints": [
+    "Focus on actionable findings.",
+    "Separate security, performance, test, maintainability, and release-risk concerns."
+  ],
+  "stream": false
+}

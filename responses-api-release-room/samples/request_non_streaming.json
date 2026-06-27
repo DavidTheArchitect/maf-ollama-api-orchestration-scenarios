@@ -1,0 +1,4 @@
+{
+  "input": "Prepare a release readiness brief for version 2.4.0. The release adds a new billing reconciliation job, updates the dashboard export feature, and fixes three customer-reported API bugs. Call out risks, docs work, and a final go/no-go recommendation.",
+  "stream": false
+}

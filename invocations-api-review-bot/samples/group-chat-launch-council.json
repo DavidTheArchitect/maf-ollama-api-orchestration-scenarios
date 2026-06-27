@@ -1,0 +1,15 @@
+{
+  "scenario": "group-chat-launch-council",
+  "task": "Create a change advisory recommendation for launching dashboard export changes this week.",
+  "subject": "dashboard export launch decision",
+  "artifacts": [
+    "beta cohort feedback: positive but two timeout reports",
+    "rollback: feature flag available",
+    "support docs: draft only"
+  ],
+  "constraints": [
+    "Return an advisory-style recommendation.",
+    "List conditions required before launch."
+  ],
+  "stream": false
+}

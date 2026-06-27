@@ -1,0 +1,15 @@
+{
+  "scenario": "magentic-incident-response",
+  "task": "Coordinate analysis of export timeouts, delayed reconciliation, and rising support tickets.",
+  "subject": "production incident INC-2026-06-26",
+  "artifacts": [
+    "metric: export latency p95 increased from 2s to 38s",
+    "metric: reconciliation queue depth increased 8x",
+    "support: 23 tickets in 45 minutes"
+  ],
+  "constraints": [
+    "Return immediate mitigation options.",
+    "Include customer communication guidance."
+  ],
+  "stream": false
+}

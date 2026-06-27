@@ -1,0 +1,4 @@
+{
+  "input": "Create a short release manager briefing for a patch release that touches authentication middleware and database migrations.",
+  "stream": true
+}

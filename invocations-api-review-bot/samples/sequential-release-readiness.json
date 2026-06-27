@@ -1,0 +1,15 @@
+{
+  "scenario": "sequential-release-readiness",
+  "task": "Prepare a release readiness job result for a billing reconciliation change before promotion.",
+  "subject": "contoso/orders-api release 2.4.0",
+  "artifacts": [
+    "release-notes/2.4.0.md",
+    "migrations/20260626001_add_reconciliation_state.sql",
+    "src/orders/reconciliation.py"
+  ],
+  "constraints": [
+    "Return required follow-up actions.",
+    "Include a go/no-go recommendation."
+  ],
+  "stream": false
+}

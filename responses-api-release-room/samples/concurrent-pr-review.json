@@ -1,0 +1,4 @@
+{
+  "input": "Review a pull request that changes authentication middleware, export queries, and reconciliation tests before release branch merge.",
+  "stream": false
+}

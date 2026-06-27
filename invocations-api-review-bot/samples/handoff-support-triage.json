@@ -1,0 +1,15 @@
+{
+  "scenario": "handoff-support-triage",
+  "task": "Route a support ticket about invoice export failures after SSO login.",
+  "subject": "urgent customer ticket 10492",
+  "artifacts": [
+    "ticket transcript: invoice export fails immediately after SSO login",
+    "account tier: enterprise",
+    "deadline: finance close today"
+  ],
+  "constraints": [
+    "Identify the best specialist path.",
+    "Draft one customer-safe next response."
+  ],
+  "stream": false
+}

@@ -1,0 +1,14 @@
+{
+  "scenario": "magentic-incident-response",
+  "task": "Coordinate an incident response for export timeouts and delayed reconciliation. Stream the result.",
+  "subject": "production incident INC-2026-06-26",
+  "artifacts": [
+    "exports timing out",
+    "billing reconciliation delayed",
+    "support tickets rising"
+  ],
+  "constraints": [
+    "Return concise streamed chunks."
+  ],
+  "stream": true
+}

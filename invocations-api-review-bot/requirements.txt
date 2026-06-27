@@ -1,0 +1,6 @@
+agent-framework>=1.0.0
+agent-framework-github-copilot
+agent-framework-foundry-hosting
+azure-ai-agentserver-invocations
+github-copilot-sdk
+python-dotenv
