@@ -47,7 +47,7 @@ python -m pip install --upgrade pip
 python -m pip install --pre -r requirements.txt
 python -m pip install -e . --no-deps
 Copy-Item .env.example .env
-python -m release_room --scenario sequential-release-readiness --model qwen3:14b --port 8088
+python -m release_room --scenario sequential-release-readiness --model qwen3:14b --max-tokens 500 --port 8088
 ```
 
 In a second terminal:
@@ -66,7 +66,7 @@ python -m pip install --upgrade pip
 python -m pip install --pre -r requirements.txt
 python -m pip install -e . --no-deps
 Copy-Item .env.example .env
-python -m review_bot --model qwen3:14b --port 8089
+python -m review_bot --model qwen3:14b --max-tokens 500 --port 8089
 ```
 
 In a second terminal:
@@ -99,7 +99,7 @@ $files = rg --files -g "*.json" -g "!**/.venv/**"
 foreach ($file in $files) { $null = Get-Content $file -Raw | ConvertFrom-Json; $file }
 ```
 
-Live scenario runs require Ollama to be running with `qwen3:14b` or your selected `OLLAMA_MODEL` already pulled.
+Live scenario runs require Ollama to be running with `qwen3:14b` or your selected `OLLAMA_MODEL` already pulled. Both samples default `OLLAMA_MAX_TOKENS` to `500` per agent turn so multi-agent local runs finish predictably; raise it when you want longer learning output.
 
 ## References
 

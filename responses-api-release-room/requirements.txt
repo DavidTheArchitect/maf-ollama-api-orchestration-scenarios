@@ -3,4 +3,5 @@ agent-framework-orchestrations>=1.0.0
 agent-framework-ollama
 agent-framework-foundry-hosting
 httpx<1.0.0
+mcp>=1.24.0,<2
 python-dotenv

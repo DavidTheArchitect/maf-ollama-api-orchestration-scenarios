@@ -6,6 +6,7 @@ import os
 from .agents import (
     DEFAULT_OLLAMA_HOST,
     DEFAULT_OLLAMA_KEEP_ALIVE,
+    DEFAULT_OLLAMA_MAX_TOKENS,
     DEFAULT_OLLAMA_MODEL,
     DEFAULT_OLLAMA_NUM_CTX,
     DEFAULT_OLLAMA_TEMPERATURE,
@@ -41,6 +42,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=float(os.getenv("OLLAMA_TEMPERATURE", str(DEFAULT_OLLAMA_TEMPERATURE))),
     )
     parser.add_argument("--num-ctx", type=int, default=int(os.getenv("OLLAMA_NUM_CTX", str(DEFAULT_OLLAMA_NUM_CTX))))
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=int(os.getenv("OLLAMA_MAX_TOKENS", str(DEFAULT_OLLAMA_MAX_TOKENS))),
+        help="Maximum tokens each local Ollama agent may generate per turn.",
+    )
     parser.add_argument("--keep-alive", default=os.getenv("OLLAMA_KEEP_ALIVE") or DEFAULT_OLLAMA_KEEP_ALIVE)
     parser.add_argument(
         "--think",
@@ -65,13 +72,20 @@ def main() -> None:
         ollama_host=args.ollama_host,
         temperature=args.temperature,
         num_ctx=args.num_ctx,
+        max_tokens=args.max_tokens,
         keep_alive=args.keep_alive,
         think=args.think,
     )
 
+    from agent_framework import WorkflowAgent
     from agent_framework_foundry_hosting import ResponsesHostServer
 
-    server = ResponsesHostServer(workflow)
+    agent = WorkflowAgent(
+        workflow,
+        name=f"release-room-{scenario.id}",
+        description=f"{scenario.title} workflow exposed through the Responses API.",
+    )
+    server = ResponsesHostServer(agent)
     print(
         f"Serving {scenario.id} ({scenario.pattern}) release-room scenario "
         f"with Ollama model {args.model} on http://localhost:{args.port}/responses"

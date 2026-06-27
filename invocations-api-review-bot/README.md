@@ -44,7 +44,7 @@ Copy-Item .env.example .env
 ## Run And Invoke
 
 ```powershell
-python -m review_bot --model qwen3:14b --port 8089
+python -m review_bot --model qwen3:14b --max-tokens 500 --port 8089
 ```
 
 Invoke a scenario:
@@ -86,5 +86,6 @@ This sample stores session summaries in memory. That is useful for local learnin
 ## Ollama Notes
 
 - This sample uses the native `agent-framework-ollama` provider, so model calls stay local.
-- Use `--ollama-host`, `--temperature`, `--num-ctx`, `--keep-alive`, and `--think` to tune the local Ollama runtime.
+- Use `--ollama-host`, `--temperature`, `--num-ctx`, `--max-tokens`, `--keep-alive`, and `--think` to tune the local Ollama runtime.
+- `--max-tokens` defaults to `500` per agent turn so local multi-agent jobs finish predictably.
 - Ollama supports local function tools through Agent Framework, but it does not provide hosted tools such as hosted code interpreter, file search, web search, or hosted MCP.

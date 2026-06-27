@@ -21,6 +21,7 @@ def build_release_workflow(
     ollama_host: str | None = None,
     temperature: float | None = None,
     num_ctx: int | None = None,
+    max_tokens: int | None = None,
     keep_alive: str | None = None,
     think: bool | None = None,
 ) -> Any:
@@ -30,6 +31,7 @@ def build_release_workflow(
         host=ollama_host,
         temperature=temperature,
         num_ctx=num_ctx,
+        max_tokens=max_tokens,
         keep_alive=keep_alive,
         think=think,
     )
