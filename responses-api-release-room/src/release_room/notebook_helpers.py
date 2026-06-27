@@ -75,6 +75,57 @@ def pattern_anatomy(scenario: ScenarioSpec) -> dict[str, str]:
     return PATTERN_ANATOMY[scenario.pattern]
 
 
+_APTOS_STYLE = """
+<style>
+:root { --jp-content-font-family: 'Aptos', 'Segoe UI', 'Helvetica Neue', sans-serif; }
+.jp-RenderedHTMLCommon, .jp-RenderedMarkdown, .rendered_html, .jp-OutputArea-output {
+    font-family: 'Aptos', 'Segoe UI', 'Helvetica Neue', sans-serif;
+    line-height: 1.55;
+}
+.jp-RenderedHTMLCommon h1, .jp-RenderedHTMLCommon h2, .jp-RenderedHTMLCommon h3 {
+    font-family: 'Aptos Display', 'Aptos', 'Segoe UI', sans-serif;
+    font-weight: 600;
+}
+</style>
+"""
+
+
+def apply_notebook_style() -> str:
+    """Apply the Aptos-based notebook theme (graceful fallback if Aptos is absent).
+
+    Returns the injected style markup. In a Jupyter front end this also renders
+    the style; outside Jupyter it is a harmless no-op that just returns the text.
+    """
+
+    try:
+        from IPython.display import HTML, display
+
+        display(HTML(_APTOS_STYLE))
+    except ImportError:
+        pass
+    return _APTOS_STYLE
+
+
+def coded_agent_tool_map(scenario: ScenarioSpec) -> list[dict[str, Any]]:
+    """Map each coded agent to its code tools and MCP tools.
+
+    Every agent is a coded agent, so ``code_tools`` is always non-empty. This is
+    the notebook-facing view of why none of the agents are prompt-only.
+    """
+
+    from .code_tools import effective_code_tools
+
+    return [
+        {
+            "agent": spec.name,
+            "code_tools": list(effective_code_tools(spec)),
+            "mcp_tools": list(spec.mcp_tools),
+            "mcp_server": spec.mcp_server if spec.mcp_tools else None,
+        }
+        for spec in scenario.agents
+    ]
+
+
 def mcp_tool_context(scenario: ScenarioSpec) -> dict[str, Any]:
     """Summarize the local MCP tools each agent in the scenario may call.
 

@@ -69,6 +69,7 @@ def _sequential_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_labe
         pairs.append((agent, node))
     lines.append(f"    {previous} --> output[Responses output]")
     lines.extend(_mcp_tool_links(pairs))
+    lines.extend(_code_tool_links(pairs))
     return "\n".join(lines)
 
 
@@ -83,6 +84,7 @@ def _concurrent_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_labe
         pairs.append((agent, node))
     lines.append("    aggregate --> output[Responses output]")
     lines.extend(_mcp_tool_links(pairs))
+    lines.extend(_code_tool_links(pairs))
     return "\n".join(lines)
 
 
@@ -99,6 +101,7 @@ def _handoff_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: 
         pairs.append((agent, node))
     lines.append("    triage --> output[Responses output]")
     lines.extend(_mcp_tool_links(pairs))
+    lines.extend(_code_tool_links(pairs))
     return "\n".join(lines)
 
 
@@ -116,6 +119,7 @@ def _group_chat_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_labe
     lines.append("    stop -->|continue| selector")
     lines.append("    stop -->|done| output[Responses output]")
     lines.extend(_mcp_tool_links(pairs))
+    lines.extend(_code_tool_links(pairs))
     return "\n".join(lines)
 
 
@@ -133,6 +137,7 @@ def _magentic_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label:
     lines.append("    progress -->|replan| manager")
     lines.append("    progress -->|complete or stop| output[Responses output]")
     lines.extend(_mcp_tool_links(pairs))
+    lines.extend(_code_tool_links(pairs))
     return "\n".join(lines)
 
 
@@ -160,6 +165,22 @@ def _mcp_tool_links(pairs: list[tuple[Any, str]]) -> list[str]:
     for agent, node_id in pairs:
         for tool in getattr(agent, "mcp_tools", ()):
             lines.append(f"    {node_id} -.->|mcp tool| tool_{tool}([{_label(tool)}])")
+    return lines
+
+
+def _code_tool_links(pairs: list[tuple[Any, str]]) -> list[str]:
+    """Render dashed Mermaid links from each coded agent to its code tools.
+
+    Every agent is a coded agent, so each one links to the function tools it can
+    call. Code-tool nodes are shared across agents to keep the diagram compact.
+    """
+
+    from .code_tools import effective_code_tools
+
+    lines: list[str] = []
+    for agent, node_id in pairs:
+        for tool in effective_code_tools(agent):
+            lines.append(f"    {node_id} -.->|code tool| ctool_{tool}[/{_label(tool)}/]")
     return lines
 
 
