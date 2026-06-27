@@ -51,14 +51,19 @@ class ReviewRequestTests(unittest.TestCase):
         self.assertIn("a.py", prompt)
         self.assertIn("prior summary", prompt)
 
-    def test_has_all_patterns_with_original_enterprise_and_mcp_examples(self):
+    def test_patterns_are_complete_and_balanced(self):
         self.assertEqual(set(PATTERNS), {"sequential", "concurrent", "handoff", "group-chat", "magentic"})
-        self.assertEqual(len(SCENARIOS), 15)
+        # Count by pattern dynamically rather than depending on a fixed total. Scenario
+        # families are added in complete sets of five (one per pattern), so the patterns
+        # stay balanced as the catalog grows.
         pattern_counts = {pattern: [scenario.pattern for scenario in SCENARIOS].count(pattern) for pattern in PATTERNS}
-        self.assertEqual(
-            pattern_counts,
-            {"sequential": 3, "concurrent": 3, "handoff": 3, "group-chat": 3, "magentic": 3},
-        )
+        self.assertEqual(len(set(pattern_counts.values())), 1, pattern_counts)
+        self.assertEqual(len(SCENARIOS), sum(pattern_counts.values()))
+
+    def test_scenario_16_quote_to_cash_family_present(self):
+        ids = {scenario.id for scenario in SCENARIOS}
+        for pattern in ("sequential", "concurrent", "handoff", "group-chat", "magentic"):
+            self.assertIn(f"scenario-16-quote-to-cash-{pattern}", ids)
 
     def test_each_scenario_has_four_to_eight_agents(self):
         for scenario in SCENARIOS:

@@ -12,6 +12,36 @@ def _agents_for(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> list[An
     return [create_ollama_agent(spec, config=config) for spec in scenario.agents]
 
 
+def default_sample_max_tokens(scenario: ScenarioSpec) -> int:
+    """Token budget for a sample run: 500 for Magentic, 250 for the rest."""
+
+    return 500 if scenario.pattern == "magentic" else 250
+
+
+async def run_scenario_sample(
+    scenario: ScenarioSpec | str | None = None,
+    *,
+    max_tokens: int | None = None,
+    **config_overrides: Any,
+) -> str:
+    """Build and run a scenario in-process and return the response summary.
+
+    Used by each scenario module's ``run_sample`` and by ``python -m`` execution.
+    Importing this module has no side effects; the run only happens when called.
+    """
+
+    scenario = scenario if isinstance(scenario, ScenarioSpec) else get_scenario(scenario)
+    tokens = max_tokens if max_tokens is not None else default_sample_max_tokens(scenario)
+    request = ReviewRequest(
+        scenario=scenario.id,
+        pattern=scenario.pattern,
+        task=scenario.sample_task,
+        subject="scenario-16 sample run",
+    )
+    response = await run_review(request, max_tokens=tokens, **config_overrides)
+    return response.summary
+
+
 def build_review_workflow(
     scenario: ScenarioSpec | str | None = None,
     *,

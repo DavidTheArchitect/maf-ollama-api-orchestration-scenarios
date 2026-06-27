@@ -170,3 +170,78 @@ def _label(value: str) -> str:
 def _mermaid_image_url(mermaid: str) -> str:
     encoded = base64.urlsafe_b64encode(mermaid.encode("utf-8")).decode("ascii").rstrip("=")
     return f"https://mermaid.ink/img/{encoded}"
+
+
+# ---------------------------------------------------------------------------
+# Scenario 16 quote-to-cash business-flow diagram.
+# ---------------------------------------------------------------------------
+
+_QUOTE_TO_CASH_BOUNDARY = "Responses API /responses"
+
+
+def quote_to_cash_flow_diagram(scenario: ScenarioSpec) -> ScenarioFlowDiagram:
+    """Build the quote-to-cash business diagram for a Scenario 16 variant.
+
+    Shows the CRM, orchestration state storage, the product/SKU system, the
+    pricing/finance/legal system, the transient agent waves with deallocation,
+    and the final quote package, annotated with the orchestration pattern.
+    """
+
+    mermaid = _quote_to_cash_source(scenario, api_boundary=_QUOTE_TO_CASH_BOUNDARY)
+    return ScenarioFlowDiagram(
+        title=f"{scenario.title} Quote-To-Cash Flow",
+        mermaid=mermaid,
+        image_url=_mermaid_image_url(mermaid),
+    )
+
+
+def display_quote_to_cash_flow(scenario: ScenarioSpec) -> ScenarioFlowDiagram:
+    diagram = quote_to_cash_flow_diagram(scenario)
+    try:
+        from IPython.display import HTML, display
+    except ImportError:
+        print(diagram.mermaid)
+        return diagram
+
+    display(
+        HTML(
+            '<figure style="margin: 0">'
+            f'<img src="{html.escape(diagram.image_url)}" alt="{html.escape(diagram.title)}" '
+            'style="max-width: 100%; height: auto;" />'
+            f'<figcaption style="font-size: 0.9em; color: #555;">{html.escape(diagram.title)}</figcaption>'
+            "</figure>"
+        )
+    )
+    return diagram
+
+
+def _quote_to_cash_source(scenario: ScenarioSpec, *, api_boundary: str) -> str:
+    names = {agent.name for agent in scenario.agents}
+
+    def node(role: str) -> str:
+        # Use the canonical role name; fall back to whatever the scenario declares.
+        return role if role in names else next(iter(names))
+
+    lines = [
+        "flowchart TD",
+        f"    client[{_label('Quote request begins in CRM')}] --> api[{_label(api_boundary)}]",
+        f"    api --> scenario[{_label('Scenario: ' + scenario.id)}]",
+        f"    scenario --> orchestrator{{{_label(scenario.pattern + ' orchestration')}}}",
+        f"    orchestrator --> crm[{_label('CRM system')}]",
+        f"    crm -->|wave 1| trigger[{_label(node('QuoteTriggerAgent'))}]",
+        f"    crm -->|wave 1| customer[{_label(node('CustomerContextAgent'))}]",
+        f"    trigger --> store1[({_label('Orchestration store: customer context')})]",
+        "    customer --> store1",
+        f"    store1 -. {_label('deallocate wave 1')} .-> freed1(({_label('agents released')}))",
+        f"    store1 --> product[{_label('Product / SKU system')}]",
+        f"    product -->|wave 2| sku[{_label(node('SkuDiscoveryAgent'))}]",
+        f"    product -->|wave 2| fit[{_label(node('ProductFitAgent'))}]",
+        f"    sku --> store2[({_label('Orchestration store: product context')})]",
+        "    fit --> store2",
+        f"    store2 -. {_label('deallocate wave 2')} .-> freed2(({_label('agents released')}))",
+        f"    store2 --> pricingsys[{_label('Pricing / finance / legal system')}]",
+        f"    pricingsys -->|wave 3| pricing[{_label(node('PricingTermsAgent'))}]",
+        f"    pricing --> generation[{_label(node('QuoteGenerationAgent'))}]",
+        f"    generation --> quote[/{_label('Final quote package')}/]",
+    ]
+    return "\n".join(lines)

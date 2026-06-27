@@ -5,10 +5,17 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
-#: Top-level package name, used to locate the bundled stdio MCP server.
+#: Top-level package name, used to locate the bundled stdio MCP servers.
 _ROOT_PACKAGE = (__package__ or "release_room").split(".")[0]
+#: Registry of local stdio MCP servers, keyed by the name used in ``AgentSpec``.
+MCP_SERVER_MODULES: dict[str, str] = {
+    "enterprise_context": f"{_ROOT_PACKAGE}.mcp_servers.enterprise_context",
+    "quote_to_cash_context": f"{_ROOT_PACKAGE}.mcp_servers.quote_to_cash_context",
+}
 #: Module path of the local enterprise-context MCP server (run with ``-m``).
-ENTERPRISE_MCP_MODULE = f"{_ROOT_PACKAGE}.mcp_servers.enterprise_context"
+ENTERPRISE_MCP_MODULE = MCP_SERVER_MODULES["enterprise_context"]
+#: Module path of the local quote-to-cash-context MCP server (run with ``-m``).
+QUOTE_TO_CASH_MCP_MODULE = MCP_SERVER_MODULES["quote_to_cash_context"]
 
 DEFAULT_OLLAMA_MODEL = "qwen3:14b"
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
@@ -34,6 +41,7 @@ class AgentSpec:
     description: str
     instructions: str
     mcp_tools: tuple[str, ...] = ()
+    mcp_server: str = "enterprise_context"
 
 
 @dataclass(frozen=True)
@@ -93,23 +101,32 @@ def build_ollama_config(
     )
 
 
-def build_enterprise_mcp_tool(spec: AgentSpec) -> Any:
+def build_mcp_tool(spec: AgentSpec) -> Any:
     """Build a local stdio MCP tool restricted to ``spec.mcp_tools``.
 
-    The tool launches the bundled ``enterprise_context`` server with the current
-    interpreter, requires no approval prompts, and exposes only the tools the
-    agent is allowed to call.
+    The tool launches the bundled MCP server named by ``spec.mcp_server`` with
+    the current interpreter, requires no approval prompts, and exposes only the
+    tools the agent is allowed to call.
     """
 
     from agent_framework import MCPStdioTool
 
+    module = MCP_SERVER_MODULES.get(spec.mcp_server)
+    if module is None:
+        raise ValueError(
+            f"Unknown MCP server '{spec.mcp_server}'. Expected one of: {', '.join(sorted(MCP_SERVER_MODULES))}"
+        )
     return MCPStdioTool(
-        name=f"enterprise-context-{spec.name}",
+        name=f"{spec.mcp_server.replace('_', '-')}-{spec.name}",
         command=sys.executable,
-        args=["-m", ENTERPRISE_MCP_MODULE],
+        args=["-m", module],
         approval_mode="never_require",
         allowed_tools=list(spec.mcp_tools),
     )
+
+
+#: Backwards-compatible alias for the original single-server helper.
+build_enterprise_mcp_tool = build_mcp_tool
 
 
 def create_ollama_agent(spec: AgentSpec, *, config: OllamaAgentConfig | None = None) -> Any:
@@ -124,7 +141,7 @@ def create_ollama_agent(spec: AgentSpec, *, config: OllamaAgentConfig | None = N
 
     resolved = config or build_ollama_config()
     instructions = f"You are {spec.name}. {spec.instructions}"
-    tools = [build_enterprise_mcp_tool(spec)] if spec.mcp_tools else None
+    tools = [build_mcp_tool(spec)] if spec.mcp_tools else None
     return ScenarioOllamaChatClient(host=resolved.host, model=resolved.model).as_agent(
         name=spec.name,
         description=spec.description,

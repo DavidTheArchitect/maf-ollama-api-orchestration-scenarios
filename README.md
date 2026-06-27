@@ -15,7 +15,7 @@ Start with [LEARNING_PATH.md](LEARNING_PATH.md) if your goal is to compare when 
 
 ## Scenario Catalog
 
-Both directories now contain the same fifteen learning scenarios so the API differences are easy to compare. The first five focus on software delivery/support workflows; the next five focus on enterprise application workflows; the final five teach MCP tool usage, with one scenario per Microsoft Agent Framework orchestration pattern:
+Both directories now contain the same twenty learning scenarios so the API differences are easy to compare. The first five focus on software delivery/support workflows; the next five focus on enterprise application workflows; scenarios 11-15 teach MCP tool usage; and the Scenario 16 quote-to-cash family teaches one shared business story across all five patterns:
 
 | Scenario | Pattern | Core lesson |
 | --- | --- | --- |
@@ -34,8 +34,17 @@ Both directories now contain the same fifteen learning scenarios so the API diff
 | `handoff-claims-exception-routing` | Handoff | Triage routes a claim exception to payment, fraud, compliance, or customer comms using MCP facts. |
 | `group-chat-policy-exception-board` | Group chat | Board debates a policy exception with MCP-grounded risk, business need, and compliance. |
 | `magentic-business-continuity-drill` | Magentic | Manager plans and delegates a continuity drill across facilities, IT, comms, finance, and operations. |
+| `scenario-16-quote-to-cash-sequential` | Sequential | Quote-to-cash as a staged pipeline: CRM context, product context, pricing/legal, quote package. |
+| `scenario-16-quote-to-cash-concurrent` | Concurrent | Parallel specialist enrichment of one quote request, then aggregation. |
+| `scenario-16-quote-to-cash-handoff` | Handoff | Dynamic routing from trigger/customer context to product, pricing, legal, and quote-generation specialists. |
+| `scenario-16-quote-to-cash-group-chat` | Group chat | Collaborative quote review debating product fit, pricing risk, legal terms, and readiness. |
+| `scenario-16-quote-to-cash-magentic` | Magentic | Manager-led planning that delegates and replans until the quote package is ready. |
 
-The final five scenarios attach a local, deterministic `enterprise-context` MCP server (FastMCP over stdio) that needs no network, credentials, or manual setup. It exposes `lookup_enterprise_record`, `search_policy`, `calculate_priority_score`, `list_playbook_steps`, and `create_decision_log_entry`. Agents with declared `mcp_tools` receive the tool via Agent Framework `MCPStdioTool` (`approval_mode="never_require"`, per-agent `allowed_tools`); the server module lives at `src/.../mcp_servers/enterprise_context.py` in each package.
+Scenarios 11-15 attach a local, deterministic `enterprise-context` MCP server (FastMCP over stdio) exposing `lookup_enterprise_record`, `search_policy`, `calculate_priority_score`, `list_playbook_steps`, and `create_decision_log_entry`.
+
+The **Scenario 16 quote-to-cash** family (`16a`-`16e`) reframes a rigid RPA/API quote flow as goal-oriented agents with orchestration-managed state, tool use, and transient agent waves (agents are deallocated once their context is stored). All five variants reuse the same six roles — `QuoteTriggerAgent`, `CustomerContextAgent`, `SkuDiscoveryAgent`, `ProductFitAgent`, `PricingTermsAgent`, `QuoteGenerationAgent` — grounded by a second local MCP server, `quote-to-cash-context`, exposing `crm_get_quote_trigger`, `crm_get_customer_profile`, `product_search_catalog`, `product_validate_skus`, `pricing_calculate_quote`, `legal_evaluate_terms`, and `quote_format_package`. Each scenario module also supports `python -m <package>.scenarios.<module>` for a direct run.
+
+Both MCP servers need no network, credentials, or manual setup. Agents with declared `mcp_tools` receive a tool via Agent Framework `MCPStdioTool` (`approval_mode="never_require"`, per-agent `allowed_tools`); the server modules live under `src/.../mcp_servers/` in each package and the agent's `mcp_server` field selects which one to attach.
 
 Each scenario is defined in its own Python module inside the API directory's `src/.../scenarios/` package. Each API directory also has a `notebooks/` folder with one companion notebook per scenario for step-by-step learning and live in-process Ollama execution. MCP scenario notebooks add an MCP tool context section and dashed tool links in the flow diagram.
 Each notebook includes a runtime Mermaid flow diagram that renders through `mermaid.ink` and also exposes the generated Mermaid source.

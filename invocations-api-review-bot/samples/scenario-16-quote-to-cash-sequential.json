@@ -1,0 +1,14 @@
+{
+  "scenario": "scenario-16-quote-to-cash-sequential",
+  "task": "Create a quote for opportunity OPP-5001 (account ACC-3300, Contoso Manufacturing). They want the analytics platform with edge connectors and premier support, with standard enterprise terms.",
+  "subject": "OPP-5001 quote (ACC-3300 Contoso Manufacturing)",
+  "artifacts": [
+    "crm/OPP-5001.json",
+    "catalog/analytics-bundle.json"
+  ],
+  "constraints": [
+    "Use the local quote-to-cash MCP tools for CRM, product, pricing, and legal facts.",
+    "Return a customer-ready quote package."
+  ],
+  "stream": false
+}

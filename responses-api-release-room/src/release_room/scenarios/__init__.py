@@ -12,6 +12,11 @@ from .handoff_support_triage import SCENARIO as HANDOFF_SUPPORT_TRIAGE
 from .magentic_business_continuity_drill import SCENARIO as MAGENTIC_BUSINESS_CONTINUITY_DRILL
 from .magentic_incident_response import SCENARIO as MAGENTIC_INCIDENT_RESPONSE
 from .magentic_supply_chain_disruption import SCENARIO as MAGENTIC_SUPPLY_CHAIN_DISRUPTION
+from .scenario_16_quote_to_cash_concurrent import SCENARIO as SCENARIO_16_QUOTE_TO_CASH_CONCURRENT
+from .scenario_16_quote_to_cash_group_chat import SCENARIO as SCENARIO_16_QUOTE_TO_CASH_GROUP_CHAT
+from .scenario_16_quote_to_cash_handoff import SCENARIO as SCENARIO_16_QUOTE_TO_CASH_HANDOFF
+from .scenario_16_quote_to_cash_magentic import SCENARIO as SCENARIO_16_QUOTE_TO_CASH_MAGENTIC
+from .scenario_16_quote_to_cash_sequential import SCENARIO as SCENARIO_16_QUOTE_TO_CASH_SEQUENTIAL
 from .sequential_employee_onboarding import SCENARIO as SEQUENTIAL_EMPLOYEE_ONBOARDING
 from .sequential_procurement_approval import SCENARIO as SEQUENTIAL_PROCUREMENT_APPROVAL
 from .sequential_release_readiness import SCENARIO as SEQUENTIAL_RELEASE_READINESS
@@ -33,6 +38,11 @@ SCENARIOS: tuple[ScenarioSpec, ...] = (
     HANDOFF_CLAIMS_EXCEPTION_ROUTING,
     GROUP_CHAT_POLICY_EXCEPTION_BOARD,
     MAGENTIC_BUSINESS_CONTINUITY_DRILL,
+    SCENARIO_16_QUOTE_TO_CASH_SEQUENTIAL,
+    SCENARIO_16_QUOTE_TO_CASH_CONCURRENT,
+    SCENARIO_16_QUOTE_TO_CASH_HANDOFF,
+    SCENARIO_16_QUOTE_TO_CASH_GROUP_CHAT,
+    SCENARIO_16_QUOTE_TO_CASH_MAGENTIC,
 )
 
 SCENARIOS_BY_ID: dict[str, ScenarioSpec] = {scenario.id: scenario for scenario in SCENARIOS}
@@ -77,6 +87,11 @@ __all__ = [
     "MAGENTIC_BUSINESS_CONTINUITY_DRILL",
     "MAGENTIC_INCIDENT_RESPONSE",
     "MAGENTIC_SUPPLY_CHAIN_DISRUPTION",
+    "SCENARIO_16_QUOTE_TO_CASH_CONCURRENT",
+    "SCENARIO_16_QUOTE_TO_CASH_GROUP_CHAT",
+    "SCENARIO_16_QUOTE_TO_CASH_HANDOFF",
+    "SCENARIO_16_QUOTE_TO_CASH_MAGENTIC",
+    "SCENARIO_16_QUOTE_TO_CASH_SEQUENTIAL",
     "PATTERN_DEFAULT_SCENARIO",
     "PATTERNS",
     "PatternName",
