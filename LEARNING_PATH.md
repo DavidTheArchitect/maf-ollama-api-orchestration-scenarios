@@ -7,9 +7,9 @@ This repository is designed to teach two separate choices that often get mixed t
 
 ## Recommended Order
 
-1. Start with `responses-api-release-room/notebooks/01-sequential-release-readiness.ipynb`.
+1. Start with `responses-api-scenarios/notebooks/01-sequential-release-readiness.ipynb`.
    Learn the simplest path: one Responses request enters a fixed multi-agent pipeline.
-2. Run `invocations-api-review-bot/notebooks/01-sequential-release-readiness.ipynb`.
+2. Run `invocations-api-scenarios/notebooks/01-sequential-release-readiness.ipynb`.
    Compare how the same pattern changes when the input is a custom job payload.
 3. Continue through scenarios `02` to `05` in both directories.
    Keep the scenario number the same when comparing APIs so only the API boundary changes.

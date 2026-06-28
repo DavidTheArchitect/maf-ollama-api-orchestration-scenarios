@@ -10,8 +10,8 @@ Start with [LEARNING_PATH.md](LEARNING_PATH.md) if your goal is to compare when 
 
 | Directory | Hosted API | Scenario selection | Best for | Patterns shown |
 | --- | --- | --- | --- | --- |
-| `responses-api-release-room/` | OpenAI-compatible Responses API | Server startup via `--scenario` | Conversational apps, streaming chat clients, OpenAI-compatible tooling, multi-turn chat state | Sequential, concurrent, handoff, group chat, magentic |
-| `invocations-api-review-bot/` | Custom Invocations API | Per request via `scenario` | Webhooks, structured jobs, non-chat payloads, custom response contracts | Sequential, concurrent, handoff, group chat, magentic |
+| `responses-api-scenarios/` | OpenAI-compatible Responses API | Server startup via `--scenario` | Conversational apps, streaming chat clients, OpenAI-compatible tooling, multi-turn chat state | Sequential, concurrent, handoff, group chat, magentic |
+| `invocations-api-scenarios/` | Custom Invocations API | Per request via `scenario` | Webhooks, structured jobs, non-chat payloads, custom response contracts | Sequential, concurrent, handoff, group chat, magentic |
 
 ## Scenario Catalog
 
@@ -63,8 +63,8 @@ This raises every scenario to the complexity of the advanced [Microsoft Agent Fr
 | Artifact | Purpose |
 | --- | --- |
 | `LEARNING_PATH.md` | Recommended study order and API/pattern decision guide. |
-| `responses-api-release-room/notebooks/` | One notebook per Responses scenario, using in-process workflow execution by default. |
-| `invocations-api-review-bot/notebooks/` | One notebook per Invocations scenario, using the custom payload and response contract. |
+| `responses-api-scenarios/notebooks/` | One notebook per Responses scenario, using in-process workflow execution by default. |
+| `invocations-api-scenarios/notebooks/` | One notebook per Invocations scenario, using the custom payload and response contract. |
 | `src/.../scenarios/*.py` | One Python module per scenario so learners can inspect scenario definitions directly. |
 
 ## Prerequisites
@@ -84,7 +84,7 @@ Each sample has its own `requirements.txt`. The Agent Framework packages are sti
 ## Responses API Quick Start
 
 ```powershell
-cd responses-api-release-room
+cd responses-api-scenarios
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -103,7 +103,7 @@ In a second terminal:
 ## Invocations API Quick Start
 
 ```powershell
-cd invocations-api-review-bot
+cd invocations-api-scenarios
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -133,10 +133,10 @@ In a second terminal:
 Run these checks from the repository root after installing dependencies:
 
 ```powershell
-python -m compileall responses-api-release-room invocations-api-review-bot
-cd responses-api-release-room
+python -m compileall responses-api-scenarios invocations-api-scenarios
+cd responses-api-scenarios
 $env:PYTHONPATH='src'; $env:PYTHONDONTWRITEBYTECODE='1'; python -m unittest discover -s tests
-cd ..\invocations-api-review-bot
+cd ..\invocations-api-scenarios
 $env:PYTHONPATH='src'; $env:PYTHONDONTWRITEBYTECODE='1'; python -m unittest discover -s tests
 cd ..
 $files = rg --files -g "*.json" -g "!**/.venv/**"
