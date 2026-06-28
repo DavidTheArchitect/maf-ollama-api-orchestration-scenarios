@@ -108,19 +108,14 @@ def apply_notebook_style() -> str:
     return _APTOS_STYLE
 
 
-def coded_agent_tool_map(scenario: ScenarioSpec) -> list[dict[str, Any]]:
-    """Map each coded agent to its code tools and MCP tools.
-
-    Every agent is a coded agent, so ``code_tools`` is always non-empty. This is
-    the notebook-facing view of why none of the agents are prompt-only.
-    """
-
-    from .code_tools import effective_code_tools
+def agent_capability_map(scenario: ScenarioSpec) -> list[dict[str, Any]]:
+    """Map each instruction-led LLM agent to its role and optional domain tools."""
 
     return [
         {
             "agent": spec.name,
-            "code_tools": list(effective_code_tools(spec)),
+            "description": spec.description,
+            "instructions": spec.instructions,
             "mcp_tools": list(spec.mcp_tools),
             "mcp_server": spec.mcp_server if spec.mcp_tools else None,
         }

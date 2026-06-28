@@ -19,7 +19,7 @@ QUOTE_TO_CASH_MCP_MODULE = MCP_SERVER_MODULES["quote_to_cash_context"]
 
 DEFAULT_OLLAMA_MODEL = "qwen3:14b"
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
-DEFAULT_OLLAMA_TEMPERATURE = 0.2
+DEFAULT_OLLAMA_TEMPERATURE = 0.0
 DEFAULT_OLLAMA_NUM_CTX = 8192
 DEFAULT_OLLAMA_MAX_TOKENS = 500
 DEFAULT_OLLAMA_KEEP_ALIVE = "10m"
@@ -42,7 +42,6 @@ class AgentSpec:
     instructions: str
     mcp_tools: tuple[str, ...] = ()
     mcp_server: str = "enterprise_context"
-    code_tools: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -140,11 +139,9 @@ def create_ollama_agent(spec: AgentSpec, *, config: OllamaAgentConfig | None = N
             }
             return super()._prepare_options(messages, filtered_options)
 
-    from .code_tools import effective_code_tools, resolve_code_tools
-
     resolved = config or build_ollama_config()
     instructions = f"You are {spec.name}. {spec.instructions}"
-    tools: list[Any] = list(resolve_code_tools(effective_code_tools(spec)))
+    tools: list[Any] = []
     if spec.mcp_tools:
         tools.append(build_mcp_tool(spec))
     return ScenarioOllamaChatClient(host=resolved.host, model=resolved.model).as_agent(

@@ -9,15 +9,15 @@ def workflow_result_to_text(events: Any) -> str:
     intermediate_outputs = events.get_intermediate_outputs() if hasattr(events, "get_intermediate_outputs") else []
     if not outputs:
         intermediate_text = join_readable_outputs(intermediate_outputs)
-        return intermediate_text or "No workflow output was produced."
+        return clean_workflow_text(intermediate_text) or "No workflow output was produced."
 
     output_text = join_readable_outputs(outputs)
     if intermediate_outputs and should_use_intermediate_outputs(output_text):
         intermediate_text = join_readable_outputs(intermediate_outputs)
         if intermediate_text:
-            return intermediate_text
+            return clean_workflow_text(intermediate_text)
 
-    return output_text or "No readable workflow text was produced."
+    return clean_workflow_text(output_text) or "No readable workflow text was produced."
 
 
 def join_readable_outputs(outputs: Any) -> str:
@@ -35,13 +35,34 @@ def should_use_intermediate_outputs(output_text: str) -> bool:
         "maximum reset count",
         "maximum stall count",
         "workflow terminated",
+        "group chat has reached its termination condition",
     )
     return any(marker in normalized for marker in framework_markers)
 
 
 def agent_response_to_text(response: Any) -> str:
-    text = extract_text(response)
-    return text or "No readable workflow text was produced."
+    text = clean_workflow_text(extract_text(response))
+    return text
+
+
+def clean_workflow_text(text: str) -> str:
+    """Remove leading framework status lines when useful scenario text follows."""
+
+    lines = text.splitlines()
+    while lines and is_framework_status_line(lines[0]) and any(line.strip() for line in lines[1:]):
+        lines.pop(0)
+        while lines and not lines[0].strip():
+            lines.pop(0)
+    return "\n".join(lines).strip()
+
+
+def is_framework_status_line(line: str) -> bool:
+    normalized = line.strip().lower()
+    return (
+        normalized.startswith("invalid next speaker:")
+        or normalized.startswith("magentic orchestrator:")
+        or normalized.startswith("maximum consecutive function call errors reached")
+    )
 
 
 def extract_text(value: Any, seen: set[int] | None = None) -> str:

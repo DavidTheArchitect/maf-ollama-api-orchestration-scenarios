@@ -47,10 +47,14 @@ class NotebookCompanionTests(unittest.TestCase):
                 self.assertIn("Flow Diagram", source_text)
                 self.assertIn("display_scenario_flow", source_text)
                 self.assertIn("apply_notebook_style", source_text)
-                self.assertIn("coded_agent_tool_map", source_text)
-                self.assertIn("Coded Agents", source_text)
+                self.assertIn("agent_capability_map", source_text)
+                self.assertIn("Instruction-Led LLM Agents", source_text)
                 self.assertIn("make_agent", source_text)
                 self.assertIn("build_workflow", source_text)
+                self.assertNotIn("CODE_TOOLS", source_text)
+                self.assertNotIn("effective_code_tools", source_text)
+                self.assertNotIn("resolve_code_tools", source_text)
+                self.assertNotIn("coded_agent_tool_map", source_text)
 
                 if _scenario_uses_mcp(SCENARIOS_BY_ID[scenario_ids[0]]):
                     self.assertIn("MCP Tool Context", source_text)

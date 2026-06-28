@@ -13,7 +13,7 @@ Every notebook is generated as a self-contained scenario:
 - imports only third-party runtime packages such as `agent_framework`, `agent_framework.ollama`, and `IPython`;
 - defines Aptos notebook styling inline;
 - defaults to `OLLAMA_MODEL=qwen3:14b` and `OLLAMA_HOST=http://localhost:11434`;
-- inlines the coded tools, agent factory, agent roster, orchestration graph, diagram helper, and live run cell needed for that scenario;
+- inlines the agent factory, agent roster, orchestration graph, diagram helper, live run cell, and any domain tools needed for that scenario;
 - uses plain in-notebook function tools for enterprise and quote-to-cash context, with a note that the reference packages expose equivalent MCP stdio servers for production-style wiring;
 - keeps outputs cleared for source control.
 

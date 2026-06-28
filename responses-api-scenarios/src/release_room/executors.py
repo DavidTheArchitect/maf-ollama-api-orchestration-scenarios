@@ -1,11 +1,11 @@
 """Code-defined workflow executors for the orchestration graphs.
 
-These custom :class:`~agent_framework.Executor` subclasses are the coded glue of
+These custom :class:`~agent_framework.Executor` subclasses are the code-defined glue of
 the advanced workflows. They use typed ``@handler`` methods, read and write
 shared :class:`~agent_framework.WorkflowContext` state, route conditionally, and
 fan results in — none of this logic lives in a prompt. Agent nodes are wrapped
-with :class:`~agent_framework.AgentExecutor` so a coded agent (LLM + code tools +
-MCP) runs at each step.
+with :class:`~agent_framework.AgentExecutor` so an instruction-led LLM agent,
+with optional MCP tools, runs at each step.
 
 The same executors are exercised offline in tests with a deterministic stub
 agent and live with Ollama agents, so the graph wiring is verified without a

@@ -5,8 +5,9 @@ Sequential, Concurrent, and Handoff are built as explicit
 (see :mod:`release_room.executors`) with agent nodes wrapped in
 :class:`~agent_framework.AgentExecutor`. Group Chat and Magentic use the
 framework's code-driven orchestration builders (custom selection function,
-manager planning, and ledger logic). Every agent is a coded agent: it carries
-code-defined function tools (and MCP tools where declared), never a bare prompt.
+manager planning, and ledger logic). Agent nodes are LLM-backed specialists
+with role instructions; MCP tools are attached only where the scenario teaches
+tool-grounded context.
 """
 
 from __future__ import annotations

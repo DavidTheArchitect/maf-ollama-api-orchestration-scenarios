@@ -4,8 +4,9 @@ Sequential, Concurrent, and Handoff are built as explicit
 :class:`~agent_framework.WorkflowBuilder` graphs of code-defined executors
 (see :mod:`review_bot.executors`) with agent nodes wrapped in
 :class:`~agent_framework.AgentExecutor`. Group Chat and Magentic use the
-framework's code-driven orchestration builders. Every agent is a coded agent
-carrying code-defined function tools (and MCP tools where declared).
+framework's code-driven orchestration builders. Agent nodes are LLM-backed
+specialists with role instructions; MCP tools are attached only where the
+scenario teaches tool-grounded context.
 """
 
 from __future__ import annotations

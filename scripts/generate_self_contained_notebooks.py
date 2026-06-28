@@ -42,7 +42,7 @@ PATTERN_DOCS = {
     ),
     "concurrent": (
         "Concurrent orchestration fans one request out to several specialists. They work independently, "
-        "then a coded fan-in executor labels and combines their findings.",
+        "then a code-defined fan-in executor labels and combines their findings.",
         "Best fit: independent reviews where parallel perspectives are more valuable than turn-taking."
     ),
     "handoff": (
@@ -228,7 +228,6 @@ def scenario_data(scenario: Any, sample_attr: str) -> dict[str, Any]:
                 "instructions": agent.instructions,
                 "mcp_tools": list(agent.mcp_tools),
                 "mcp_server": agent.mcp_server,
-                "code_tools": list(agent.code_tools),
             }
             for agent in scenario.agents
         ],
@@ -248,18 +247,12 @@ def scenario_mcp_server(scenario: Any) -> str | None:
     return next(iter(servers))
 
 
-def _agent_tools_label(agent: Any) -> str:
-    """Short display string of tools used by an agent, for the agent roster table."""
-    code_tools = list(getattr(agent, "code_tools", ()) or ())
+def _agent_capability_label(agent: Any) -> str:
+    """Short display string of agent capabilities for the roster table."""
     mcp_tools = list(getattr(agent, "mcp_tools", ()) or ())
-    parts: list[str] = []
-    if code_tools:
-        parts.append(", ".join("`" + t + "`" for t in code_tools))
-    else:
-        parts.append("_role defaults_")
     if mcp_tools:
-        parts.append("MCP: " + ", ".join("`" + t + "`" for t in mcp_tools))
-    return " · ".join(parts)
+        return "Domain tools: " + ", ".join("`" + t + "`" for t in mcp_tools)
+    return "Instructions only"
 
 
 def title_markdown(project: dict[str, str], scenario: Any) -> str:
@@ -330,9 +323,9 @@ def concept_markdown(project: dict[str, str], scenario: Any) -> str:
         "| Best when | " + anatomy["best_when"] + " |",
     ])
 
-    agent_header = "| Agent | Role | Tools |\n| --- | --- | --- |"
+    agent_header = "| Agent | Role | Capabilities |\n| --- | --- | --- |"
     agent_lines = "\n".join(
-        "| `" + a.name + "` | " + a.description + " | " + _agent_tools_label(a) + " |"
+        "| `" + a.name + "` | " + a.description + " | " + _agent_capability_label(a) + " |"
         for a in scenario.agents
     )
     agent_table = agent_header + "\n" + agent_lines
@@ -356,13 +349,13 @@ def concept_markdown(project: dict[str, str], scenario: Any) -> str:
 
     {anatomy_rows}
 
-    ## Coded Agents
+    ## Instruction-Led LLM Agents
 
     {agent_table}
 
-    > **Instructor note:** Every agent receives deterministic Python tool functions.
-    > Tools labelled _role defaults_ are assigned by keyword matching on the agent name
-    > and description. MCP tools map to the inlined context functions in the cell below.
+    > **Instructor note:** Each row is an LLM-backed agent with role instructions.
+    > Most agents rely on instructions alone; enterprise and quote-to-cash agents may
+    > also call domain tools for grounded context.
     """
 
 
@@ -395,142 +388,10 @@ def environment_cell() -> str:
 
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:14b")
     OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    MCP_TOOL_FUNCTIONS: dict[str, object] = {}
 
     apply_notebook_style()
     print(f"Ollama target: {OLLAMA_HOST} / {OLLAMA_MODEL}")
-    '''
-
-
-def code_tools_cell() -> str:
-    return r'''
-    from collections.abc import Callable, Sequence
-
-
-    _RISK_TIERS: tuple[tuple[int, str], ...] = (
-        (20, "critical"),
-        (12, "high"),
-        (6, "medium"),
-        (0, "low"),
-    )
-
-
-    def note_observation(category: str, observation: str) -> str:
-        """Record a single structured observation."""
-
-        return f"[{category.strip().lower()}] {observation.strip()}"
-
-
-    def rate_risk(impact: int, likelihood: int) -> dict[str, object]:
-        """Score a risk deterministically from impact and likelihood."""
-
-        impact_v = max(1, min(5, int(impact)))
-        likelihood_v = max(1, min(5, int(likelihood)))
-        score = impact_v * likelihood_v
-        tier = next(name for floor, name in _RISK_TIERS if score >= floor)
-        return {"impact": impact_v, "likelihood": likelihood_v, "score": score, "tier": tier}
-
-
-    def make_checklist(items: Sequence[str]) -> str:
-        """Render a Markdown checklist from a list of items."""
-
-        cleaned = [str(item).strip() for item in items if str(item).strip()]
-        if not cleaned:
-            return "- [ ] (no items)"
-        return "\n".join(f"- [ ] {item}" for item in cleaned)
-
-
-    def extract_action_items(text: str) -> list[str]:
-        """Extract concise action items from free text."""
-
-        raw: list[str] = []
-        for line in (text or "").replace(";", "\n").splitlines():
-            for piece in line.split(". "):
-                candidate = piece.strip(" -*\t.").strip()
-                if 0 < len(candidate) <= 160:
-                    raw.append(candidate)
-        seen: set[str] = set()
-        ordered: list[str] = []
-        for item in raw:
-            key = item.lower()
-            if key not in seen:
-                seen.add(key)
-                ordered.append(item)
-        return ordered[:8]
-
-
-    def tally_votes(votes: Sequence[str]) -> dict[str, object]:
-        """Tally approve, reject, and abstain style votes."""
-
-        counts = {"approve": 0, "reject": 0, "abstain": 0}
-        for vote in votes:
-            text = str(vote).lower()
-            if any(token in text for token in ("reject", "no-go", "block", "deny", "veto")):
-                counts["reject"] += 1
-            elif any(token in text for token in ("approve", "yes", "go ahead", "go-ahead")):
-                counts["approve"] += 1
-            else:
-                counts["abstain"] += 1
-        if counts["approve"] > counts["reject"]:
-            decision = "approved"
-        elif counts["reject"] > counts["approve"]:
-            decision = "rejected"
-        else:
-            decision = "undecided"
-        return {"counts": counts, "decision": decision}
-
-
-    def compose_summary(sections: dict[str, str]) -> str:
-        """Compose a readable summary from a mapping of heading to content."""
-
-        if not sections:
-            return "No content to summarize."
-        return "\n\n".join(f"## {heading}\n{content.strip()}" for heading, content in sections.items())
-
-
-    CODE_TOOLS: dict[str, Callable[..., object]] = {
-        "note_observation": note_observation,
-        "rate_risk": rate_risk,
-        "make_checklist": make_checklist,
-        "extract_action_items": extract_action_items,
-        "tally_votes": tally_votes,
-        "compose_summary": compose_summary,
-    }
-
-    _ROLE_TOOL_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
-        (("risk", "fraud", "security", "threat", "priority", "incident"), ("note_observation", "rate_risk")),
-        (("board", "chair", "council", "panel", "vote", "debate"), ("note_observation", "tally_votes")),
-        (("plan", "manager", "trigger", "intake", "coordinat", "orchestrat", "scope"), ("note_observation", "make_checklist")),
-        (("summary", "editor", "writer", "docs", "comms", "generation", "packet", "report", "action", "quote"), ("compose_summary", "extract_action_items")),
-        (("validate", "fit", "check", "audit", "review", "evidence", "compat", "depend"), ("note_observation", "make_checklist")),
-    )
-
-
-    def default_code_tools_for(name: str, description: str = "") -> tuple[str, ...]:
-        text = f"{name} {description}".lower()
-        for keywords, tools in _ROLE_TOOL_RULES:
-            if any(keyword in text for keyword in keywords):
-                return tools
-        return ("note_observation", "compose_summary")
-
-
-    def effective_code_tools(spec: object) -> tuple[str, ...]:
-        explicit = tuple(getattr(spec, "code_tools", ()) or ())
-        if explicit:
-            return explicit
-        return default_code_tools_for(getattr(spec, "name", ""), getattr(spec, "description", ""))
-
-
-    def resolve_code_tools(names: Sequence[str]) -> list[Callable[..., object]]:
-        resolved: list[Callable[..., object]] = []
-        for name in names:
-            try:
-                resolved.append(CODE_TOOLS[name])
-            except KeyError as exc:
-                raise ValueError(f"Unknown code tool '{name}'.") from exc
-        return resolved
-
-
-    MCP_TOOL_FUNCTIONS: dict[str, Callable[..., object]] = {}
     '''
 
 
@@ -543,15 +404,15 @@ def mcp_markdown(server: str | None) -> str:
     ## MCP Tool Context
 
     In production, these {label} functions are exposed by a local FastMCP stdio server and attached to
-    agents with `MCPStdioTool` using per-agent allowed tools. This notebook inlines the same deterministic
-    functions as plain function tools so it remains standalone.
+    instruction-led LLM agents with `MCPStdioTool` using per-agent allowed tools. This notebook inlines
+    the same domain functions as plain callable tools so it remains standalone.
     """
 
 
 def enterprise_tools_cell() -> str:
     return r'''
     import hashlib
-    from typing import Any
+    from typing import Any, Sequence
 
 
     _ENTERPRISE_RECORDS: dict[str, dict[str, Any]] = {
@@ -873,8 +734,17 @@ def quote_to_cash_tools_cell() -> str:
         if value is None:
             return []
         if isinstance(value, str):
-            return [value]
-        return [str(item) for item in value]
+            pieces = value.replace(";", ",").replace("\n", ",").split(",")
+            return [piece.strip() for piece in pieces if piece.strip()]
+        try:
+            items = iter(value)
+        except TypeError:
+            text = str(value).strip()
+            return [text] if text else []
+        flattened: list[str] = []
+        for item in items:
+            flattened.extend(_string_list(item))
+        return flattened
 
 
     def crm_get_quote_trigger(opportunity_id: str = "OPP-5001") -> dict[str, Any]:
@@ -915,7 +785,7 @@ def quote_to_cash_tools_cell() -> str:
         return {"query": query, "match_count": len(matches), "matches": matches}
 
 
-    def product_validate_skus(skus: list[str] | None = None) -> dict[str, Any]:
+    def product_validate_skus(skus: str = "") -> dict[str, Any]:
         """Validate SKU compatibility, availability, and completeness."""
 
         requested = _string_list(skus) or [entry["sku"] for entry in _CATALOG[:2]]
@@ -941,7 +811,7 @@ def quote_to_cash_tools_cell() -> str:
         return {"requested": requested, "validated": validated, "all_valid": all_valid}
 
 
-    def pricing_calculate_quote(skus: list[str] | None = None, discount_pct: float = 0.0) -> dict[str, Any]:
+    def pricing_calculate_quote(skus: str = "", discount_pct: float = 0.0) -> dict[str, Any]:
         """Calculate quote pricing for a set of SKUs."""
 
         requested = _string_list(skus) or [entry["sku"] for entry in _CATALOG[:2]]
@@ -993,7 +863,7 @@ def quote_to_cash_tools_cell() -> str:
     def quote_format_package(
         customer_name: str = "Contoso Manufacturing",
         total: float = 0.0,
-        skus: list[str] | None = None,
+        skus: str = "",
     ) -> dict[str, Any]:
         """Format the final customer-ready quote package."""
 
@@ -1033,7 +903,7 @@ def agent_factory_cell() -> str:
     from agent_framework.ollama import OllamaChatClient
 
 
-    DEFAULT_OLLAMA_TEMPERATURE = 0.2
+    DEFAULT_OLLAMA_TEMPERATURE = 0.0
     DEFAULT_OLLAMA_NUM_CTX = 8192
     DEFAULT_OLLAMA_KEEP_ALIVE = "10m"
     DEFAULT_OLLAMA_THINK = False
@@ -1186,7 +1056,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
     return f'''
     import json
     from dataclasses import dataclass
-    from typing import Any
+    from typing import Any, Sequence
 
 
     @dataclass(frozen=True)
@@ -1196,7 +1066,6 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         instructions: str
         mcp_tools: tuple[str, ...] = ()
         mcp_server: str = "enterprise_context"
-        code_tools: tuple[str, ...] = ()
 
 
     @dataclass(frozen=True)
@@ -1222,7 +1091,6 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
             instructions=item["instructions"],
             mcp_tools=tuple(item.get("mcp_tools", [])),
             mcp_server=item.get("mcp_server", "enterprise_context"),
-            code_tools=tuple(item.get("code_tools", [])),
         )
         for item in SCENARIO_DATA["agents"]
     )
@@ -1237,8 +1105,8 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
     )
 
 
-    def tools_for_agent(spec: AgentSpec) -> list[Callable[..., object]]:
-        tools: list[Callable[..., object]] = list(resolve_code_tools(effective_code_tools(spec)))
+    def tools_for_agent(spec: AgentSpec) -> list[object]:
+        tools: list[object] = []
         for tool_name in spec.mcp_tools:
             try:
                 tools.append(MCP_TOOL_FUNCTIONS[tool_name])
@@ -1258,11 +1126,12 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         }}
 
 
-    def coded_agent_tool_map(scenario: ScenarioSpec) -> list[dict[str, Any]]:
+    def agent_capability_map(scenario: ScenarioSpec) -> list[dict[str, Any]]:
         return [
             {{
                 "agent": spec.name,
-                "code_tools": list(effective_code_tools(spec)),
+                "description": spec.description,
+                "instructions": spec.instructions,
                 "mcp_tools": list(spec.mcp_tools),
                 "mcp_server": spec.mcp_server if spec.mcp_tools else None,
             }}
@@ -1285,7 +1154,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
     {sample_prompt}
 
     print(json.dumps(scenario_summary(SCENARIO), indent=2))
-    print(json.dumps(coded_agent_tool_map(SCENARIO), indent=2))
+    print(json.dumps(agent_capability_map(SCENARIO), indent=2))
     if mcp_tool_context(SCENARIO)["uses_mcp"]:
         print(json.dumps(mcp_tool_context(SCENARIO), indent=2))
     '''
@@ -1534,13 +1403,13 @@ def workflow_cell() -> str:
         intermediate = result.get_intermediate_outputs() if hasattr(result, "get_intermediate_outputs") else []
         if not outputs:
             intermediate_text = join_readable_outputs(intermediate)
-            return intermediate_text or "No workflow output was produced."
+            return clean_workflow_text(intermediate_text) or "No workflow output was produced."
         output_text = join_readable_outputs(outputs)
         if intermediate and should_use_intermediate_outputs(output_text):
             intermediate_text = join_readable_outputs(intermediate)
             if intermediate_text:
-                return intermediate_text
-        return output_text or "No readable workflow text was produced."
+                return clean_workflow_text(intermediate_text)
+        return clean_workflow_text(output_text) or "No readable workflow text was produced."
 
 
     def join_readable_outputs(outputs: Any) -> str:
@@ -1553,13 +1422,39 @@ def workflow_cell() -> str:
             return True
         if len(normalized) >= 160:
             return False
-        markers = ("termination condition", "maximum reset count", "maximum stall count", "workflow terminated")
+        markers = (
+            "termination condition",
+            "maximum reset count",
+            "maximum stall count",
+            "workflow terminated",
+            "group chat has reached its termination condition",
+        )
         return any(marker in normalized for marker in markers)
 
 
     def agent_response_to_text(value: Any) -> str:
-        text = extract_text(value)
-        return text or "No readable workflow text was produced."
+        text = clean_workflow_text(extract_text(value))
+        return text
+
+
+    def clean_workflow_text(text: str) -> str:
+        """Remove leading framework status lines when useful scenario text follows."""
+
+        lines = text.splitlines()
+        while lines and is_framework_status_line(lines[0]) and any(line.strip() for line in lines[1:]):
+            lines.pop(0)
+            while lines and not lines[0].strip():
+                lines.pop(0)
+        return "\n".join(lines).strip()
+
+
+    def is_framework_status_line(line: str) -> bool:
+        normalized = line.strip().lower()
+        return (
+            normalized.startswith("invalid next speaker:")
+            or normalized.startswith("magentic orchestrator:")
+            or normalized.startswith("maximum consecutive function call errors reached")
+        )
 
 
     def extract_text(value: Any, seen: set[int] | None = None) -> str:
@@ -1606,6 +1501,44 @@ def workflow_cell() -> str:
 
     def is_object_repr(value: str) -> bool:
         return value.startswith("<") and " object at 0x" in value and value.endswith(">")
+
+
+    def group_chat_learning_summary(
+        scenario: ScenarioSpec,
+        prompt: str,
+        framework_text: str,
+    ) -> str:
+        """Explain a completed group-chat run when this framework build hides the transcript."""
+
+        lines = [
+            "Group chat completed.",
+            "",
+            f"Framework result: {framework_text.strip()}",
+            "",
+            "Learning view:",
+            "- The workflow used Microsoft Agent Framework's GroupChatBuilder with LLM-backed participants.",
+            "- Selection is code-defined round robin; termination is code-defined from assistant messages.",
+            f"- The submitted scenario prompt was: {prompt}",
+            "- Participant order:",
+        ]
+        for index, spec in enumerate(scenario.agents, start=1):
+            tools = ", ".join(spec.mcp_tools) if spec.mcp_tools else "no domain tools"
+            lines.append(f"  {index}. {spec.name}: {spec.description} ({tools})")
+        tool_names = sorted({tool for spec in scenario.agents for tool in spec.mcp_tools})
+        if tool_names:
+            lines.append("- Grounding sources available to tool-enabled agents:")
+            for tool_name in tool_names:
+                lines.append(f"  - {tool_name}")
+        lines.extend(
+            [
+                "",
+                "Note: this local Agent Framework build returned the group-chat termination marker",
+                "without exposing participant turns through get_intermediate_outputs(). The notebook",
+                "keeps the framework run intact and prints this learning summary so the scenario",
+                "still explains the orchestration shape and agent responsibilities.",
+            ]
+        )
+        return "\n".join(lines)
     '''
 
 
@@ -1677,7 +1610,6 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
             pairs.append((agent, node))
         lines.append(f"    {{previous}} --> output[{output_label}]")
         lines.extend(_mcp_tool_links(pairs))
-        lines.extend(_code_tool_links(pairs))
         return "\\n".join(lines)
 
 
@@ -1692,7 +1624,6 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
             pairs.append((agent, node))
         lines.append("    aggregate --> output[{output_label}]")
         lines.extend(_mcp_tool_links(pairs))
-        lines.extend(_code_tool_links(pairs))
         return "\\n".join(lines)
 
 
@@ -1708,7 +1639,6 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
             lines.append(f"    {{node}} --> output[{output_label}]")
             pairs.append((agent, node))
         lines.extend(_mcp_tool_links(pairs))
-        lines.extend(_code_tool_links(pairs))
         return "\\n".join(lines)
 
 
@@ -1726,7 +1656,6 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
         lines.append("    stop -->|continue| selector")
         lines.append("    stop -->|done| output[{output_label}]")
         lines.extend(_mcp_tool_links(pairs))
-        lines.extend(_code_tool_links(pairs))
         return "\\n".join(lines)
 
 
@@ -1744,7 +1673,6 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
         lines.append("    progress -->|replan| manager")
         lines.append("    progress -->|complete or stop| output[{output_label}]")
         lines.extend(_mcp_tool_links(pairs))
-        lines.extend(_code_tool_links(pairs))
         return "\\n".join(lines)
 
 
@@ -1762,14 +1690,6 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
         for agent, node_id in pairs:
             for tool in agent.mcp_tools:
                 lines.append(f"    {{node_id}} -.->|mcp tool| tool_{{tool}}([{{_label(tool)}}])")
-        return lines
-
-
-    def _code_tool_links(pairs: list[tuple[AgentSpec, str]]) -> list[str]:
-        lines: list[str] = []
-        for agent, node_id in pairs:
-            for tool in effective_code_tools(agent):
-                lines.append(f"    {{node_id}} -.->|code tool| ctool_{{tool}}[/{{_label(tool)}}/]")
         return lines
 
 
@@ -1843,9 +1763,18 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
 
 def live_run_cell() -> str:
     return r'''
+    import io
+    from contextlib import redirect_stderr, redirect_stdout
+
+
     workflow = build_workflow(SCENARIO, max_tokens=MAX_TOKENS)
-    result = await workflow.run(SAMPLE_PROMPT)
+    _framework_logs = io.StringIO()
+    with redirect_stdout(_framework_logs), redirect_stderr(_framework_logs):
+        result = await workflow.run(SAMPLE_PROMPT)
+    framework_logs = _framework_logs.getvalue()
     output_text = workflow_result_to_text(result)
+    if SCENARIO.pattern == "group-chat" and should_use_intermediate_outputs(output_text):
+        output_text = group_chat_learning_summary(SCENARIO, SAMPLE_PROMPT, output_text)
 
     if not output_text.strip():
         raise RuntimeError("Workflow completed but produced no readable text.")
@@ -1865,7 +1794,7 @@ def flow_diagram_markdown(project: dict[str, str], scenario: Any) -> str:
     elif pattern == "handoff":
         shape = "a triage node routing to one of " + str(n - 1) + " specialists via keyword scoring"
     elif pattern == "group-chat":
-        shape = str(n) + " participants in a round-robin loop with a coded termination function"
+        shape = str(n) + " participants in a round-robin loop with a code-defined termination function"
     else:
         shape = "a manager agent delegating to " + str(n - 1) + " specialists with progress-ledger replanning"
     boundary = project["api_boundary"]
@@ -1874,7 +1803,7 @@ def flow_diagram_markdown(project: dict[str, str], scenario: Any) -> str:
 
     The diagram below shows {shape} attached to the {boundary}.
     Solid arrows are orchestration edges. Dashed arrows (`-.->`) are tool calls.
-    MCP tool nodes use a stadium shape; code tool nodes use a parallelogram.
+    Domain tool nodes use a stadium shape.
     """
 
 
@@ -1910,7 +1839,7 @@ def experiments_markdown(project: dict[str, str], scenario: Any) -> str:
 
     - Change {payload_line} and rerun the live cell.
     - Override `OLLAMA_MODEL` or `OLLAMA_HOST` before the environment cell to target a different local Ollama setup.
-    - Inspect `coded_agent_tool_map(SCENARIO)` and remove one tool from an agent to see how the answer changes.
+    - Inspect `agent_capability_map(SCENARIO)` and tighten one agent's instructions to see how orchestration behavior changes.
     - Lower `MAX_TOKENS` for faster runs or raise it when {scenario.pattern} needs more room.
     """
 
@@ -1922,7 +1851,6 @@ def build_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
         md(title_markdown(project, scenario)),
         code(environment_cell()),
         md(concept_markdown(project, scenario)),
-        code(code_tools_cell()),
     ]
     if server:
         cells.append(md(mcp_markdown(server)))

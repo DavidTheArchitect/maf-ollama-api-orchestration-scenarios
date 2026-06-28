@@ -106,19 +106,14 @@ def apply_notebook_style() -> str:
     return _APTOS_STYLE
 
 
-def coded_agent_tool_map(scenario: ScenarioSpec) -> list[dict[str, Any]]:
-    """Map each coded agent to its code tools and MCP tools.
-
-    Every agent is a coded agent, so ``code_tools`` is always non-empty. This is
-    the notebook-facing view of why none of the agents are prompt-only.
-    """
-
-    from .code_tools import effective_code_tools
+def agent_capability_map(scenario: ScenarioSpec) -> list[dict[str, Any]]:
+    """Map each instruction-led LLM agent to its role and optional domain tools."""
 
     return [
         {
             "agent": spec.name,
-            "code_tools": list(effective_code_tools(spec)),
+            "description": spec.description,
+            "instructions": spec.instructions,
             "mcp_tools": list(spec.mcp_tools),
             "mcp_server": spec.mcp_server if spec.mcp_tools else None,
         }
@@ -147,15 +142,15 @@ def workflow_result_to_text(result: Any) -> str:
     intermediate_outputs = result.get_intermediate_outputs() if hasattr(result, "get_intermediate_outputs") else []
     if not outputs:
         intermediate_text = join_readable_outputs(intermediate_outputs)
-        return intermediate_text or "No workflow output was produced."
+        return clean_workflow_text(intermediate_text) or "No workflow output was produced."
 
     output_text = join_readable_outputs(outputs)
     if intermediate_outputs and should_use_intermediate_outputs(output_text):
         intermediate_text = join_readable_outputs(intermediate_outputs)
         if intermediate_text:
-            return intermediate_text
+            return clean_workflow_text(intermediate_text)
 
-    return output_text or "No readable workflow text was produced."
+    return clean_workflow_text(output_text) or "No readable workflow text was produced."
 
 
 def join_readable_outputs(outputs: Any) -> str:
@@ -173,13 +168,34 @@ def should_use_intermediate_outputs(output_text: str) -> bool:
         "maximum reset count",
         "maximum stall count",
         "workflow terminated",
+        "group chat has reached its termination condition",
     )
     return any(marker in normalized for marker in framework_markers)
 
 
 def agent_response_to_text(value: Any) -> str:
-    text = extract_text(value)
-    return text or "No readable workflow text was produced."
+    text = clean_workflow_text(extract_text(value))
+    return text
+
+
+def clean_workflow_text(text: str) -> str:
+    """Remove leading framework status lines when useful scenario text follows."""
+
+    lines = text.splitlines()
+    while lines and is_framework_status_line(lines[0]) and any(line.strip() for line in lines[1:]):
+        lines.pop(0)
+        while lines and not lines[0].strip():
+            lines.pop(0)
+    return "\n".join(lines).strip()
+
+
+def is_framework_status_line(line: str) -> bool:
+    normalized = line.strip().lower()
+    return (
+        normalized.startswith("invalid next speaker:")
+        or normalized.startswith("magentic orchestrator:")
+        or normalized.startswith("maximum consecutive function call errors reached")
+    )
 
 
 def extract_text(value: Any, seen: set[int] | None = None) -> str:

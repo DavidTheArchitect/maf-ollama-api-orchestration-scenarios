@@ -24,7 +24,6 @@ def _agent(
     description: str,
     instructions: str,
     tools: tuple[str, ...],
-    code_tools: tuple[str, ...],
 ) -> AgentSpec:
     return AgentSpec(
         name,
@@ -32,7 +31,6 @@ def _agent(
         instructions,
         mcp_tools=tools,
         mcp_server=MCP_SERVER,
-        code_tools=code_tools,
     )
 
 
@@ -42,7 +40,6 @@ QUOTE_TRIGGER_AGENT = _agent(
     "Check whether the CRM conditions to create a quote exist. Use crm_get_quote_trigger to report "
     "quote-readiness, which trigger conditions are met, and any blockers. Do not invent CRM data.",
     ("crm_get_quote_trigger",),
-    ("note_observation", "make_checklist"),
 )
 CUSTOMER_CONTEXT_AGENT = _agent(
     "CustomerContextAgent",
@@ -50,7 +47,6 @@ CUSTOMER_CONTEXT_AGENT = _agent(
     "Enrich the customer profile. Use crm_get_customer_profile to capture customer name, address, MSA "
     "status, account status, segment, and buying context for the quote.",
     ("crm_get_customer_profile",),
-    ("note_observation", "compose_summary"),
 )
 SKU_DISCOVERY_AGENT = _agent(
     "SkuDiscoveryAgent",
@@ -58,32 +54,36 @@ SKU_DISCOVERY_AGENT = _agent(
     "Identify candidate SKUs, bundles, and catalog entries that fit the customer's need. Use "
     "product_search_catalog and list the matching SKUs with names and list prices.",
     ("product_search_catalog",),
-    ("note_observation", "make_checklist"),
 )
 PRODUCT_FIT_AGENT = _agent(
     "ProductFitAgent",
     "Validates product compatibility and availability.",
-    "Validate product compatibility, availability, and SKU completeness. Use product_validate_skus and "
-    "flag any unknown, unavailable, or incompatible SKUs before pricing.",
+    "Validate product compatibility, availability, and SKU completeness. Use product_validate_skus with "
+    "comma-separated SKU strings, and flag any unknown, unavailable, or incompatible SKUs before pricing.",
     ("product_validate_skus",),
-    ("note_observation", "make_checklist"),
 )
 PRICING_TERMS_AGENT = _agent(
     "PricingTermsAgent",
     "Resolves pricing, finance, and legal terms.",
-    "Resolve pricing, discount, finance, and legal constraints. Use pricing_calculate_quote for totals "
-    "and legal_evaluate_terms for clauses and required approvals.",
+    "Resolve pricing, discount, finance, and legal constraints. Use pricing_calculate_quote with "
+    "comma-separated SKU strings for totals and legal_evaluate_terms for clauses and required approvals.",
     ("pricing_calculate_quote", "legal_evaluate_terms"),
-    ("note_observation", "rate_risk"),
 )
 QUOTE_GENERATION_AGENT = _agent(
     "QuoteGenerationAgent",
     "Generates the final customer-ready quote package.",
     "Assemble the final quote package with pricing, SKUs, legal/T&C notes, and a customer-ready format. "
-    "Use quote_format_package. When you coordinate other specialists, plan the path to a complete quote, "
-    "delegate the missing context, and stop once the package is ready.",
-    ("quote_format_package",),
-    ("compose_summary", "extract_action_items"),
+    "If context is missing, call the quote trigger, customer profile, catalog, SKU validation, pricing, "
+    "and legal tools before quote_format_package. Pass SKUs as comma-separated strings.",
+    (
+        "crm_get_quote_trigger",
+        "crm_get_customer_profile",
+        "product_search_catalog",
+        "product_validate_skus",
+        "pricing_calculate_quote",
+        "legal_evaluate_terms",
+        "quote_format_package",
+    ),
 )
 
 #: The six roles in their natural quote-to-cash staging order.

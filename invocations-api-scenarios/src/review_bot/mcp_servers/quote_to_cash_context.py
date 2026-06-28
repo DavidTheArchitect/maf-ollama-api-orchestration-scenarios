@@ -123,8 +123,17 @@ def _string_list(value: Any) -> list[str]:
     if value is None:
         return []
     if isinstance(value, str):
-        return [value]
-    return [str(item) for item in value]
+        pieces = value.replace(";", ",").replace("\n", ",").split(",")
+        return [piece.strip() for piece in pieces if piece.strip()]
+    try:
+        items = iter(value)
+    except TypeError:
+        text = str(value).strip()
+        return [text] if text else []
+    flattened: list[str] = []
+    for item in items:
+        flattened.extend(_string_list(item))
+    return flattened
 
 
 # ---------------------------------------------------------------------------
@@ -182,7 +191,7 @@ def product_search_catalog(query: str = "analytics platform") -> dict[str, Any]:
 
 
 @mcp.tool()
-def product_validate_skus(skus: list[str] | None = None) -> dict[str, Any]:
+def product_validate_skus(skus: str = "") -> dict[str, Any]:
     """Validate SKU compatibility, availability, and completeness.
 
     Returns a per-SKU validation plus an overall ``all_valid`` flag. Unknown
@@ -213,7 +222,7 @@ def product_validate_skus(skus: list[str] | None = None) -> dict[str, Any]:
 
 
 @mcp.tool()
-def pricing_calculate_quote(skus: list[str] | None = None, discount_pct: float = 0.0) -> dict[str, Any]:
+def pricing_calculate_quote(skus: str = "", discount_pct: float = 0.0) -> dict[str, Any]:
     """Calculate quote pricing for a set of SKUs.
 
     Sums list prices for known SKUs, applies a clamped discount (0-40%), and
@@ -271,7 +280,7 @@ def legal_evaluate_terms(segment: str = "enterprise", discount_pct: float = 0.0)
 def quote_format_package(
     customer_name: str = "Contoso Manufacturing",
     total: float = 0.0,
-    skus: list[str] | None = None,
+    skus: str = "",
 ) -> dict[str, Any]:
     """Format the final customer-ready quote package.
 
