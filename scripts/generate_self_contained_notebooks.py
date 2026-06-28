@@ -96,6 +96,69 @@ PATTERN_ANATOMY = {
     },
 }
 
+PATTERN_LIVE_RUN_INTRO = {
+    "sequential": (
+        "Each agent output is captured by a `StageGateExecutor` and appended to a growing "
+        "transcript. The next agent receives both the original prompt and the accumulated "
+        "work so far. The final cell prints the complete stage-by-stage log."
+    ),
+    "concurrent": (
+        "The request fans out to all specialists simultaneously. A `ConcurrentAggregatorExecutor` "
+        "waits for every response, then labels each contribution and joins them. "
+        "Execution order inside the fan-out is non-deterministic."
+    ),
+    "handoff": (
+        "Triage runs first. A `HandoffRouterExecutor` reads the triage text, scores each "
+        "specialist keyword list against it, and forwards the request to the highest-scoring "
+        "specialist. The output shows the route taken and the specialist response."
+    ),
+    "group-chat": (
+        "Participants speak in round-robin order. The termination function fires when an "
+        "approved recommendation appears or after seven assistant turns. Intermediate outputs "
+        "from each participant are surfaced alongside the final transcript."
+    ),
+    "magentic": (
+        "The manager agent plans, delegates to specialists, and replans if work stalls or "
+        "reaches a reset limit. With `max_round_count=10`, `max_stall_count=3`, and "
+        "`max_reset_count=2`, there is room to iterate. Allow extra time -- this pattern "
+        "runs more LLM calls than the others."
+    ),
+}
+
+
+PATTERN_INSPECT = {
+    "sequential": (
+        "Compare the first stage output to the final editor output. Later stages should "
+        "build on prior work, not repeat it -- each `StageGateExecutor` carries the full "
+        "transcript forward. If a stage ignores prior context, inspect its instructions "
+        "and the gate prompt to see exactly what the agent received."
+    ),
+    "concurrent": (
+        "Check that each labelled specialist contribution is non-overlapping. Because agents "
+        "receive the same input and run independently, their findings should be additive, "
+        "not redundant. If two specialists repeat each other, their roles or instructions "
+        "may need tighter scoping."
+    ),
+    "handoff": (
+        "Verify the route matches the triage intent. The `HandoffRouterExecutor` picks the "
+        "specialist with the most keyword hits against the triage text. Try rewording the "
+        "input toward a different specialist domain and rerun -- the route should change. "
+        "Inspect `ctx.get_state('route')` for the chosen executor id."
+    ),
+    "group-chat": (
+        "Read the transcript chronologically. Later turns should respond to earlier critiques "
+        "rather than restarting the discussion. The termination function fires on 'approved' "
+        "plus 'recommendation' in the same message, or after seven assistant turns -- check "
+        "which condition fired and why."
+    ),
+    "magentic": (
+        "Follow the specialist outputs to reconstruct the manager delegation path. If the "
+        "manager replanned, you will see the same specialist invoked more than once or a "
+        "different specialist substituted mid-run. A stall (no progress for max_stall_count "
+        "rounds) triggers a reset; a second stall terminates the workflow."
+    ),
+}
+
 
 def cell_source(source: str) -> list[str]:
     text = textwrap.dedent(source).strip("\n")
@@ -185,6 +248,20 @@ def scenario_mcp_server(scenario: Any) -> str | None:
     return next(iter(servers))
 
 
+def _agent_tools_label(agent: Any) -> str:
+    """Short display string of tools used by an agent, for the agent roster table."""
+    code_tools = list(getattr(agent, "code_tools", ()) or ())
+    mcp_tools = list(getattr(agent, "mcp_tools", ()) or ())
+    parts: list[str] = []
+    if code_tools:
+        parts.append(", ".join("`" + t + "`" for t in code_tools))
+    else:
+        parts.append("_role defaults_")
+    if mcp_tools:
+        parts.append("MCP: " + ", ".join("`" + t + "`" for t in mcp_tools))
+    return " · ".join(parts)
+
+
 def title_markdown(project: dict[str, str], scenario: Any) -> str:
     return f"""
     # {scenario.title}
@@ -195,52 +272,81 @@ def title_markdown(project: dict[str, str], scenario: Any) -> str:
     | Pattern | `{scenario.pattern}` |
     | API | `{project['api_name']}` |
 
-    {scenario.learning_goal}
+    **Learning goal:** {scenario.learning_goal}
+
+    > {scenario.when_to_use}
     """
 
 
 def concept_markdown(project: dict[str, str], scenario: Any) -> str:
     concept, best_fit = PATTERN_DOCS[scenario.pattern]
-    api_note = (
-        "Responses uses the stable OpenAI-compatible `/responses` shape. The scenario is selected when "
-        "the server starts, so each request can stay close to a chat-style input."
-        if project["sample_attr"] == "sample_input"
-        else "Invocations uses an application-owned job payload. The scenario and task travel with each "
-        "request, which fits webhooks, CI jobs, schedulers, and internal services."
-    )
+
+    if project["sample_attr"] == "sample_input":
+        api_note = (
+            "**Responses API -- startup-selected scenario shape.** "
+            "The scenario and orchestration pattern are wired in at server start. "
+            "Each client request uses the standard OpenAI-compatible `/responses` body -- "
+            "a plain chat-style input. The client never specifies which agents run; "
+            "the server owns the orchestration entirely."
+        )
+    else:
+        api_note = (
+            "**Invocations API -- per-request job payload shape.** "
+            "Each request body carries `scenario`, `pattern`, `task`, `artifacts`, and "
+            "`constraints`. The caller controls which orchestration runs per invocation. "
+            "This fits webhooks, CI pipelines, schedulers, and service-to-service calls "
+            "where the task definition changes with every request."
+        )
+
     if scenario.id.startswith("scenario-16-quote-to-cash"):
         story = (
-            "This Scenario 16 variant follows the quote-to-cash path: CRM trigger, customer context, SKU "
-            "discovery, product fit, pricing and legal terms, then a customer-ready quote package. The "
-            "pattern changes, but the six business roles stay constant."
+            "This is a Scenario 16 quote-to-cash variant. The same six business roles "
+            "(CRM trigger, customer context, SKU discovery, product fit, pricing and legal, "
+            "quote generation) appear in every Scenario 16 notebook -- only the orchestration "
+            "pattern changes. Compare notebooks 16a-16e to see how the same roles behave "
+            "under sequential, concurrent, handoff, group-chat, and magentic coordination."
         )
     elif scenario_uses_mcp(scenario):
         story = (
-            "This enterprise scenario is grounded by deterministic tool functions that mirror an MCP "
-            "context server. The notebook inlines those functions so it can run without a local package or "
-            "stdio subprocess."
+            "This is an enterprise scenario grounded by deterministic MCP context tools. "
+            "In production those tools are served by a FastMCP stdio subprocess; "
+            "this notebook inlines the same functions as plain callables so it runs "
+            "without a local package or subprocess."
         )
     else:
         story = (
-            "This starter scenario keeps the domain simple so the orchestration mechanics are easy to see "
-            "before the enterprise and quote-to-cash notebooks add tool-grounded context."
+            "This is a starter scenario. The domain is intentionally lightweight "
+            "so the orchestration mechanics are easy to trace before the enterprise "
+            "and quote-to-cash notebooks layer in MCP tool calls and richer context."
         )
+
+    anatomy = PATTERN_ANATOMY[scenario.pattern]
+    anatomy_rows = "\n".join([
+        "| Dimension | Detail |",
+        "| --- | --- |",
+        "| Control flow | " + anatomy["control_flow"] + " |",
+        "| Coordination | " + anatomy["coordination"] + " |",
+        "| Output | " + anatomy["output_behavior"] + " |",
+        "| Best when | " + anatomy["best_when"] + " |",
+    ])
+
+    agent_header = "| Agent | Role | Tools |\n| --- | --- | --- |"
+    agent_lines = "\n".join(
+        "| `" + a.name + "` | " + a.description + " | " + _agent_tools_label(a) + " |"
+        for a in scenario.agents
+    )
+    agent_table = agent_header + "\n" + agent_lines
+
+    pattern_heading = scenario.pattern.replace("-", " ").title()
+
     return f"""
-    ## Pattern Concept
+    ## Pattern: {pattern_heading}
 
     {concept}
 
-    - {best_fit}
-    - The graph and executor code own routing, fan-out, fan-in, and termination.
-    - The model focuses on each agent role rather than inventing the orchestration.
+    {best_fit}
 
-    ## Coded Agents
-
-    Every agent below receives deterministic Python function tools. If a scenario does not name explicit
-    tools, a role-based rule assigns sensible defaults, so no agent is prompt-only. Tool calls keep common
-    work such as risk scoring, checklist creation, vote tallying, and summary composition in code.
-
-    ## API Fit
+    ## API Shape
 
     {api_note}
 
@@ -248,7 +354,15 @@ def concept_markdown(project: dict[str, str], scenario: Any) -> str:
 
     ## Pattern Anatomy
 
-    {json.dumps(PATTERN_ANATOMY[scenario.pattern], indent=2)}
+    {anatomy_rows}
+
+    ## Coded Agents
+
+    {agent_table}
+
+    > **Instructor note:** Every agent receives deterministic Python tool functions.
+    > Tools labelled _role defaults_ are assigned by keyword matching on the agent name
+    > and description. MCP tools map to the inlined context functions in the cell below.
     """
 
 
@@ -1740,6 +1854,52 @@ def live_run_cell() -> str:
     '''
 
 
+
+def flow_diagram_markdown(project: dict[str, str], scenario: Any) -> str:
+    pattern = scenario.pattern
+    n = len(scenario.agents)
+    if pattern == "sequential":
+        shape = "a linear chain of " + str(n) + " stages with a stage-gate executor between each pair"
+    elif pattern == "concurrent":
+        shape = "a fan-out to " + str(n) + " specialists and a labelled fan-in aggregation"
+    elif pattern == "handoff":
+        shape = "a triage node routing to one of " + str(n - 1) + " specialists via keyword scoring"
+    elif pattern == "group-chat":
+        shape = str(n) + " participants in a round-robin loop with a coded termination function"
+    else:
+        shape = "a manager agent delegating to " + str(n - 1) + " specialists with progress-ledger replanning"
+    boundary = project["api_boundary"]
+    return f"""
+    ## Flow Diagram
+
+    The diagram below shows {shape} attached to the {boundary}.
+    Solid arrows are orchestration edges. Dashed arrows (`-.->`) are tool calls.
+    MCP tool nodes use a stadium shape; code tool nodes use a parallelogram.
+    """
+
+
+def live_run_markdown(scenario: Any) -> str:
+    intro = PATTERN_LIVE_RUN_INTRO[scenario.pattern]
+    return f"""
+    ## Live Run
+
+    {intro}
+
+    > **Instructor note:** `qwen3:14b` runs with `think: False` by default (extended reasoning off).
+    > Set `OLLAMA_THINK=true` before the environment cell to enable chain-of-thought reasoning --
+    > useful when debugging unexpected routing decisions or tool call sequences.
+    """
+
+
+def post_run_markdown(scenario: Any) -> str:
+    inspect = PATTERN_INSPECT[scenario.pattern]
+    return f"""
+    ## What to Inspect
+
+    {inspect}
+    """
+
+
 def experiments_markdown(project: dict[str, str], scenario: Any) -> str:
     if project["sample_attr"] == "sample_input":
         payload_line = "`RESPONSES_PAYLOAD['input']`"
@@ -1772,10 +1932,11 @@ def build_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
             code(agent_factory_cell()),
             code(scenario_cell(project, data)),
             code(workflow_cell()),
-            md("## Flow Diagram"),
+            md(flow_diagram_markdown(project, scenario)),
             code(diagram_cell(project, scenario.id.startswith("scenario-16-quote-to-cash"))),
-            md("## Live Run"),
+            md(live_run_markdown(scenario)),
             code(live_run_cell()),
+            md(post_run_markdown(scenario)),
             md(experiments_markdown(project, scenario)),
         ]
     )
