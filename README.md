@@ -10,8 +10,8 @@ Start with [LEARNING_PATH.md](LEARNING_PATH.md) if your goal is to compare when 
 
 | Directory | Hosted API | Scenario selection | Best for | Patterns shown |
 | --- | --- | --- | --- | --- |
-| `responses-api-release-room/` | OpenAI-compatible Responses API | Server startup via `--scenario` | Conversational apps, streaming chat clients, OpenAI-compatible tooling, multi-turn chat state | Sequential, concurrent, handoff, group chat, magentic |
-| `invocations-api-review-bot/` | Custom Invocations API | Per request via `scenario` | Webhooks, structured jobs, non-chat payloads, custom response contracts | Sequential, concurrent, handoff, group chat, magentic |
+| `responses-api-scenarios/` | OpenAI-compatible Responses API | Server startup via `--scenario` | Conversational apps, streaming chat clients, OpenAI-compatible tooling, multi-turn chat state | Sequential, concurrent, handoff, group chat, magentic |
+| `invocations-api-scenarios/` | Custom Invocations API | Per request via `scenario` | Webhooks, structured jobs, non-chat payloads, custom response contracts | Sequential, concurrent, handoff, group chat, magentic |
 
 ## Scenario Catalog
 
@@ -42,29 +42,29 @@ Both directories now contain the same twenty learning scenarios so the API diffe
 
 Scenarios 11-15 attach a local, deterministic `enterprise-context` MCP server (FastMCP over stdio) exposing `lookup_enterprise_record`, `search_policy`, `calculate_priority_score`, `list_playbook_steps`, and `create_decision_log_entry`.
 
-The **Scenario 16 quote-to-cash** family (`16a`-`16e`) reframes a rigid RPA/API quote flow as goal-oriented agents with orchestration-managed state, tool use, and transient agent waves (agents are deallocated once their context is stored). All five variants reuse the same six roles — `QuoteTriggerAgent`, `CustomerContextAgent`, `SkuDiscoveryAgent`, `ProductFitAgent`, `PricingTermsAgent`, `QuoteGenerationAgent` — grounded by a second local MCP server, `quote-to-cash-context`, exposing `crm_get_quote_trigger`, `crm_get_customer_profile`, `product_search_catalog`, `product_validate_skus`, `pricing_calculate_quote`, `legal_evaluate_terms`, and `quote_format_package`. Each scenario module also supports `python -m <package>.scenarios.<module>` for a direct run.
+The **Scenario 16 quote-to-cash** family (`16a`-`16e`) uses one quote request to compare how instruction-led LLM agents behave under each orchestration pattern. All five variants reuse the same six roles — `QuoteTriggerAgent`, `CustomerContextAgent`, `SkuDiscoveryAgent`, `ProductFitAgent`, `PricingTermsAgent`, `QuoteGenerationAgent` — grounded by a second local MCP server, `quote-to-cash-context`, exposing `crm_get_quote_trigger`, `crm_get_customer_profile`, `product_search_catalog`, `product_validate_skus`, `pricing_calculate_quote`, `legal_evaluate_terms`, and `quote_format_package`. Each scenario module also supports `python -m <package>.scenarios.<module>` for a direct run.
 
 Both MCP servers need no network, credentials, or manual setup. Agents with declared `mcp_tools` receive a tool via Agent Framework `MCPStdioTool` (`approval_mode="never_require"`, per-agent `allowed_tools`); the server modules live under `src/.../mcp_servers/` in each package and the agent's `mcp_server` field selects which one to attach.
 
 Each scenario is defined in its own Python module inside the API directory's `src/.../scenarios/` package. Each API directory also has a `notebooks/` folder with one companion notebook per scenario for step-by-step learning and live in-process Ollama execution. MCP scenario notebooks add an MCP tool context section and dashed tool links in the flow diagram.
 Each notebook includes a runtime Mermaid flow diagram that renders through `mermaid.ink` and also exposes the generated Mermaid source.
 
-## Coded Agents And Advanced Orchestration
+## Instruction-Led Agents And Orchestration
 
-Every agent is a **coded agent**, never a prompt-only agent. Two code layers make this true:
+Every agent is an **LLM-backed agent with role instructions**. Most starter scenarios use instructions only, so the orchestration pattern is easy to see. Enterprise and quote-to-cash scenarios add domain tools when the lesson needs grounded context.
 
-- **Code-defined function tools** (`src/.../code_tools.py`): deterministic Python callables — `note_observation`, `rate_risk`, `make_checklist`, `extract_action_items`, `tally_votes`, `compose_summary` — attached to each agent (alongside any MCP tools). A role-based mapping (`effective_code_tools`) guarantees every agent receives tools, so none rely on instructions alone.
+- **Instruction-led agents**: each role is created with `OllamaChatClient(...).as_agent(...)`, a name, a description, and instructions. Optional MCP/domain tools are attached only when the scenario teaches tool-grounded behavior.
 - **Code-defined orchestration** (`src/.../executors.py`, `workflows.py`): Sequential, Concurrent, and Handoff are built as explicit `WorkflowBuilder` graphs of custom `Executor` subclasses with agent nodes wrapped in `AgentExecutor`. They use typed `@handler` methods, shared `WorkflowContext` state, conditional routing, and fan-out/fan-in — for example `PromptDispatchExecutor`, `StageGateExecutor`, `ConcurrentAggregatorExecutor`, and `HandoffRouterExecutor`. Group Chat and Magentic use the framework's code-driven builders (custom selection function, manager planning, ledger limits).
 
-This raises every scenario to the complexity of the advanced [Microsoft Agent Framework samples](https://github.com/microsoft/Agent-Framework-Samples/tree/main) (custom executors, typed handlers, conditional routing, fan-in, shared state, function tools). The custom-executor graphs are validated offline with a deterministic stub agent, so the wiring is exercised without a model; live runs use Ollama. Notebooks render in the **Aptos** font (with a graceful fallback) and include a coded-agent tool map.
+The point of the repo is to show how ordinary instruction-led LLM agents become more capable together when the framework coordinates the turn order, routing, aggregation, group discussion, or manager-led delegation. The custom-executor graphs are validated offline with a deterministic stub agent, so the wiring is exercised without a model; live runs use Ollama. Notebooks render in the **Aptos** font (with a graceful fallback) and include an agent capability map.
 
 ## Learning Artifacts
 
 | Artifact | Purpose |
 | --- | --- |
 | `LEARNING_PATH.md` | Recommended study order and API/pattern decision guide. |
-| `responses-api-release-room/notebooks/` | One notebook per Responses scenario, using in-process workflow execution by default. |
-| `invocations-api-review-bot/notebooks/` | One notebook per Invocations scenario, using the custom payload and response contract. |
+| `responses-api-scenarios/notebooks/` | One notebook per Responses scenario, using in-process workflow execution by default. |
+| `invocations-api-scenarios/notebooks/` | One notebook per Invocations scenario, using the custom payload and response contract. |
 | `src/.../scenarios/*.py` | One Python module per scenario so learners can inspect scenario definitions directly. |
 
 ## Prerequisites
@@ -84,7 +84,7 @@ Each sample has its own `requirements.txt`. The Agent Framework packages are sti
 ## Responses API Quick Start
 
 ```powershell
-cd responses-api-release-room
+cd responses-api-scenarios
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -103,7 +103,7 @@ In a second terminal:
 ## Invocations API Quick Start
 
 ```powershell
-cd invocations-api-review-bot
+cd invocations-api-scenarios
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -133,10 +133,10 @@ In a second terminal:
 Run these checks from the repository root after installing dependencies:
 
 ```powershell
-python -m compileall responses-api-release-room invocations-api-review-bot
-cd responses-api-release-room
+python -m compileall responses-api-scenarios invocations-api-scenarios
+cd responses-api-scenarios
 $env:PYTHONPATH='src'; $env:PYTHONDONTWRITEBYTECODE='1'; python -m unittest discover -s tests
-cd ..\invocations-api-review-bot
+cd ..\invocations-api-scenarios
 $env:PYTHONPATH='src'; $env:PYTHONDONTWRITEBYTECODE='1'; python -m unittest discover -s tests
 cd ..
 $files = rg --files -g "*.json" -g "!**/.venv/**"

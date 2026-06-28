@@ -7,9 +7,9 @@ This repository is designed to teach two separate choices that often get mixed t
 
 ## Recommended Order
 
-1. Start with `responses-api-release-room/notebooks/01-sequential-release-readiness.ipynb`.
+1. Start with `responses-api-scenarios/notebooks/01-sequential-release-readiness.ipynb`.
    Learn the simplest path: one Responses request enters a fixed multi-agent pipeline.
-2. Run `invocations-api-review-bot/notebooks/01-sequential-release-readiness.ipynb`.
+2. Run `invocations-api-scenarios/notebooks/01-sequential-release-readiness.ipynb`.
    Compare how the same pattern changes when the input is a custom job payload.
 3. Continue through scenarios `02` to `05` in both directories.
    Keep the scenario number the same when comparing APIs so only the API boundary changes.
@@ -18,7 +18,7 @@ This repository is designed to teach two separate choices that often get mixed t
 5. Run scenarios `11` to `15` to learn MCP tool usage, one scenario per orchestration pattern.
    These attach a local `enterprise-context` MCP server (no network, credentials, or setup) and cover procurement approval, security alert enrichment, claims exception routing, a policy exception board, and a business continuity drill. Each MCP notebook adds an MCP tool context section and dashed tool links in the flow diagram.
 6. Run the Scenario 16 quote-to-cash family (`16a` to `16e`) to compare all five patterns over one shared business story.
-   These reframe a rigid RPA/API quote flow as goal-oriented agents with orchestration-managed state, tool use, and transient agent waves. They reuse the same six roles (trigger, customer context, SKU discovery, product fit, pricing/terms, quote generation) grounded by a local `quote-to-cash-context` MCP server, and each notebook explains how its pattern maps back to (and differs from) the original RPA sequence.
+   These reuse the same six instruction-led LLM agent roles (trigger, customer context, SKU discovery, product fit, pricing/terms, quote generation) grounded by a local `quote-to-cash-context` MCP server, so you can compare how the same business process changes under each orchestration pattern.
 7. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
 
 ## Responses API vs Invocations API
