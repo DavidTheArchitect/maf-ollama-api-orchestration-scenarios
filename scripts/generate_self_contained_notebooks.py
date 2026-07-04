@@ -171,6 +171,93 @@ PATTERN_INSPECT = {
 }
 
 
+
+#: Per-scenario teaching spotlights: (what-to-inspect line, experiment line).
+#: These point learners at each scenario's engineered wrinkle instead of
+#: leaving the guidance pattern-generic.
+SCENARIO_SPOTLIGHTS: dict[str, tuple[str, str]] = {
+    "sequential-release-readiness": (
+        "The request carries a finance-freeze constraint and a rollback requirement -- the final go/no-go should cite both.",
+        "Remove the freeze constraint from the payload and compare how the risk stage and the final brief change.",
+    ),
+    "concurrent-pr-review": (
+        "The diff summary names three concrete changes (JWKS caching, keyset pagination, test fixture swaps) -- each reviewer should react to the change in its own lane.",
+        "Drop one diff item from the payload and check that only the relevant reviewers change their findings.",
+    ),
+    "handoff-support-triage": (
+        "The input deliberately mixes SSO and invoice-export symptoms -- check which owner the triage ROUTE line names and whether the rationale matches.",
+        "Reword the payload toward a pure billing problem and confirm the route (and its source) changes.",
+    ),
+    "group-chat-launch-council": (
+        "Watch for the 'FINAL RECOMMENDATION:' line -- if it appears at a cycle end, semantic termination fired; otherwise the two-cycle cap did.",
+        "Weaken one stakeholder's instructions and see whether the council converges in one cycle instead of two.",
+    ),
+    "magentic-incident-response": (
+        "The timeline hints at the storage driver rollout but does not confirm it -- watch whether the manager delegates verification before mitigation.",
+        "Remove the suspected-cause sentence from the payload and compare the manager's first delegation.",
+    ),
+    "sequential-employee-onboarding": (
+        "Each stage consumes an artifact: role profile -> proposed access list -> security-trimmed plan -> payroll actions. Check the chain survives intact.",
+        "Change the role to a contractor in the payload and watch which downstream stages adapt.",
+    ),
+    "concurrent-vendor-risk-assessment": (
+        "The payload sets a 150k USD budget cap and a two-week deadline -- finance and operations should engage those constraints, not restate generic risk.",
+        "Raise the budget cap above the vendor's cost and compare the finance lane's verdict.",
+    ),
+    "handoff-customer-entitlement": (
+        "Entitlement loss after renewal could be billing, contract, or engineering -- check the triage ROUTE rationale names evidence, not just a category.",
+        "Add 'the order form shows the module was dropped at renewal' to the payload and confirm the route moves to contracts.",
+    ),
+    "group-chat-quarterly-planning": (
+        "Headcount is frozen -- every proposed commitment should name what it trades away. Check the FINAL PLAN honors the freeze.",
+        "Lift the freeze in the payload and compare which stakeholder wins more scope.",
+    ),
+    "magentic-supply-chain-disruption": (
+        "The expedite budget is capped at 250k USD with contractual penalties in play -- watch whether the manager weighs expedite cost against penalty exposure.",
+        "Double the expedite cap in the payload and compare the finance specialist's recommendation.",
+    ),
+    "sequential-procurement-approval": (
+        "POL-PROC-01 says the vendor's review is expired, but POL-PROC-03 allows a 30-day regional-processing exception with security sign-off -- the legal stage should reconcile the two.",
+        "Ask for the same vendor without the migration context and check whether the packet recommendation changes.",
+    ),
+    "concurrent-security-alert-enrichment": (
+        "ALERT-2298 carries token_rotation_completed: False while POL-SEC-04 demands rotation within one hour -- the identity lane should flag the gap and the summary should escalate it.",
+        "Flip token_rotation_completed to True in the fixture cell and compare the identity lane and final summary.",
+    ),
+    "handoff-claims-exception-routing": (
+        "CLAIM-88120 has one fraud signal, so POL-CLM-09 routes fraud-first even though the amount also exceeds auto-approval -- check the ROUTE line honors that.",
+        "Route CLAIM-88121 instead: it carries both a fraud signal and a compliance hold, so the fraud-first rule and the hold compete.",
+    ),
+    "group-chat-policy-exception-board": (
+        "The request asks for 90 days but POL-GOV-03 caps waivers at 60 -- the chair's recorded expiry should reflect the cap, not the request.",
+        "Change the request to 45 days in the payload and confirm the board approves without the cap discussion.",
+    ),
+    "magentic-business-continuity-drill": (
+        "FACILITY-DC-WEST has a current drill while DC-EAST is 410 days overdue -- watch how the manager scopes the drill when a contrast site exists.",
+        "Ask for a drill plan covering both facilities and compare how the manager splits the specialists.",
+    ),
+    "scenario-16-quote-to-cash-sequential": (
+        "The request targets a 25 percent discount, which crosses the Legal (>20%) approval threshold -- the pricing stage should surface the required approval.",
+        "Lower the discount to 15 percent in the payload and confirm the legal-approval requirement disappears.",
+    ),
+    "scenario-16-quote-to-cash-concurrent": (
+        "The product-fit and pricing lanes discover SKUs independently -- check whether their SKU sets disagree and how the synthesizer reconciles them.",
+        "Lower the discount to 15 percent in the payload and confirm the legal-approval requirement disappears.",
+    ),
+    "scenario-16-quote-to-cash-handoff": (
+        "The trigger agent names the specialist the quote needs most; whichever route it picks, QuoteGenerationAgent must still finish the package.",
+        "Reword the request to emphasize legal terms and confirm the ROUTE moves to the pricing/terms specialist.",
+    ),
+    "scenario-16-quote-to-cash-group-chat": (
+        "The 25 percent discount gives the pricing reviewer a real objection -- check the debate surfaces the legal-approval requirement before the readiness verdict.",
+        "Lower the discount to 15 percent in the payload and compare how quickly the council converges.",
+    ),
+    "scenario-16-quote-to-cash-magentic": (
+        "The discount crosses the legal threshold, so the manager should delegate to pricing/terms before formatting the package -- watch the delegation order.",
+        "Lower the discount to 15 percent in the payload and compare the manager's plan.",
+    ),
+}
+
 def cell_source(source: str) -> list[str]:
     text = textwrap.dedent(source).strip("\n")
     lines = text.splitlines()
@@ -2310,10 +2397,13 @@ def live_run_markdown(scenario: Any) -> str:
 
 def post_run_markdown(scenario: Any) -> str:
     inspect = PATTERN_INSPECT[scenario.pattern]
+    spotlight = SCENARIO_SPOTLIGHTS[scenario.id][0]
     return f"""
     ## What to Inspect
 
     {inspect}
+
+    > **Scenario spotlight:** {spotlight}
     """
 
 
@@ -2322,9 +2412,11 @@ def experiments_markdown(project: dict[str, str], scenario: Any) -> str:
         payload_line = "`RESPONSES_PAYLOAD['input']`"
     else:
         payload_line = "`INVOCATION_PAYLOAD['task']`, `subject`, `artifacts`, or `constraints`"
+    spotlight_experiment = SCENARIO_SPOTLIGHTS[scenario.id][1]
     return f"""
     ## Experiments
 
+    - {spotlight_experiment}
     - Change {payload_line} and rerun the live cell.
     - Override `OLLAMA_MODEL` or `OLLAMA_HOST` before the environment cell to target a different local Ollama setup.
     - Inspect `agent_capability_map(SCENARIO)` and tighten one agent's instructions to see how orchestration behavior changes.

@@ -41,6 +41,27 @@ This repository is designed to teach two separate choices that often get mixed t
 | Group chat | Visible critique and refinement. | A cycle-based discussion whose closing agent ends a converged round with an explicit verdict line. |
 | Magentic | Manager-led planning and replanning. | Dynamic delegation and investigation. |
 
+## Notebook Layout
+
+Every notebook is laid out cell-per-concept: fixtures are separate from tool functions
+(the tool cell ends with a direct grounded call), workflow plumbing is separate from the
+pattern's own machinery, and every pattern cell ends with an offline demo -- a router
+choosing a route, a termination function firing at a cycle boundary -- that runs without
+Ollama. Each scenario's "What to Inspect" and "Experiments" sections point at that
+scenario's engineered wrinkle (an expired review, a conflicting policy, a discount over
+the legal threshold), so learners know what a correct run should surface.
+
+## Manual Live-Run Verification
+
+When validating changes with a local Ollama (`qwen3:14b` pulled), run one notebook per
+pattern tier end-to-end and check the scenario spotlight is surfaced:
+
+1. `01-sequential-release-readiness` -- the brief cites the finance freeze and rollback constraint.
+2. `07-concurrent-vendor-risk-assessment` -- finance engages the 150k budget cap.
+3. `13-handoff-claims-exception-routing` -- the ROUTE line picks fraud first; comms finishes.
+4. `14-group-chat-policy-exception-board` -- the chair's expiry honors the 60-day cap.
+5. `16e-scenario-16-quote-to-cash-magentic` -- the manager delegates pricing/legal for the 25% discount.
+
 ## Local Runtime Notes
 
 - The notebooks call Ollama by default, so `ollama serve` must be running and `qwen3:14b` must be pulled.
