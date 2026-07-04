@@ -9,14 +9,42 @@ SCENARIO = ScenarioSpec(
     id="sequential-employee-onboarding",
     pattern="sequential",
     title="Sequential Employee Onboarding Job",
-    learning_goal="Learn how an invocation can move a structured onboarding job through required enterprise departments.",
-    when_to_use="Use Invocations plus sequential orchestration for HRIS, ticketing, or workflow jobs where every request must pass required stages.",
+    learning_goal="Learn how an invocation can move a structured onboarding job through required enterprise departments, where each stage consumes a concrete artifact from the stage before it.",
+    when_to_use="Use Invocations plus sequential orchestration for HRIS, ticketing, or workflow jobs where later stages depend on earlier artifacts — if departments only shared the same intake payload, concurrent orchestration would fit better.",
     sample_task="Build an onboarding execution plan for a new enterprise employee.",
     agents=(
-        AgentSpec("HrCoordinatorAgent", "Frames the onboarding job.", "Create the onboarding timeline, owner map, and required employee milestones before downstream departments act."),
-        AgentSpec("ItProvisioningAgent", "Plans account and device setup.", "Identify identity, laptop, email, CRM, collaboration, and device-management tasks."),
-        AgentSpec("SecurityComplianceAgent", "Checks access and compliance requirements.", "Review least-privilege access, mandatory training, data handling, and audit evidence requirements."),
-        AgentSpec("PayrollBenefitsAgent", "Plans payroll and benefits setup.", "Add payroll, benefits, tax, direct deposit, and regional compliance actions."),
-        AgentSpec("EnablementManagerAgent", "Produces the final execution plan.", "Combine prior outputs into a concise checklist with dates, blockers, and first-week success measures."),
+        AgentSpec(
+            "HrCoordinatorAgent",
+            "Produces the role profile every downstream stage consumes.",
+            "Create the onboarding timeline and a concrete role profile: role, level, department, manager, "
+            "start date, location, and employment type. Downstream departments provision against this "
+            "profile, so state it explicitly.",
+        ),
+        AgentSpec(
+            "ItProvisioningAgent",
+            "Provisions against HR's role profile.",
+            "Using the role profile and start date from the HR stage, list identity, laptop, email, CRM, "
+            "collaboration, and device-management tasks with target dates, and output the proposed access "
+            "list for security review.",
+        ),
+        AgentSpec(
+            "SecurityComplianceAgent",
+            "Reviews IT's proposed access list.",
+            "Review the access list the IT stage proposed against least-privilege for the stated role. "
+            "Approve, trim, or flag each item, and add mandatory training, data handling, and audit "
+            "evidence requirements.",
+        ),
+        AgentSpec(
+            "PayrollBenefitsAgent",
+            "Sets up payroll from the role profile and approved plan.",
+            "Using the role profile's location, employment type, and start date, add payroll, benefits, "
+            "tax, direct deposit, and regional compliance actions consistent with the approved access plan.",
+        ),
+        AgentSpec(
+            "EnablementManagerAgent",
+            "Turns departmental artifacts into the final execution plan.",
+            "Combine the role profile, provisioning tasks, security-approved access plan, and payroll "
+            "actions into a concise checklist with dates, blockers, and first-week success measures.",
+        ),
     ),
 )

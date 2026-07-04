@@ -36,9 +36,9 @@ This repository is designed to teach two separate choices that often get mixed t
 | Pattern | Learn it when you need | Look for |
 | --- | --- | --- |
 | Sequential | A fixed pipeline with required stages. | Each agent transforms prior output. |
-| Concurrent | Independent expert review. | Multiple outputs from parallel specialists. |
+| Concurrent | Independent expert review. | Labelled outputs from parallel specialists; scenarios with a synthesizer run it after fan-in to combine them. |
 | Handoff | Dynamic routing to specialists. | A triage `ROUTE:` directive validated by a code-defined router, plus the routed specialist (and optional finisher) responses. |
-| Group chat | Visible critique and refinement. | A transcript-like discussion. |
+| Group chat | Visible critique and refinement. | A cycle-based discussion whose closing agent ends a converged round with an explicit verdict line. |
 | Magentic | Manager-led planning and replanning. | Dynamic delegation and investigation. |
 
 ## Local Runtime Notes

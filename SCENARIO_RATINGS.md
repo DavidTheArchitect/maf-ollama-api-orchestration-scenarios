@@ -1,5 +1,33 @@
 # Scenario Ratings — Microsoft Agent Framework Instructor Review
 
+> **Re-rated after the improvement pass (2026-07-04).** The structural fixes
+> recommended by this review have been implemented: model-directed handoff
+> routing with curated keywords and fixed finishers (#6), post-fan-in
+> concurrent synthesizers (#7), per-scenario group-chat termination with the
+> synthesizer closing every cycle (#8), and artifact-dependent onboarding
+> stages. Current ratings, verified by both offline test suites:
+>
+> | # | Scenario | Before | After | | # | Scenario | Before | After |
+> | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+> | 01 | sequential-release-readiness | 9 | **9** | | 11 | sequential-procurement-approval | 9 | **9** |
+> | 02 | concurrent-pr-review | 9 | **9** | | 12 | concurrent-security-alert-enrichment | 6 | **8** |
+> | 03 | handoff-support-triage | 7 | **8** | | 13 | handoff-claims-exception-routing | 7 | **9** |
+> | 04 | group-chat-launch-council | 7 | **8** | | 14 | group-chat-policy-exception-board | 8 | **9** |
+> | 05 | magentic-incident-response | 9 | **9** | | 15 | magentic-business-continuity-drill | 8 | **8** |
+> | 06 | sequential-employee-onboarding | 7 | **8** | | 16a | quote-to-cash sequential | 9 | **9** |
+> | 07 | concurrent-vendor-risk-assessment | 9 | **9** | | 16b | quote-to-cash concurrent | 6 | **8** |
+> | 08 | handoff-customer-entitlement | 6\* | **8** | | 16c | quote-to-cash handoff | 5 | **8** |
+> | 09 | group-chat-quarterly-planning | 7 | **8** | | 16d | quote-to-cash group chat | 6 | **8** |
+> | 10 | magentic-supply-chain-disruption | 8 | **8** | | 16e | quote-to-cash magentic | 8 | **8** |
+>
+> Average: **7.6 → 8.4**. No scenario below 8. (\*Scenario 08 was lowered from
+> 7 to 6 in a second evaluation pass after empirically running the old keyword
+> router: the auto-generated keyword `customer` biased routing toward the
+> comms agent; the curated keywords in #6 removed that bias.)
+>
+> The review below is the original assessment that motivated the changes; its
+> "Cross-Cutting Recommendations" have all been implemented.
+
 An instructor's review of the twenty learning scenarios shared by
 `responses-api-scenarios/` and `invocations-api-scenarios/`. Each scenario is
 rated **1–10 as a teaching vehicle for its orchestration pattern**, based on
