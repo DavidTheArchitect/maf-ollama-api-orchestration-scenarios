@@ -110,6 +110,37 @@ class ConcurrentAggregatorExecutor(Executor):
         await ctx.yield_output("\n\n".join(labelled))
 
 
+class ConcurrentSynthesisGateExecutor(Executor):
+    """Fan-in gate: label the parallel findings and forward them for synthesis.
+
+    Unlike :class:`ConcurrentAggregatorExecutor`, this executor does not end the
+    workflow. It records each labelled parallel finding in the shared transcript
+    and forwards the full set to a designated synthesizer agent, so the agent
+    that combines the perspectives actually sees them.
+    """
+
+    def __init__(self, id: str, *, agent_names: list[str]) -> None:
+        super().__init__(id=id)
+        self._agent_names = agent_names
+
+    @handler
+    async def gate(
+        self, responses: list[AgentExecutorResponse], ctx: WorkflowContext[AgentExecutorRequest]
+    ) -> None:
+        for index, response in enumerate(responses):
+            name = self._agent_names[index] if index < len(self._agent_names) else f"agent{index + 1}"
+            _append_transcript(ctx, name, response_text(response))
+        prompt = ctx.get_state("prompt") or ""
+        carried = "\n".join(ctx.get_state(_TRANSCRIPT_KEY) or [])
+        await ctx.send_message(
+            make_request(
+                f"You are the synthesis stage.\nOriginal request:\n{prompt}\n\n"
+                f"Independent specialist findings:\n{carried}\n\n"
+                "Combine these findings into the final deliverable."
+            )
+        )
+
+
 _ROUTE_DIRECTIVE = re.compile(r"route\s*:\s*([A-Za-z][A-Za-z0-9 _-]*)", re.IGNORECASE)
 
 

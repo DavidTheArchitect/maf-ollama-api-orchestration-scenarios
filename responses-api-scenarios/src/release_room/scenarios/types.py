@@ -20,3 +20,7 @@ class ScenarioSpec:
     #: specialist to finish the work (for example the quote or comms owner).
     #: ``None`` keeps the single-hop triage -> router -> specialist shape.
     handoff_finisher: str | None = None
+    #: Concurrent-only: name of the agent that runs after fan-in to synthesize
+    #: the labelled parallel findings into one deliverable. ``None`` keeps the
+    #: plain fan-out -> fan-in -> aggregated output shape.
+    concurrent_synthesizer: str | None = None

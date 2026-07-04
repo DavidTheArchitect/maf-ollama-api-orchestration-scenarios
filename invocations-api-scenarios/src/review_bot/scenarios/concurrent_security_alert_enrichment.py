@@ -9,9 +9,10 @@ SCENARIO = ScenarioSpec(
     id="concurrent-security-alert-enrichment",
     pattern="concurrent",
     title="Concurrent Security Alert Enrichment Job",
-    learning_goal="Learn how a concurrent invocation lets independent specialists enrich the same alert in parallel, each pulling its own facts from local MCP tools.",
-    when_to_use="Use Invocations plus concurrent orchestration for security jobs where several independent reviewers should enrich the same alert at once before a summary is assembled.",
+    learning_goal="Learn how a concurrent invocation lets independent specialists enrich the same alert in parallel with their own MCP facts, then hands every labelled finding to a summary agent that runs after fan-in.",
+    when_to_use="Use Invocations plus concurrent orchestration for security jobs where several independent reviewers should enrich the same alert at once and a synthesis stage must combine what they found.",
     sample_task="Run an enrichment job for security alert ALERT-2298 across identity, endpoint, network, and data-loss dimensions.",
+    concurrent_synthesizer="IncidentSummaryAgent",
     agents=(
         AgentSpec(
             "IdentityEnrichmentAgent",
@@ -39,8 +40,8 @@ SCENARIO = ScenarioSpec(
         ),
         AgentSpec(
             "IncidentSummaryAgent",
-            "Summarizes the enriched alert.",
-            "Combine the independent perspectives into one incident summary. Use list_playbook_steps for the security-enrichment playbook and create_decision_log_entry to record the triage decision.",
+            "Summarizes the enriched alert after fan-in.",
+            "You receive the labelled findings from the identity, endpoint, network, and data-loss enrichment agents. Combine them into one incident summary. Use list_playbook_steps for the security-enrichment playbook and create_decision_log_entry to record the triage decision.",
             mcp_tools=("list_playbook_steps", "create_decision_log_entry"),
         ),
     ),
