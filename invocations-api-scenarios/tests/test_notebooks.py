@@ -10,6 +10,17 @@ def _scenario_uses_mcp(scenario):
     return any(agent.mcp_tools for agent in scenario.agents)
 
 
+#: One marker unique to each pattern's orchestration machinery. Notebooks must
+#: contain their own pattern's marker and none of the other patterns'.
+_PATTERN_MACHINERY_MARKERS = {
+    "sequential": "StageGateExecutor",
+    "concurrent": "ConcurrentAggregatorExecutor",
+    "handoff": "HandoffRouterExecutor",
+    "group-chat": "GroupChatBuilder",
+    "magentic": "MagenticBuilder",
+}
+
+
 def _imports_package(source: str, package: str) -> bool:
     tree = ast.parse(source, mode="exec", type_comments=True)
     for node in ast.walk(tree):
@@ -56,9 +67,22 @@ class NotebookCompanionTests(unittest.TestCase):
                 self.assertNotIn("resolve_code_tools", source_text)
                 self.assertNotIn("coded_agent_tool_map", source_text)
 
-                if _scenario_uses_mcp(SCENARIOS_BY_ID[scenario_ids[0]]):
+                scenario = SCENARIOS_BY_ID[scenario_ids[0]]
+                if _scenario_uses_mcp(scenario):
                     self.assertIn("MCP Tool Context", source_text)
                     self.assertIn("mcp_tool_context", source_text)
+
+                # Cell-per-concept layout: enough cells, only this pattern's
+                # machinery, an offline demo, and the styled transcript render.
+                minimum_cells = 18 if _scenario_uses_mcp(scenario) else 15
+                self.assertGreaterEqual(len(data.get("cells", [])), minimum_cells)
+                self.assertIn(_PATTERN_MACHINERY_MARKERS[scenario.pattern], source_text)
+                for other_pattern, marker in _PATTERN_MACHINERY_MARKERS.items():
+                    if other_pattern != scenario.pattern:
+                        self.assertNotIn(marker, source_text)
+                self.assertIn("# Demo (offline)", source_text)
+                self.assertIn("render_transcript", source_text)
+                self.assertIn("render_roster", source_text)
 
                 for index, cell in enumerate(data.get("cells", [])):
                     self.assertIsNone(cell.get("execution_count"))
