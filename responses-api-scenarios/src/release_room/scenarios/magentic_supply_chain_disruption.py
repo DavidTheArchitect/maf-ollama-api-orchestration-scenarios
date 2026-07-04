@@ -11,7 +11,11 @@ SCENARIO = ScenarioSpec(
     title="Magentic Supply Chain Disruption",
     learning_goal="Learn how a Responses API endpoint can use a manager-led agent team for open-ended enterprise disruption response.",
     when_to_use="Use Responses plus magentic orchestration when the request needs dynamic planning, delegation, and replanning across enterprise functions.",
-    sample_input="Coordinate a response to a supplier disruption that threatens two product lines, regional inventory, customer delivery dates, and finance forecasts.",
+    sample_input=(
+        "Coordinate a response to a supplier disruption that threatens two product lines, regional "
+        "inventory, customer delivery dates, and finance forecasts. Constraints: the expedite budget "
+        "is capped at 250k USD and two strategic customers carry contractual delivery penalties."
+    ),
     agents=(
         AgentSpec("SupplyChainManagerAgent", "Plans and coordinates the disruption response.", "Build the investigation plan, delegate to specialists, reconcile findings, and produce an executive response plan."),
         AgentSpec("SupplierRiskAgent", "Assesses supplier status and alternatives.", "Investigate supplier constraints, replacement suppliers, qualification risk, and contractual leverage."),

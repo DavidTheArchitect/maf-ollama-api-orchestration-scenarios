@@ -11,7 +11,13 @@ SCENARIO = ScenarioSpec(
     title="Magentic Incident Response Coordination",
     learning_goal="Learn how a manager agent can dynamically coordinate specialists for a less predictable multi-step response.",
     when_to_use="Use Responses plus magentic orchestration for open-ended tasks that need planning, dynamic specialist selection, and replanning.",
-    sample_input="Investigate a production incident where exports are timing out, billing reconciliation is delayed, and support tickets are rising.",
+    sample_input=(
+        "Investigate a production incident. Timeline: 09:12 export latency p95 doubles; 09:30 the "
+        "billing reconciliation job misses its window; 09:41 support tickets spike about stuck "
+        "dashboard exports; 09:55 the exports API error rate reaches 8 percent. Suspected but "
+        "unconfirmed: last night's storage driver rollout. Coordinate the response and produce an "
+        "incident brief."
+    ),
     agents=(
         AgentSpec("IncidentManagerAgent", "Plans and coordinates the incident response.", "Coordinate the team, decide who should act next, replan when blocked, and produce the final incident brief."),
         AgentSpec("TelemetryAnalystAgent", "Analyzes logs, metrics, and symptoms.", "Reason about logs, metrics, alerts, error rates, and timelines from the provided incident description."),

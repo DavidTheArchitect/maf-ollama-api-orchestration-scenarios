@@ -61,6 +61,42 @@ class McpScenarioTests(unittest.TestCase):
         self.assertTrue(ENTERPRISE_MCP_SCENARIOS <= with_mcp)
         self.assertTrue(QUOTE_TO_CASH_SCENARIOS <= with_mcp)
 
+    def test_instruction_tool_mentions_are_granted(self):
+        """Any tool an agent's instructions name must be in its mcp_tools grant."""
+
+        all_tools = set()
+        for module in SERVERS.values():
+            all_tools |= set(module.AVAILABLE_TOOLS)
+        for scenario in SCENARIOS:
+            for agent in scenario.agents:
+                mentioned = {tool for tool in all_tools if tool in agent.instructions}
+                with self.subTest(scenario=scenario.id, agent=agent.name):
+                    self.assertLessEqual(
+                        mentioned, set(agent.mcp_tools), mentioned - set(agent.mcp_tools)
+                    )
+
+    def test_sample_inputs_reference_known_fixture_ids(self):
+        """Fixture-style IDs in MCP scenario samples must exist on their server."""
+
+        import re as _re
+
+        known = {
+            "enterprise_context": set(enterprise_context._ENTERPRISE_RECORDS)
+            | {policy["id"] for policy in enterprise_context._POLICY_CATALOG},
+            "quote_to_cash_context": set(quote_to_cash_context._QUOTE_TRIGGERS)
+            | set(quote_to_cash_context._CUSTOMER_PROFILES)
+            | {entry["sku"] for entry in quote_to_cash_context._CATALOG},
+        }
+        id_pattern = _re.compile(r"\b[A-Z][A-Z0-9]+(?:-[A-Z0-9]+)+\b")
+        for scenario in SCENARIOS:
+            servers = {a.mcp_server for a in scenario.agents if a.mcp_tools}
+            if len(servers) != 1:
+                continue
+            valid = known[next(iter(servers))]
+            for token in id_pattern.findall(scenario.sample_task):
+                with self.subTest(scenario=scenario.id, token=token):
+                    self.assertIn(token, valid)
+
     def test_quote_to_cash_scenarios_use_quote_server(self):
         for scenario in SCENARIOS:
             if scenario.id not in QUOTE_TO_CASH_SCENARIOS:

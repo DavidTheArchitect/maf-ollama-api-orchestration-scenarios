@@ -11,7 +11,10 @@ SCENARIO = ScenarioSpec(
     title="Group Chat Quarterly Planning Job",
     learning_goal="Learn how an invocation can return a structured decision record from an internal enterprise planning council, with a chief of staff who closes each round and ends the debate with the final plan.",
     when_to_use="Use Invocations plus group chat orchestration for planning jobs that need stakeholder critique before producing a record.",
-    sample_task="Produce a quarterly operating plan recommendation from stakeholder inputs.",
+    sample_task=(
+        "Produce a quarterly operating plan recommendation from stakeholder inputs. Constraint: "
+        "headcount is frozen this quarter, so every commitment must trade off against existing capacity."
+    ),
     termination_phrases=("final plan",),
     agents=(
         AgentSpec("RevenueLeaderAgent", "Represents sales and expansion priorities.", "Argue for renewals, expansion, pipeline confidence, and executive account coverage."),

@@ -1,4 +1,4 @@
 {
-  "input": "Coordinate an incident response for export timeouts and reconciliation delays. Stream the response.",
+  "input": "Investigate a production incident. Timeline: 09:12 export latency p95 doubles; 09:30 the billing reconciliation job misses its window; 09:41 support tickets spike about stuck dashboard exports; 09:55 the exports API error rate reaches 8 percent. Suspected but unconfirmed: last night's storage driver rollout. Coordinate the response and produce an incident brief.",
   "stream": true
 }

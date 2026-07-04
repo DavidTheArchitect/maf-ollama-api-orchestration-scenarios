@@ -11,7 +11,11 @@ SCENARIO = ScenarioSpec(
     title="Concurrent Pull Request Review Job",
     learning_goal="Learn how an invocation can fan out a structured review payload to multiple independent reviewers.",
     when_to_use="Use Invocations plus concurrent orchestration for CI, webhook, and batch reviews where each expert can run independently.",
-    sample_task="Review this PR before it is merged into the release branch.",
+    sample_task=(
+        "Review this PR before the release-branch merge. Diff summary: auth middleware caches JWKS "
+        "keys for 10 minutes; export queries switch from OFFSET to keyset pagination; reconciliation "
+        "tests drop two flaky cases and add a currency-rounding fixture."
+    ),
     agents=(
         AgentSpec("SecurityReviewerAgent", "Reviews security risk.", "Review auth, data exposure, secrets, privilege boundaries, and abuse cases."),
         AgentSpec("PerformanceReviewerAgent", "Reviews performance risk.", "Review query cost, concurrency, caching, memory, and throughput risk."),

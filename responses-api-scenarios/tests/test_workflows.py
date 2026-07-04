@@ -92,6 +92,20 @@ class WorkflowSelectionTests(unittest.TestCase):
         self.assertIn("Approve after validating rollback.", text)
         self.assertNotIn(" object at 0x", text)
 
+    def test_handoff_specialists_declare_curated_route_keywords(self):
+        """Every routable handoff specialist has explicit lowercase keywords."""
+
+        for scenario in SCENARIOS:
+            if scenario.pattern != "handoff":
+                continue
+            for agent in scenario.agents[1:]:
+                if agent.name == scenario.handoff_finisher:
+                    continue
+                with self.subTest(scenario=scenario.id, agent=agent.name):
+                    self.assertTrue(agent.route_keywords)
+                    for keyword in agent.route_keywords:
+                        self.assertEqual(keyword, keyword.lower())
+
     def test_group_chat_termination_only_fires_at_cycle_end(self):
         from release_room.workflows import make_group_chat_termination
 

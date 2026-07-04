@@ -1,4 +1,4 @@
 {
-  "input": "Create a quarterly plan to improve enterprise customer retention while balancing roadmap commitments, support capacity, sales promises, and gross margin.",
+  "input": "Create a quarterly plan for improving enterprise customer retention while balancing roadmap, support capacity, sales commitments, and gross margin. Constraint: headcount is frozen this quarter, so every commitment must trade off against existing capacity.",
   "stream": false
 }

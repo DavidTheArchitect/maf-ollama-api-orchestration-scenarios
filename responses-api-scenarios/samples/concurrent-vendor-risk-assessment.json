@@ -1,4 +1,4 @@
 {
-  "input": "Assess whether we should approve a new analytics vendor that will process customer usage data, connect to our data warehouse, and renew annually.",
+  "input": "Assess whether we should approve a new analytics vendor that will process customer usage data and integrate with our warehouse. Constraints: the annual budget cap is 150k USD, a decision is needed within two weeks, and the data science team wants API access in the first month.",
   "stream": false
 }

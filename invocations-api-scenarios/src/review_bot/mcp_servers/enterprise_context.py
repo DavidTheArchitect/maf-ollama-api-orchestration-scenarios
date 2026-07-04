@@ -50,6 +50,7 @@ _ENTERPRISE_RECORDS: dict[str, dict[str, Any]] = {
         "affected_users": 3,
         "affected_endpoints": 2,
         "data_loss_indicators": False,
+        "token_rotation_completed": False,
         "owner": "SecOps",
         "notes": "Three service accounts issued tokens from an unrecognized ASN within 9 minutes.",
     },
@@ -62,6 +63,16 @@ _ENTERPRISE_RECORDS: dict[str, dict[str, Any]] = {
         "compliance_holds": 0,
         "owner": "Claims",
         "notes": "Exceeds auto-approval threshold and includes one mismatched invoice date.",
+    },
+    "CLAIM-88121": {
+        "type": "claim",
+        "name": "Storm damage exception",
+        "amount_usd": 58900,
+        "policy_id": "POLICY-PROP-12",
+        "fraud_signals": 2,
+        "compliance_holds": 1,
+        "owner": "Claims",
+        "notes": "Duplicate invoice numbers plus an active regulatory hold; per POL-CLM-09 the fraud review precedes any payment decision.",
     },
     "POLICY-EX-77": {
         "type": "policy_exception",
@@ -81,6 +92,15 @@ _ENTERPRISE_RECORDS: dict[str, dict[str, Any]] = {
         "owner": "Operations",
         "notes": "Primary site for billing and auth; continuity drill is overdue.",
     },
+    "FACILITY-DC-WEST": {
+        "type": "facility",
+        "name": "West Regional Data Center",
+        "criticality": "tier-2",
+        "dependent_services": ["reporting", "archive"],
+        "last_drill_days_ago": 120,
+        "owner": "Operations",
+        "notes": "Secondary site with a current drill; a contrast case when prioritizing scope.",
+    },
 }
 
 _POLICY_CATALOG: tuple[dict[str, Any], ...] = (
@@ -97,6 +117,12 @@ _POLICY_CATALOG: tuple[dict[str, Any], ...] = (
         "keywords": ("budget", "spend", "procurement", "approval", "finance", "threshold"),
     },
     {
+        "id": "POL-PROC-03",
+        "title": "Regional Processing Exception",
+        "summary": "Vendors may process confidential data in-region for up to 30 days during a migration window with security sign-off, even while the annual review is pending.",
+        "keywords": ("vendor", "regional", "migration", "exception", "security", "processing"),
+    },
+    {
         "id": "POL-SEC-04",
         "title": "Identity Compromise Response",
         "summary": "Suspected token or identity compromise requires credential rotation and session revocation within one hour.",
@@ -111,7 +137,7 @@ _POLICY_CATALOG: tuple[dict[str, Any], ...] = (
     {
         "id": "POL-GOV-03",
         "title": "Policy Exception Board",
-        "summary": "Risk waivers require a documented business need, a compensating control, and a fixed expiry.",
+        "summary": "Risk waivers require a documented business need, a compensating control, and a fixed expiry. Maximum waiver duration is 60 days.",
         "keywords": ("policy", "exception", "waiver", "risk", "compliance", "governance", "residency"),
     },
     {

@@ -1,4 +1,4 @@
 {
-  "input": "Prepare a release readiness brief for version 2.4.0. The release adds a billing reconciliation job, dashboard exports, and three customer-reported API fixes.",
+  "input": "Prepare a release readiness brief for version 2.4.0. Scope: (1) the billing reconciliation nightly job moves to streaming, (2) dashboard exports gain CSV scheduling, (3) API fixes for pagination and rate-limit headers. Constraints: the finance close freeze starts Friday, and rollback must not lose reconciliation state.",
   "stream": false
 }

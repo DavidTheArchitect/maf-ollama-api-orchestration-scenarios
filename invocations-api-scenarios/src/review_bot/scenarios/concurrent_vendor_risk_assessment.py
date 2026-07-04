@@ -11,7 +11,11 @@ SCENARIO = ScenarioSpec(
     title="Concurrent Vendor Risk Assessment Job",
     learning_goal="Learn how an invocation can fan out a structured vendor intake payload to independent enterprise risk reviewers.",
     when_to_use="Use Invocations plus concurrent orchestration for procurement, GRC, or vendor-intake workflows with independent review dimensions.",
-    sample_task="Assess a vendor intake request before procurement approval.",
+    sample_task=(
+        "Assess a vendor intake request before procurement approval. Constraints: the annual budget "
+        "cap is 150k USD, a decision is needed within two weeks, and the data science team wants API "
+        "access in the first month."
+    ),
     agents=(
         AgentSpec("SecurityRiskAgent", "Reviews security risk.", "Assess identity, encryption, data access, vulnerability management, and incident-response risk."),
         AgentSpec("PrivacyRiskAgent", "Reviews privacy risk.", "Assess data minimization, retention, subprocessors, regional transfer, and notice implications."),

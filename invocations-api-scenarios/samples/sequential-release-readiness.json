@@ -1,6 +1,6 @@
 {
   "scenario": "sequential-release-readiness",
-  "task": "Prepare a release readiness job result for a billing reconciliation change before promotion.",
+  "task": "Prepare a release readiness job result before promotion. Scope: the billing reconciliation nightly job moves to streaming and dashboard exports gain CSV scheduling. Constraints: the finance close freeze starts Friday, and rollback must not lose reconciliation state.",
   "subject": "contoso/orders-api release 2.4.0",
   "artifacts": [
     "release-notes/2.4.0.md",

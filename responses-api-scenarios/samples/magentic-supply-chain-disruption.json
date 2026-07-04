@@ -1,4 +1,4 @@
 {
-  "input": "Coordinate a response to a supplier disruption that threatens two product lines, regional inventory, customer delivery dates, and finance forecasts.",
+  "input": "Coordinate a response to a supplier disruption that threatens two product lines, regional inventory, customer delivery dates, and finance forecasts. Constraints: the expedite budget is capped at 250k USD and two strategic customers carry contractual delivery penalties.",
   "stream": false
 }
