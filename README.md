@@ -30,14 +30,14 @@ Both directories now contain the same twenty learning scenarios so the API diffe
 | `group-chat-quarterly-planning` | Group chat | Cross-functional business planning discussion with stakeholder tradeoffs. |
 | `magentic-supply-chain-disruption` | Magentic | Manager-led response to a supply chain disruption across enterprise functions. |
 | `sequential-procurement-approval` | Sequential | MCP-grounded approval pipeline across intake, budget, security, legal, and packaging. |
-| `concurrent-security-alert-enrichment` | Concurrent | Independent identity, endpoint, network, and data-loss enrichment of one alert via MCP tools. |
-| `handoff-claims-exception-routing` | Handoff | Triage routes a claim exception to payment, fraud, compliance, or customer comms using MCP facts. |
+| `concurrent-security-alert-enrichment` | Concurrent | Independent identity, endpoint, network, and data-loss enrichment of one alert via MCP tools, combined by a summary agent after fan-in. |
+| `handoff-claims-exception-routing` | Handoff | Triage names the claim's owner with a ROUTE directive grounded in MCP facts; customer comms always finishes the run. |
 | `group-chat-policy-exception-board` | Group chat | Board debates a policy exception with MCP-grounded risk, business need, and compliance. |
 | `magentic-business-continuity-drill` | Magentic | Manager plans and delegates a continuity drill across facilities, IT, comms, finance, and operations. |
 | `scenario-16-quote-to-cash-sequential` | Sequential | Quote-to-cash as a staged pipeline: CRM context, product context, pricing/legal, quote package. |
-| `scenario-16-quote-to-cash-concurrent` | Concurrent | Parallel specialist enrichment of one quote request, then aggregation. |
-| `scenario-16-quote-to-cash-handoff` | Handoff | Dynamic routing from trigger/customer context to product, pricing, legal, and quote-generation specialists. |
-| `scenario-16-quote-to-cash-group-chat` | Group chat | Collaborative quote review debating product fit, pricing risk, legal terms, and readiness. |
+| `scenario-16-quote-to-cash-concurrent` | Concurrent | Self-sufficient parallel lanes enrich the quote; the quote owner reconciles them after fan-in. |
+| `scenario-16-quote-to-cash-handoff` | Handoff | The trigger names the specialist the quote needs most via a ROUTE directive; the quote owner always finishes the package. |
+| `scenario-16-quote-to-cash-group-chat` | Group chat | Reviewers debate readiness, fit, SKUs, and pricing risk; the quote owner closes each round with a verdict. |
 | `scenario-16-quote-to-cash-magentic` | Magentic | Manager-led planning that delegates and replans until the quote package is ready. |
 
 Scenarios 11-15 attach a local, deterministic `enterprise-context` MCP server (FastMCP over stdio) exposing `lookup_enterprise_record`, `search_policy`, `calculate_priority_score`, `list_playbook_steps`, and `create_decision_log_entry`.
@@ -46,7 +46,7 @@ The **Scenario 16 quote-to-cash** family (`16a`-`16e`) uses one quote request to
 
 Both MCP servers need no network, credentials, or manual setup. Agents with declared `mcp_tools` receive a tool via Agent Framework `MCPStdioTool` (`approval_mode="never_require"`, per-agent `allowed_tools`); the server modules live under `src/.../mcp_servers/` in each package and the agent's `mcp_server` field selects which one to attach.
 
-Each scenario is defined in its own Python module inside the API directory's `src/.../scenarios/` package. Each API directory also has a `notebooks/` folder with one companion notebook per scenario for step-by-step learning and live in-process Ollama execution. MCP scenario notebooks add an MCP tool context section and dashed tool links in the flow diagram.
+Each scenario is defined in its own Python module inside the API directory's `src/.../scenarios/` package. Each API directory also has a `notebooks/` folder with one companion notebook per scenario, laid out cell-per-concept: fixtures, tool functions, agent roster, workflow plumbing, and the pattern's own machinery each get a runnable cell with visible output, and every pattern cell ends with an offline demo that runs without Ollama. MCP scenario notebooks add an MCP tool context section and dashed tool links in the flow diagram.
 Each notebook includes a runtime Mermaid flow diagram that renders through `mermaid.ink` and also exposes the generated Mermaid source.
 
 ## Instruction-Led Agents And Orchestration

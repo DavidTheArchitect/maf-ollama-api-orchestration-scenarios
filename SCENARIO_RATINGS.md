@@ -25,6 +25,18 @@
 > router: the auto-generated keyword `customer` biased routing toward the
 > comms agent; the curated keywords in #6 removed that bias.)
 >
+> **Polish pass (PRs #13-#15).** A second improvement pass implemented
+> `SCENARIO_POLISH_PLAN.md`: cell-per-concept notebooks with offline demos and
+> teaching visuals, a logic audit encoded as test invariants, deeper domain
+> fixtures (working material in starters, decision pressure in enterprise
+> scenarios, engineered wrinkles in every MCP fixture set, and a 25% discount
+> crossing the legal threshold in quote-to-cash), and scenario-specific
+> inspect/experiment spotlights. Ratings raised where the added depth removed
+> the remaining weakness: 10 (8 to 9, capped-budget tradeoffs), 12 (8 to 9,
+> stale-rotation wrinkle plus synthesis stage), 15 (8 to 9, contrast facility
+> forces prioritization), 16d and 16e (8 to 9, the discount gives the debate
+> and the delegation real stakes). Average: **8.4 to 8.65**.
+>
 > The review below is the original assessment that motivated the changes; its
 > "Cross-Cutting Recommendations" have all been implemented.
 
