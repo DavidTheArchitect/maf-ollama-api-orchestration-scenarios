@@ -61,6 +61,18 @@ class GraphExecutorTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(text.strip())
         self.assertIn("routed to", text)
 
+    async def test_handoff_finisher_always_completes_the_run(self):
+        for scenario_id, finisher in (
+            ("handoff-claims-exception-routing", "CustomerCommsAgent"),
+            ("scenario-16-quote-to-cash-handoff", "QuoteGenerationAgent"),
+        ):
+            with self.subTest(scenario=scenario_id):
+                scenario = get_scenario(scenario_id)
+                self.assertEqual(scenario.handoff_finisher, finisher)
+                text = await self._run(scenario_id)
+                self.assertIn("routed to", text)
+                self.assertIn(finisher, text)
+
     async def test_output_is_not_only_a_stop_marker(self):
         for scenario_id in (
             "sequential-procurement-approval",
@@ -72,6 +84,37 @@ class GraphExecutorTests(unittest.IsolatedAsyncioTestCase):
                 normalized = text.strip().lower()
                 self.assertTrue(normalized)
                 self.assertFalse(any(marker in normalized for marker in _STOP_MARKERS))
+
+
+class HandoffRouterDirectiveTests(unittest.TestCase):
+    """The router honors valid ROUTE directives and falls back to keywords."""
+
+    def _router(self):
+        from release_room.executors import HandoffRouterExecutor
+
+        return HandoffRouterExecutor(
+            id="router",
+            routes={
+                "fraud_specialist_agent": ("fraud", "signal"),
+                "payment_specialist_agent": ("payment", "release"),
+            },
+            default_route="payment_specialist_agent",
+        )
+
+    def test_route_directive_wins_over_keywords(self):
+        router = self._router()
+        text = "The payment threshold is exceeded but there is a fraud signal.\nROUTE: FraudSpecialistAgent"
+        self.assertEqual(router.choose(text), "fraud_specialist_agent")
+
+    def test_invalid_directive_falls_back_to_keyword_scoring(self):
+        router = self._router()
+        text = "Release the payment for this claim.\nROUTE: NoSuchAgent"
+        self.assertEqual(router.choose(text), "payment_specialist_agent")
+
+    def test_last_directive_is_honored(self):
+        router = self._router()
+        text = "ROUTE: PaymentSpecialistAgent\nOn reflection the fraud signal matters more.\nROUTE: FraudSpecialistAgent"
+        self.assertEqual(router.choose(text), "fraud_specialist_agent")
 
 
 if __name__ == "__main__":

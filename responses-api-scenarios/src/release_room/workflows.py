@@ -18,6 +18,7 @@ from typing import Any
 from .agents import OllamaAgentConfig, build_ollama_config, create_ollama_agent
 from .executors import (
     ConcurrentAggregatorExecutor,
+    HandoffFinisherGateExecutor,
     HandoffOutputExecutor,
     HandoffRouterExecutor,
     PromptDispatchExecutor,
@@ -89,6 +90,8 @@ def _agent_executor(spec_index: int, scenario: ScenarioSpec, *, config: OllamaAg
 
 
 def _route_keywords(spec: Any) -> tuple[str, ...]:
+    if getattr(spec, "route_keywords", ()):
+        return tuple(spec.route_keywords)
     tokens = re.findall(r"[a-z]+", f"{spec.name} {spec.description}".lower())
     keywords = [token for token in tokens if len(token) > 3 and token not in _STOPWORDS]
     return tuple(dict.fromkeys(keywords))[:6]
@@ -157,27 +160,54 @@ def build_concurrent_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConf
 
 
 def build_handoff_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
-    """Handoff graph: dispatch -> triage -> code router -> one specialist -> output."""
+    """Handoff graph: dispatch -> triage -> router -> one specialist -> output.
+
+    The triage agent names the route (``ROUTE: <SpecialistName>``); the router
+    validates it against the allowed routes, falling back to keyword scoring.
+    When the scenario declares ``handoff_finisher``, the routed specialist's
+    output flows through a gate to that fixed finishing agent, so every run
+    ends with the designated owner producing the final deliverable.
+    """
 
     from agent_framework import WorkflowBuilder
 
     config = config or build_ollama_config()
     triage = _agent_executor(0, scenario, config=config)
-    specialists = [_agent_executor(i, scenario, config=config) for i in range(1, len(scenario.agents))]
-    specialist_ids = [_slug(scenario.agents[i].name) for i in range(1, len(scenario.agents))]
-    routes = {
-        specialist_ids[i - 1]: _route_keywords(scenario.agents[i]) for i in range(1, len(scenario.agents))
-    }
+    finisher_name = scenario.handoff_finisher
+    routable = [
+        i for i in range(1, len(scenario.agents)) if scenario.agents[i].name != finisher_name
+    ]
+    if finisher_name is not None and len(routable) == len(scenario.agents) - 1:
+        raise ValueError(
+            f"handoff_finisher '{finisher_name}' is not an agent of scenario '{scenario.id}'."
+        )
+    specialists = [_agent_executor(i, scenario, config=config) for i in routable]
+    specialist_ids = [_slug(scenario.agents[i].name) for i in routable]
+    routes = {specialist_ids[pos]: _route_keywords(scenario.agents[i]) for pos, i in enumerate(routable)}
+    display_names = {specialist_ids[pos]: scenario.agents[i].name for pos, i in enumerate(routable)}
     dispatch = PromptDispatchExecutor(id="dispatch")
-    router = HandoffRouterExecutor(id="router", routes=routes, default_route=specialist_ids[0])
-    output = HandoffOutputExecutor(id="final_output")
+    router = HandoffRouterExecutor(
+        id="router", routes=routes, default_route=specialist_ids[0], display_names=display_names
+    )
+    output = HandoffOutputExecutor(id="final_output", stage_name=finisher_name)
 
     builder = WorkflowBuilder(start_executor=dispatch, output_from=[output])
     builder.add_edge(dispatch, triage)
     builder.add_edge(triage, router)
+    if finisher_name is None:
+        for specialist in specialists:
+            builder.add_edge(router, specialist)
+            builder.add_edge(specialist, output)
+        return builder.build()
+
+    finisher_index = next(i for i in range(1, len(scenario.agents)) if scenario.agents[i].name == finisher_name)
+    finisher = _agent_executor(finisher_index, scenario, config=config)
+    finisher_gate = HandoffFinisherGateExecutor(id="finisher_gate")
     for specialist in specialists:
         builder.add_edge(router, specialist)
-        builder.add_edge(specialist, output)
+        builder.add_edge(specialist, finisher_gate)
+    builder.add_edge(finisher_gate, finisher)
+    builder.add_edge(finisher, output)
     return builder.build()
 
 

@@ -46,8 +46,9 @@ PATTERN_DOCS = {
         "Best fit: independent reviews where parallel perspectives are more valuable than turn-taking."
     ),
     "handoff": (
-        "Handoff orchestration starts with triage, then routes to one specialist. The route is selected by "
-        "code from the triage text and the allowed specialist graph.",
+        "Handoff orchestration starts with triage, which names the owning specialist with a ROUTE directive. "
+        "A code-defined router validates that choice against the allowed routes (falling back to keyword "
+        "scoring), and scenarios with a designated finisher always end with that fixed owner completing the work.",
         "Best fit: support, claims, entitlement, and exception flows where ownership depends on context."
     ),
     "group-chat": (
@@ -77,9 +78,9 @@ PATTERN_ANATOMY = {
         "best_when": "Use when independent reviews can happen in parallel.",
     },
     "handoff": {
-        "control_flow": "A triage agent runs first, then code routes to one specialist.",
-        "coordination": "The router computes the target executor from specialist keywords.",
-        "output_behavior": "The output identifies the chosen route and specialist answer.",
+        "control_flow": "Triage names a ROUTE, the router validates it, one specialist runs (plus an optional fixed finisher).",
+        "coordination": "The router honors the triage ROUTE directive and falls back to keyword scoring.",
+        "output_behavior": "The output identifies the route, its source (directive or keywords), and the answers.",
         "best_when": "Use when the right owner depends on the request.",
     },
     "group-chat": {
@@ -108,9 +109,11 @@ PATTERN_LIVE_RUN_INTRO = {
         "Execution order inside the fan-out is non-deterministic."
     ),
     "handoff": (
-        "Triage runs first. A `HandoffRouterExecutor` reads the triage text, scores each "
-        "specialist keyword list against it, and forwards the request to the highest-scoring "
-        "specialist. The output shows the route taken and the specialist response."
+        "Triage runs first and ends with a `ROUTE: <AgentName>` line. The `HandoffRouterExecutor` "
+        "honors that directive when it names an allowed route, otherwise it scores each specialist "
+        "keyword list against the triage text. If the scenario declares a finisher, the routed "
+        "specialist's notes flow to that fixed agent, which completes the deliverable. The output "
+        "shows the route taken and whether it came from the model directive or keyword fallback."
     ),
     "group-chat": (
         "Participants speak in round-robin order. The termination function fires when an "
@@ -140,10 +143,11 @@ PATTERN_INSPECT = {
         "may need tighter scoping."
     ),
     "handoff": (
-        "Verify the route matches the triage intent. The `HandoffRouterExecutor` picks the "
-        "specialist with the most keyword hits against the triage text. Try rewording the "
+        "Verify the route matches the triage intent, and check the route source in the output "
+        "header: 'model-directive' means the triage agent's ROUTE line was honored; "
+        "'keyword-score' means the router fell back to scoring keywords. Try rewording the "
         "input toward a different specialist domain and rerun -- the route should change. "
-        "Inspect `ctx.get_state('route')` for the chosen executor id."
+        "Inspect `ctx.get_state('route')` and `ctx.get_state('route_source')` in the workflow state."
     ),
     "group-chat": (
         "Read the transcript chronologically. Later turns should respond to earlier critiques "
@@ -221,6 +225,7 @@ def scenario_data(scenario: Any, sample_attr: str) -> dict[str, Any]:
         "learning_goal": scenario.learning_goal,
         "when_to_use": scenario.when_to_use,
         sample_attr: getattr(scenario, sample_attr),
+        "handoff_finisher": getattr(scenario, "handoff_finisher", None),
         "agents": [
             {
                 "name": agent.name,
@@ -228,6 +233,7 @@ def scenario_data(scenario: Any, sample_attr: str) -> dict[str, Any]:
                 "instructions": agent.instructions,
                 "mcp_tools": list(agent.mcp_tools),
                 "mcp_server": agent.mcp_server,
+                "route_keywords": list(getattr(agent, "route_keywords", ()) or ()),
             }
             for agent in scenario.agents
         ],
@@ -1066,6 +1072,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         instructions: str
         mcp_tools: tuple[str, ...] = ()
         mcp_server: str = "enterprise_context"
+        route_keywords: tuple[str, ...] = ()
 
 
     @dataclass(frozen=True)
@@ -1077,6 +1084,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         when_to_use: str
         {sample_attr}: str
         agents: tuple[AgentSpec, ...]
+        handoff_finisher: str | None = None
 
 
     SCENARIO_DATA = json.loads(
@@ -1091,6 +1099,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
             instructions=item["instructions"],
             mcp_tools=tuple(item.get("mcp_tools", [])),
             mcp_server=item.get("mcp_server", "enterprise_context"),
+            route_keywords=tuple(item.get("route_keywords", [])),
         )
         for item in SCENARIO_DATA["agents"]
     )
@@ -1102,6 +1111,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         when_to_use=SCENARIO_DATA["when_to_use"],
         {sample_attr}=SCENARIO_DATA["{sample_attr}"],
         agents=AGENTS,
+        handoff_finisher=SCENARIO_DATA.get("handoff_finisher"),
     )
 
 
@@ -1244,13 +1254,38 @@ def workflow_cell() -> str:
             await ctx.yield_output("\n\n".join(labelled))
 
 
+    _ROUTE_DIRECTIVE = re.compile(r"route\s*:\s*([A-Za-z][A-Za-z0-9 _-]*)", re.IGNORECASE)
+
+
+    def _route_slug(name: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+
+
     class HandoffRouterExecutor(Executor):
-        def __init__(self, id: str, *, routes: dict[str, tuple[str, ...]], default_route: str) -> None:
+        def __init__(
+            self,
+            id: str,
+            *,
+            routes: dict[str, tuple[str, ...]],
+            default_route: str,
+            display_names: dict[str, str] | None = None,
+        ) -> None:
             super().__init__(id=id)
             self._routes = routes
             self._default_route = default_route
+            self._display_names = display_names or {}
+
+        def directed(self, text: str) -> str | None:
+            for match in reversed(_ROUTE_DIRECTIVE.findall(text)):
+                slug = _route_slug(match)
+                if slug in self._routes:
+                    return slug
+            return None
 
         def choose(self, text: str) -> str:
+            directed = self.directed(text)
+            if directed is not None:
+                return directed
             lowered = text.lower()
             best_route, best_hits = self._default_route, 0
             for route, keywords in self._routes.items():
@@ -1264,6 +1299,8 @@ def workflow_cell() -> str:
             triage_text = response_text(response)
             chosen = self.choose(triage_text)
             ctx.set_state("route", chosen)
+            ctx.set_state("route_name", self._display_names.get(chosen, chosen))
+            ctx.set_state("route_source", "model-directive" if self.directed(triage_text) else "keyword-score")
             prompt = ctx.get_state("prompt") or ""
             await ctx.send_message(
                 make_request(f"Triage routed this to you.\nRequest:\n{prompt}\n\nTriage notes:\n{triage_text}"),
@@ -1271,11 +1308,36 @@ def workflow_cell() -> str:
             )
 
 
+    class HandoffFinisherGateExecutor(Executor):
+        @handler
+        async def gate(self, response: AgentExecutorResponse, ctx: WorkflowContext[AgentExecutorRequest]) -> None:
+            route = ctx.get_state("route_name") or ctx.get_state("route") or "specialist"
+            transcript = _append_transcript(ctx, route, response_text(response))
+            prompt = ctx.get_state("prompt") or ""
+            carried = "\n".join(transcript)
+            await ctx.send_message(
+                make_request(
+                    f"You are the finishing stage of a handoff.\nOriginal request:\n{prompt}\n\n"
+                    f"Routed specialist notes:\n{carried}\n\nComplete the final deliverable."
+                )
+            )
+
+
     class HandoffOutputExecutor(Executor):
+        def __init__(self, id: str, *, stage_name: str | None = None) -> None:
+            super().__init__(id=id)
+            self._stage_name = stage_name
+
         @handler
         async def finish(self, response: AgentExecutorResponse, ctx: WorkflowContext[Never, str]) -> None:
-            route = ctx.get_state("route") or "specialist"
-            await ctx.yield_output(f"[routed to {route}]\n{response_text(response)}")
+            route = ctx.get_state("route_name") or ctx.get_state("route") or "specialist"
+            source = ctx.get_state("route_source") or "keyword-score"
+            header = f"[routed to {route} via {source}]"
+            if self._stage_name is None:
+                await ctx.yield_output(f"{header}\n{response_text(response)}")
+                return
+            transcript = _append_transcript(ctx, self._stage_name, response_text(response))
+            await ctx.yield_output("\n\n".join([header, *transcript]))
 
 
     def _slug(name: str) -> str:
@@ -1292,6 +1354,8 @@ def workflow_cell() -> str:
 
 
     def _route_keywords(spec: AgentSpec) -> tuple[str, ...]:
+        if spec.route_keywords:
+            return tuple(spec.route_keywords)
         tokens = re.findall(r"[a-z]+", f"{spec.name} {spec.description}".lower())
         keywords = [token for token in tokens if len(token) > 3 and token not in _STOPWORDS]
         return tuple(dict.fromkeys(keywords))[:6]
@@ -1323,21 +1387,35 @@ def workflow_cell() -> str:
 
     def build_handoff_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         triage = _agent_executor(0, scenario, config=config)
-        specialists = [_agent_executor(i, scenario, config=config) for i in range(1, len(scenario.agents))]
-        specialist_ids = [_slug(scenario.agents[i].name) for i in range(1, len(scenario.agents))]
-        routes = {
-            specialist_ids[i - 1]: _route_keywords(scenario.agents[i])
-            for i in range(1, len(scenario.agents))
-        }
+        finisher_name = scenario.handoff_finisher
+        routable = [i for i in range(1, len(scenario.agents)) if scenario.agents[i].name != finisher_name]
+        specialists = [_agent_executor(i, scenario, config=config) for i in routable]
+        specialist_ids = [_slug(scenario.agents[i].name) for i in routable]
+        routes = {specialist_ids[pos]: _route_keywords(scenario.agents[i]) for pos, i in enumerate(routable)}
+        display_names = {specialist_ids[pos]: scenario.agents[i].name for pos, i in enumerate(routable)}
         dispatch = PromptDispatchExecutor(id="dispatch")
-        router = HandoffRouterExecutor(id="router", routes=routes, default_route=specialist_ids[0])
-        output = HandoffOutputExecutor(id="final_output")
+        router = HandoffRouterExecutor(
+            id="router", routes=routes, default_route=specialist_ids[0], display_names=display_names
+        )
+        output = HandoffOutputExecutor(id="final_output", stage_name=finisher_name)
         builder = WorkflowBuilder(start_executor=dispatch, output_from=[output])
         builder.add_edge(dispatch, triage)
         builder.add_edge(triage, router)
+        if finisher_name is None:
+            for specialist in specialists:
+                builder.add_edge(router, specialist)
+                builder.add_edge(specialist, output)
+            return builder.build()
+        finisher_index = next(
+            i for i in range(1, len(scenario.agents)) if scenario.agents[i].name == finisher_name
+        )
+        finisher = _agent_executor(finisher_index, scenario, config=config)
+        finisher_gate = HandoffFinisherGateExecutor(id="finisher_gate")
         for specialist in specialists:
             builder.add_edge(router, specialist)
-            builder.add_edge(specialist, output)
+            builder.add_edge(specialist, finisher_gate)
+        builder.add_edge(finisher_gate, finisher)
+        builder.add_edge(finisher, output)
         return builder.build()
 
 
@@ -1628,15 +1706,22 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
 
 
     def _handoff_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
-        triage, *specialists = scenario.agents
+        triage, *others = scenario.agents
+        finisher = next((agent for agent in others if agent.name == scenario.handoff_finisher), None)
+        specialists = [agent for agent in others if agent is not finisher]
         lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
         lines.append(f"    orchestrator --> triage[{{_label(triage.name)}}]")
         lines.append("    triage --> decision{{Ownership decision}}")
         pairs: list[tuple[AgentSpec, str]] = [(triage, "triage")]
+        sink = "output[{output_label}]"
+        if finisher is not None:
+            lines.append(f"    finisher[{{_label(finisher.name)}}] --> output[{output_label}]")
+            pairs.append((finisher, "finisher"))
+            sink = "finisher"
         for index, agent in enumerate(specialists, start=1):
             node = f"specialist{{index}}"
             lines.append(f"    decision -->|handoff| {{node}}[{{_label(agent.name)}}]")
-            lines.append(f"    {{node}} --> output[{output_label}]")
+            lines.append(f"    {{node}} --> {{sink}}")
             pairs.append((agent, node))
         lines.extend(_mcp_tool_links(pairs))
         return "\\n".join(lines)
