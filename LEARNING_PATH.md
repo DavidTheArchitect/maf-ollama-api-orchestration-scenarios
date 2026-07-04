@@ -37,7 +37,7 @@ This repository is designed to teach two separate choices that often get mixed t
 | --- | --- | --- |
 | Sequential | A fixed pipeline with required stages. | Each agent transforms prior output. |
 | Concurrent | Independent expert review. | Multiple outputs from parallel specialists. |
-| Handoff | Dynamic routing to specialists. | Function-call handoffs and specialist responses. |
+| Handoff | Dynamic routing to specialists. | A triage `ROUTE:` directive validated by a code-defined router, plus the routed specialist (and optional finisher) responses. |
 | Group chat | Visible critique and refinement. | A transcript-like discussion. |
 | Magentic | Manager-led planning and replanning. | Dynamic delegation and investigation. |
 

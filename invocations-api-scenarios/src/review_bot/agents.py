@@ -42,6 +42,9 @@ class AgentSpec:
     instructions: str
     mcp_tools: tuple[str, ...] = ()
     mcp_server: str = "enterprise_context"
+    #: Curated routing keywords for handoff scenarios. When empty, the handoff
+    #: router falls back to keywords derived from the name and description.
+    route_keywords: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -87,17 +87,25 @@ def _concurrent_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_labe
 
 
 def _handoff_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
-    triage, *specialists = scenario.agents
+    triage, *others = scenario.agents
+    finisher = next((agent for agent in others if agent.name == scenario.handoff_finisher), None)
+    specialists = [agent for agent in others if agent is not finisher]
     lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
     lines.append(f"    orchestrator --> triage[{_label(triage.name)}]")
     lines.append("    triage --> decision{Ownership decision}")
     pairs: list[tuple[Any, str]] = [(triage, "triage")]
+    sink = "triage"
+    if finisher is not None:
+        lines.append(f"    finisher[{_label(finisher.name)}] --> output[Structured invocation response]")
+        pairs.append((finisher, "finisher"))
+        sink = "finisher"
     for index, agent in enumerate(specialists, start=1):
         node = f"specialist{index}"
         lines.append(f"    decision -->|handoff| {node}[{_label(agent.name)}]")
-        lines.append(f"    {node} --> triage")
+        lines.append(f"    {node} --> {sink}")
         pairs.append((agent, node))
-    lines.append("    triage --> output[Structured invocation response]")
+    if finisher is None:
+        lines.append("    triage --> output[Structured invocation response]")
     lines.extend(_mcp_tool_links(pairs))
     return "\n".join(lines)
 
