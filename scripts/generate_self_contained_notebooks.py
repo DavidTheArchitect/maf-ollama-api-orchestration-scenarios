@@ -377,9 +377,12 @@ def concept_markdown(project: dict[str, str], scenario: Any) -> str:
 def environment_cell() -> str:
     return r'''
     import os
+    import re as _re
 
     from IPython.display import HTML, display
 
+
+    _AGENT_COLORS = ("#3868c8", "#b0530f", "#2f7d4f", "#7d3f98", "#a3374b", "#0f7d8a", "#8a6d0f", "#54596b")
 
     _APTOS_STYLE = """
     <style>
@@ -392,6 +395,27 @@ def environment_cell() -> str:
         font-family: 'Aptos Display', 'Aptos', 'Segoe UI', sans-serif;
         font-weight: 600;
     }
+    .maf-callout {
+        border-left: 4px solid #3868c8; border-radius: 6px; padding: 0.6em 0.9em;
+        margin: 0.6em 0; background: rgba(56, 104, 200, 0.08);
+    }
+    .maf-roster { display: flex; flex-wrap: wrap; gap: 0.6em; margin: 0.4em 0; }
+    .maf-card {
+        border: 1px solid rgba(128, 128, 128, 0.35); border-radius: 8px;
+        padding: 0.55em 0.8em; min-width: 14em; max-width: 24em; flex: 1;
+    }
+    .maf-card b { display: block; margin-bottom: 0.15em; }
+    .maf-card small { opacity: 0.75; }
+    .maf-chip {
+        display: inline-block; border-radius: 999px; padding: 0 0.6em; margin: 0.2em 0.2em 0 0;
+        font-size: 0.78em; border: 1px solid rgba(128, 128, 128, 0.4);
+    }
+    .maf-turn {
+        border-left: 4px solid var(--maf-agent, #54596b); border-radius: 6px;
+        padding: 0.45em 0.8em; margin: 0.45em 0; background: rgba(128, 128, 128, 0.07);
+        white-space: pre-wrap;
+    }
+    .maf-turn b { color: var(--maf-agent, inherit); }
     </style>
     """
 
@@ -399,6 +423,61 @@ def environment_cell() -> str:
     def apply_notebook_style() -> str:
         display(HTML(_APTOS_STYLE))
         return _APTOS_STYLE
+
+
+    def _escape_html(value) -> str:
+        import html as _html
+
+        return _html.escape(str(value))
+
+
+    def agent_color(name: str) -> str:
+        """Deterministic per-agent accent color, stable across cells and runs."""
+
+        return _AGENT_COLORS[sum(ord(ch) for ch in name) % len(_AGENT_COLORS)]
+
+
+    def render_callout(text: str) -> None:
+        display(HTML("<div class='maf-callout'>" + _escape_html(text) + "</div>"))
+
+
+    def render_roster(scenario) -> None:
+        """Render the agent roster as color-accented cards with tool chips."""
+
+        cards = []
+        for spec in scenario.agents:
+            chips = "".join(
+                "<span class='maf-chip'>" + _escape_html(tool) + "</span>" for tool in spec.mcp_tools
+            ) or "<span class='maf-chip'>instructions only</span>"
+            cards.append(
+                "<div class='maf-card' style='border-top: 3px solid " + agent_color(spec.name) + "'>"
+                + "<b>" + _escape_html(spec.name) + "</b>"
+                + "<small>" + _escape_html(spec.description) + "</small>"
+                + "<div>" + chips + "</div></div>"
+            )
+        display(HTML("<div class='maf-roster'>" + "".join(cards) + "</div>"))
+
+
+    _TURN_LABEL = _re.compile(r"^\[([A-Za-z0-9_]+)\]\s*", _re.MULTILINE)
+
+
+    def render_transcript(text: str) -> None:
+        """Render workflow output as color-coded per-agent turns; plain print fallback."""
+
+        pieces = _TURN_LABEL.split(text)
+        turns = []
+        preamble = pieces[0].strip()
+        if preamble:
+            turns.append("<div class='maf-turn'>" + _escape_html(preamble) + "</div>")
+        for label, body in zip(pieces[1::2], pieces[2::2]):
+            turns.append(
+                "<div class='maf-turn' style='--maf-agent: " + agent_color(label) + "'>"
+                + "<b>" + _escape_html(label) + "</b><br>" + _escape_html(body.strip()) + "</div>"
+            )
+        if turns:
+            display(HTML("<div>" + "".join(turns) + "</div>"))
+        else:
+            print(text)
 
 
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:14b")
@@ -424,10 +503,9 @@ def mcp_markdown(server: str | None) -> str:
     """
 
 
-def enterprise_tools_cell() -> str:
+def enterprise_fixtures_cell() -> str:
     return r'''
-    import hashlib
-    from typing import Any, Sequence
+    from typing import Any
 
 
     _ENTERPRISE_RECORDS: dict[str, dict[str, Any]] = {
@@ -566,6 +644,21 @@ def enterprise_tools_cell() -> str:
     )
 
 
+
+    # Fixture data only -- the tools in the next cell read from these embedded records.
+    print("records:  ", ", ".join(sorted(_ENTERPRISE_RECORDS)))
+    print("policies: ", ", ".join(policy["id"] for policy in _POLICY_CATALOG))
+    print("playbooks:", ", ".join(sorted(_PLAYBOOKS)))
+    '''
+
+
+def enterprise_tools_cell(demo_call: str) -> str:
+    template = r'''
+    import hashlib
+    import json
+    from typing import Any
+
+
     def _clamp(value: Any, low: int = 1, high: int = 5) -> int:
         try:
             number = int(value)
@@ -657,12 +750,15 @@ def enterprise_tools_cell() -> str:
             "create_decision_log_entry": create_decision_log_entry,
         }
     )
+
+    # Demo (offline): call one grounded tool directly before any agent exists.
+    print(json.dumps(__DEMO_CALL__, indent=2))
     '''
+    return template.replace("__DEMO_CALL__", demo_call)
 
 
-def quote_to_cash_tools_cell() -> str:
+def quote_to_cash_fixtures_cell() -> str:
     return r'''
-    import hashlib
     from typing import Any
 
 
@@ -743,6 +839,21 @@ def quote_to_cash_tools_cell() -> str:
             "approvals_required": ["Deal desk"],
         },
     }
+
+
+
+    # Fixture data only -- the tools in the next cell read from these embedded records.
+    print("opportunities:", ", ".join(sorted(_QUOTE_TRIGGERS)))
+    print("accounts:     ", ", ".join(sorted(_CUSTOMER_PROFILES)))
+    print("catalog SKUs: ", ", ".join(entry["sku"] for entry in _CATALOG))
+    '''
+
+
+def quote_to_cash_tools_cell(demo_call: str) -> str:
+    template = r'''
+    import hashlib
+    import json
+    from typing import Any
 
 
     def _string_list(value: Any) -> list[str]:
@@ -907,7 +1018,11 @@ def quote_to_cash_tools_cell() -> str:
             "quote_format_package": quote_format_package,
         }
     )
+
+    # Demo (offline): call one grounded tool directly before any agent exists.
+    print(json.dumps(__DEMO_CALL__, indent=2))
     '''
+    return template.replace("__DEMO_CALL__", demo_call)
 
 
 def agent_factory_cell() -> str:
@@ -1010,6 +1125,10 @@ def agent_factory_cell() -> str:
             default_options=resolved.default_options(),
             require_per_service_call_history_persistence=True,
         )
+
+
+    print("Agent factory ready: make_agent(spec) creates an instruction-led Ollama agent "
+          "with its granted tools attached.")
     '''
 
 
@@ -1176,6 +1295,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
 {payload}
     {sample_prompt}
 
+    render_roster(SCENARIO)
     print(json.dumps(scenario_summary(SCENARIO), indent=2))
     print(json.dumps(agent_capability_map(SCENARIO), indent=2))
     if mcp_tool_context(SCENARIO)["uses_mcp"]:
@@ -1183,11 +1303,10 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
     '''
 
 
-def workflow_cell() -> str:
+def plumbing_cell() -> str:
     return r'''
     import re
-    from collections.abc import Mapping
-    from typing import Never
+    from typing import Any, Never
 
     from agent_framework import (
         AgentExecutor,
@@ -1229,6 +1348,27 @@ def workflow_cell() -> str:
             await ctx.send_message(make_request(prompt))
 
 
+    def _slug(name: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+
+
+    def _agents_for(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> list[Any]:
+        return [make_agent(spec, config=config) for spec in scenario.agents]
+
+
+    def _agent_executor(spec_index: int, scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> AgentExecutor:
+        spec = scenario.agents[spec_index]
+        return AgentExecutor(make_agent(spec, config=config), id=_slug(spec.name))
+
+
+
+    print("Workflow plumbing ready: dispatch executor, shared transcript state, and "
+          "request/response helpers.")
+    '''
+
+
+_PATTERN_MACHINERY = {
+    'sequential': r'''
     class StageGateExecutor(Executor):
         def __init__(self, id: str, *, stage_name: str) -> None:
             super().__init__(id=id)
@@ -1253,6 +1393,15 @@ def workflow_cell() -> str:
             await ctx.yield_output("\n\n".join(transcript))
 
 
+
+    # Demo (offline): the exact prompt a stage gate hands to the next stage.
+    _demo_transcript = [
+        f"[{SCENARIO.agents[0].name}] First-stage findings would appear here.",
+        f"[{SCENARIO.agents[1].name}] Second-stage findings build on them.",
+    ]
+    print("Original request:\n" + SAMPLE_PROMPT + "\n\nWork so far:\n" + "\n".join(_demo_transcript))
+    ''',
+    'concurrent': r'''
     class ConcurrentAggregatorExecutor(Executor):
         def __init__(self, id: str, *, agent_names: list[str]) -> None:
             super().__init__(id=id)
@@ -1288,6 +1437,23 @@ def workflow_cell() -> str:
             )
 
 
+    class SequentialOutputExecutor(Executor):
+        def __init__(self, id: str, *, stage_name: str) -> None:
+            super().__init__(id=id)
+            self._stage_name = stage_name
+
+        @handler
+        async def finish(self, response: AgentExecutorResponse, ctx: WorkflowContext[Never, str]) -> None:
+            transcript = _append_transcript(ctx, self._stage_name, response_text(response))
+            await ctx.yield_output("\n\n".join(transcript))
+
+
+
+    # Demo (offline): how fan-in labels each parallel finding before aggregation.
+    _parallel = [spec.name for spec in SCENARIO.agents if spec.name != SCENARIO.concurrent_synthesizer][:3]
+    print("\n\n".join(f"[{name}]\n{name} would report its independent finding here." for name in _parallel))
+    ''',
+    'handoff': r'''
     _ROUTE_DIRECTIVE = re.compile(r"route\s*:\s*([A-Za-z][A-Za-z0-9 _-]*)", re.IGNORECASE)
 
 
@@ -1374,19 +1540,6 @@ def workflow_cell() -> str:
             await ctx.yield_output("\n\n".join([header, *transcript]))
 
 
-    def _slug(name: str) -> str:
-        return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
-
-
-    def _agents_for(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> list[Any]:
-        return [make_agent(spec, config=config) for spec in scenario.agents]
-
-
-    def _agent_executor(spec_index: int, scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> AgentExecutor:
-        spec = scenario.agents[spec_index]
-        return AgentExecutor(make_agent(spec, config=config), id=_slug(spec.name))
-
-
     def _route_keywords(spec: AgentSpec) -> tuple[str, ...]:
         if spec.route_keywords:
             return tuple(spec.route_keywords)
@@ -1395,6 +1548,66 @@ def workflow_cell() -> str:
         return tuple(dict.fromkeys(keywords))[:6]
 
 
+
+    # Demo (offline): a valid ROUTE directive wins; keyword scoring is the fallback.
+    _specialists = [spec for spec in SCENARIO.agents[1:] if spec.name != SCENARIO.handoff_finisher]
+    _demo_routes = {_route_slug(spec.name): _route_keywords(spec) for spec in _specialists}
+    _demo_names = {_route_slug(spec.name): spec.name for spec in _specialists}
+    _demo_router = HandoffRouterExecutor(
+        id="demo_router", routes=_demo_routes, default_route=next(iter(_demo_routes)), display_names=_demo_names
+    )
+    print("directive ->", _demo_router.choose("Triage notes.\nROUTE: " + _specialists[-1].name))
+    print("keywords  ->", _demo_router.choose(SAMPLE_PROMPT))
+    ''',
+    'group-chat': r'''
+    def make_group_chat_termination(phrases: tuple[str, ...], participant_count: int, max_cycles: int = 2) -> Any:
+        def should_stop(messages: list[Any]) -> bool:
+            assistant = [m for m in messages if getattr(m, "role", None) == "assistant"]
+            if not assistant or len(assistant) % participant_count != 0:
+                return False
+            if len(assistant) >= max_cycles * participant_count:
+                return True
+            last_text = (getattr(assistant[-1], "text", "") or "").lower()
+            return bool(phrases) and all(phrase in last_text for phrase in phrases)
+
+        return should_stop
+
+
+
+    # Demo (offline): termination only fires when the closing agent ends a full cycle.
+    class _DemoMsg:
+        def __init__(self, text: str) -> None:
+            self.role = "assistant"
+            self.text = text
+
+
+    _n = len(SCENARIO.agents)
+    _phrase = " ".join(SCENARIO.termination_phrases) or "final recommendation"
+    _stop = make_group_chat_termination(SCENARIO.termination_phrases, _n)
+    print("mid-cycle, phrase present  ->", _stop([_DemoMsg(_phrase)] * max(1, _n - 1)))
+    print("cycle end, no phrase       ->", _stop([_DemoMsg("still debating")] * _n))
+    print("cycle end, phrase present  ->", _stop([_DemoMsg("x")] * (_n - 1) + [_DemoMsg(_phrase)]))
+    print("after two full cycles      ->", _stop([_DemoMsg("x")] * (2 * _n)))
+    ''',
+    'magentic': r'''
+    MAGENTIC_LIMITS = {"max_round_count": 10, "max_stall_count": 3, "max_reset_count": 2}
+
+
+    # Demo (offline): the manager/specialist split and the ledger limits that bound replanning.
+    print("Manager:    ", SCENARIO.agents[0].name)
+    print("Specialists:", ", ".join(spec.name for spec in SCENARIO.agents[1:]))
+    for _key, _value in MAGENTIC_LIMITS.items():
+        print(f"{_key} = {_value}")
+    ''',
+}
+
+
+def pattern_machinery_cell(pattern: str) -> str:
+    return _PATTERN_MACHINERY[pattern]
+
+
+_PATTERN_BUILDS = {
+    'sequential': r'''
     def build_sequential_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         agents = [_agent_executor(i, scenario, config=config) for i in range(len(scenario.agents))]
         dispatch = PromptDispatchExecutor(id="dispatch")
@@ -1409,6 +1622,24 @@ def workflow_cell() -> str:
         return builder.build()
 
 
+
+    def build_workflow(
+        scenario: ScenarioSpec = SCENARIO,
+        *,
+        max_tokens: int | None = None,
+        **config_overrides: Any,
+    ) -> Any:
+        config = build_ollama_config(max_tokens=max_tokens or MAX_TOKENS, **config_overrides)
+        return build_sequential_workflow(scenario, config=config)
+
+
+    workflow = build_workflow(SCENARIO, max_tokens=MAX_TOKENS)
+    print(
+        f"Built the {SCENARIO.pattern} workflow over {len(SCENARIO.agents)} agents: "
+        + type(workflow).__name__
+    )
+    ''',
+    'concurrent': r'''
     def build_concurrent_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         synthesizer_name = scenario.concurrent_synthesizer
         parallel = [i for i in range(len(scenario.agents)) if scenario.agents[i].name != synthesizer_name]
@@ -1435,6 +1666,24 @@ def workflow_cell() -> str:
         return builder.build()
 
 
+
+    def build_workflow(
+        scenario: ScenarioSpec = SCENARIO,
+        *,
+        max_tokens: int | None = None,
+        **config_overrides: Any,
+    ) -> Any:
+        config = build_ollama_config(max_tokens=max_tokens or MAX_TOKENS, **config_overrides)
+        return build_concurrent_workflow(scenario, config=config)
+
+
+    workflow = build_workflow(SCENARIO, max_tokens=MAX_TOKENS)
+    print(
+        f"Built the {SCENARIO.pattern} workflow over {len(SCENARIO.agents)} agents: "
+        + type(workflow).__name__
+    )
+    ''',
+    'handoff': r'''
     def build_handoff_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         triage = _agent_executor(0, scenario, config=config)
         finisher_name = scenario.handoff_finisher
@@ -1469,19 +1718,24 @@ def workflow_cell() -> str:
         return builder.build()
 
 
-    def make_group_chat_termination(phrases: tuple[str, ...], participant_count: int, max_cycles: int = 2) -> Any:
-        def should_stop(messages: list[Any]) -> bool:
-            assistant = [m for m in messages if getattr(m, "role", None) == "assistant"]
-            if not assistant or len(assistant) % participant_count != 0:
-                return False
-            if len(assistant) >= max_cycles * participant_count:
-                return True
-            last_text = (getattr(assistant[-1], "text", "") or "").lower()
-            return bool(phrases) and all(phrase in last_text for phrase in phrases)
 
-        return should_stop
+    def build_workflow(
+        scenario: ScenarioSpec = SCENARIO,
+        *,
+        max_tokens: int | None = None,
+        **config_overrides: Any,
+    ) -> Any:
+        config = build_ollama_config(max_tokens=max_tokens or MAX_TOKENS, **config_overrides)
+        return build_handoff_workflow(scenario, config=config)
 
 
+    workflow = build_workflow(SCENARIO, max_tokens=MAX_TOKENS)
+    print(
+        f"Built the {SCENARIO.pattern} workflow over {len(SCENARIO.agents)} agents: "
+        + type(workflow).__name__
+    )
+    ''',
+    'group-chat': r'''
     def build_group_chat_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         from agent_framework.orchestrations import GroupChatBuilder
 
@@ -1501,6 +1755,24 @@ def workflow_cell() -> str:
         ).build()
 
 
+
+    def build_workflow(
+        scenario: ScenarioSpec = SCENARIO,
+        *,
+        max_tokens: int | None = None,
+        **config_overrides: Any,
+    ) -> Any:
+        config = build_ollama_config(max_tokens=max_tokens or MAX_TOKENS, **config_overrides)
+        return build_group_chat_workflow(scenario, config=config)
+
+
+    workflow = build_workflow(SCENARIO, max_tokens=MAX_TOKENS)
+    print(
+        f"Built the {SCENARIO.pattern} workflow over {len(SCENARIO.agents)} agents: "
+        + type(workflow).__name__
+    )
+    ''',
+    'magentic': r'''
     def build_magentic_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         from agent_framework.orchestrations import MagenticBuilder
 
@@ -1511,10 +1783,9 @@ def workflow_cell() -> str:
             participants=participants,
             intermediate_output_from=participants,
             manager_agent=manager_agent,
-            max_round_count=10,
-            max_stall_count=3,
-            max_reset_count=2,
+            **MAGENTIC_LIMITS,
         ).build()
+
 
 
     def build_workflow(
@@ -1524,14 +1795,29 @@ def workflow_cell() -> str:
         **config_overrides: Any,
     ) -> Any:
         config = build_ollama_config(max_tokens=max_tokens or MAX_TOKENS, **config_overrides)
-        builders = {
-            "sequential": build_sequential_workflow,
-            "concurrent": build_concurrent_workflow,
-            "handoff": build_handoff_workflow,
-            "group-chat": build_group_chat_workflow,
-            "magentic": build_magentic_workflow,
-        }
-        return builders[scenario.pattern](scenario, config=config)
+        return build_magentic_workflow(scenario, config=config)
+
+
+    workflow = build_workflow(SCENARIO, max_tokens=MAX_TOKENS)
+    print(
+        f"Built the {SCENARIO.pattern} workflow over {len(SCENARIO.agents)} agents: "
+        + type(workflow).__name__
+    )
+    ''',
+}
+
+
+def build_cell(pattern: str) -> str:
+    return _PATTERN_BUILDS[pattern]
+
+
+def results_cell(include_group_summary: bool) -> str:
+    body = _RESULTS_BASE + (_RESULTS_GROUP_SUMMARY if include_group_summary else "")
+    return body + _RESULTS_PRINT
+
+
+_RESULTS_BASE = r'''
+    from collections.abc import Mapping, Sequence
 
 
     def workflow_result_to_text(result: Any) -> str:
@@ -1639,6 +1925,9 @@ def workflow_cell() -> str:
         return value.startswith("<") and " object at 0x" in value and value.endswith(">")
 
 
+    '''
+
+_RESULTS_GROUP_SUMMARY = r'''
     def group_chat_learning_summary(
         scenario: ScenarioSpec,
         prompt: str,
@@ -1677,13 +1966,14 @@ def workflow_cell() -> str:
         return "\n".join(lines)
     '''
 
+_RESULTS_PRINT = r'''
 
-def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
-    api_boundary = project["api_boundary"]
-    input_label = project["input_label"]
-    output_label = project["output_label"]
-    quote_call = "\n    quote_to_cash_diagram = display_quote_to_cash_flow(SCENARIO)" if is_quote_to_cash else ""
-    return f'''
+    print("Result formatting ready: workflow_result_to_text(...) turns framework events "
+          "into readable text.")
+    '''
+
+
+_DIAGRAM_HEAD = r'''
     import base64
     import html
     from dataclasses import dataclass
@@ -1699,7 +1989,7 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
 
 
     def scenario_flow_diagram(scenario: ScenarioSpec) -> ScenarioFlowDiagram:
-        mermaid = _diagram_source(scenario, api_boundary="{api_boundary}", input_label="{input_label}")
+        mermaid = __DIAGRAM_FN__(scenario, api_boundary="{api_boundary}", input_label="{input_label}")
         return ScenarioFlowDiagram(
             title=f"{{scenario.title}} Flow",
             mermaid=mermaid,
@@ -1721,20 +2011,10 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
         return diagram
 
 
-    def _diagram_source(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
-        if scenario.pattern == "sequential":
-            return _sequential_diagram(scenario, api_boundary=api_boundary, input_label=input_label)
-        if scenario.pattern == "concurrent":
-            return _concurrent_diagram(scenario, api_boundary=api_boundary, input_label=input_label)
-        if scenario.pattern == "handoff":
-            return _handoff_diagram(scenario, api_boundary=api_boundary, input_label=input_label)
-        if scenario.pattern == "group-chat":
-            return _group_chat_diagram(scenario, api_boundary=api_boundary, input_label=input_label)
-        if scenario.pattern == "magentic":
-            return _magentic_diagram(scenario, api_boundary=api_boundary, input_label=input_label)
-        raise ValueError(f"Unsupported pattern '{{scenario.pattern}}'.")
+'''
 
-
+_DIAGRAM_BODIES = {
+    'sequential': r'''
     def _sequential_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
         lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
         previous = "orchestrator"
@@ -1746,9 +2026,11 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
             pairs.append((agent, node))
         lines.append(f"    {{previous}} --> output[{output_label}]")
         lines.extend(_mcp_tool_links(pairs))
-        return "\\n".join(lines)
+        return "\n".join(lines)
 
 
+''',
+    'concurrent': r'''
     def _concurrent_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
         synthesizer = next(
             (agent for agent in scenario.agents if agent.name == scenario.concurrent_synthesizer), None
@@ -1769,9 +2051,11 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
             lines.append("    synthesizer --> output[{output_label}]")
             pairs.append((synthesizer, "synthesizer"))
         lines.extend(_mcp_tool_links(pairs))
-        return "\\n".join(lines)
+        return "\n".join(lines)
 
 
+''',
+    'handoff': r'''
     def _handoff_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
         triage, *others = scenario.agents
         finisher = next((agent for agent in others if agent.name == scenario.handoff_finisher), None)
@@ -1791,9 +2075,11 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
             lines.append(f"    {{node}} --> {{sink}}")
             pairs.append((agent, node))
         lines.extend(_mcp_tool_links(pairs))
-        return "\\n".join(lines)
+        return "\n".join(lines)
 
 
+''',
+    'group-chat': r'''
     def _group_chat_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
         lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
         lines.append("    orchestrator --> selector{{Round-robin selector}}")
@@ -1808,9 +2094,11 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
         lines.append("    stop -->|continue| selector")
         lines.append("    stop -->|done| output[{output_label}]")
         lines.extend(_mcp_tool_links(pairs))
-        return "\\n".join(lines)
+        return "\n".join(lines)
 
 
+''',
+    'magentic': r'''
     def _magentic_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
         manager, *specialists = scenario.agents
         lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
@@ -1825,12 +2113,17 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
         lines.append("    progress -->|replan| manager")
         lines.append("    progress -->|complete or stop| output[{output_label}]")
         lines.extend(_mcp_tool_links(pairs))
-        return "\\n".join(lines)
+        return "\n".join(lines)
 
 
+''',
+}
+
+_DIAGRAM_TAIL = r'''
     def _header(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> list[str]:
         return [
-            "flowchart TD",
+            "%%{{init: {{'theme': 'neutral'}}}}%%",
+        "flowchart TD",
             f"    client[{{_label(input_label)}}] --> api[{{_label(api_boundary)}}]",
             f"    api --> scenario[{{_label('Scenario: ' + scenario.id)}}]",
             f"    scenario --> orchestrator{{{{{{_label(scenario.pattern + ' orchestration')}}}}}}",
@@ -1875,7 +2168,8 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
             return role if role in names else next(iter(names))
 
         lines = [
-            "flowchart TD",
+            "%%{{init: {{'theme': 'neutral'}}}}%%",
+        "flowchart TD",
             f"    client[{{_label('Quote request begins in CRM')}}] --> api[{{_label(api_boundary)}}]",
             f"    api --> scenario[{{_label('Scenario: ' + scenario.id)}}]",
             f"    scenario --> orchestrator{{{{{{_label(scenario.pattern + ' orchestration')}}}}}}",
@@ -1896,7 +2190,7 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
             f"    pricing --> generation[{{_label(node('QuoteGenerationAgent'))}}]",
             f"    generation --> quote[/{{_label('Final quote package')}}/]",
         ]
-        return "\\n".join(lines)
+        return "\n".join(lines)
 
 
     def _label(value: str) -> str:
@@ -1910,7 +2204,24 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
 
     flow_diagram = display_scenario_flow(SCENARIO){quote_call}
     print(flow_diagram.mermaid)
-    '''
+'''
+
+
+def diagram_cell(project: dict[str, str], pattern: str, is_quote_to_cash: bool) -> str:
+    quote_call = (
+        "\n    quote_to_cash_diagram = display_quote_to_cash_flow(SCENARIO)" if is_quote_to_cash else ""
+    )
+    body = _DIAGRAM_HEAD.replace("__DIAGRAM_FN__", _DIAGRAM_FN_NAMES[pattern])
+    body = body + _DIAGRAM_BODIES[pattern] + _DIAGRAM_TAIL
+    return body.format(
+        api_boundary=project["api_boundary"],
+        input_label=project["input_label"],
+        output_label=project["output_label"],
+        quote_call=quote_call,
+    )
+
+
+_DIAGRAM_FN_NAMES = {'sequential': '_sequential_diagram', 'concurrent': '_concurrent_diagram', 'handoff': '_handoff_diagram', 'group-chat': '_group_chat_diagram', 'magentic': '_magentic_diagram'}
 
 
 def live_run_cell() -> str:
@@ -1931,9 +2242,8 @@ def live_run_cell() -> str:
     if not output_text.strip():
         raise RuntimeError("Workflow completed but produced no readable text.")
 
-    print(output_text)
+    render_transcript(output_text)
     '''
-
 
 
 def flow_diagram_markdown(project: dict[str, str], scenario: Any) -> str:
@@ -1996,6 +2306,15 @@ def experiments_markdown(project: dict[str, str], scenario: Any) -> str:
     """
 
 
+ENTERPRISE_DEMO_CALLS = {
+    "sequential-procurement-approval": 'lookup_enterprise_record("VENDOR-4471")',
+    "concurrent-security-alert-enrichment": 'lookup_enterprise_record("ALERT-2298")',
+    "handoff-claims-exception-routing": 'lookup_enterprise_record("CLAIM-88120")',
+    "group-chat-policy-exception-board": 'lookup_enterprise_record("POLICY-EX-77")',
+    "magentic-business-continuity-drill": 'lookup_enterprise_record("FACILITY-DC-EAST")',
+}
+
+
 def build_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
     data = scenario_data(scenario, project["sample_attr"])
     server = scenario_mcp_server(scenario)
@@ -2006,14 +2325,23 @@ def build_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
     ]
     if server:
         cells.append(md(mcp_markdown(server)))
-        cells.append(code(quote_to_cash_tools_cell() if server == "quote_to_cash_context" else enterprise_tools_cell()))
+        if server == "quote_to_cash_context":
+            cells.append(code(quote_to_cash_fixtures_cell()))
+            cells.append(code(quote_to_cash_tools_cell('crm_get_quote_trigger("OPP-5001")')))
+        else:
+            demo_call = ENTERPRISE_DEMO_CALLS.get(scenario.id, 'search_policy("security review")')
+            cells.append(code(enterprise_fixtures_cell()))
+            cells.append(code(enterprise_tools_cell(demo_call)))
     cells.extend(
         [
-            code(agent_factory_cell()),
             code(scenario_cell(project, data)),
-            code(workflow_cell()),
+            code(agent_factory_cell()),
+            code(plumbing_cell()),
+            code(pattern_machinery_cell(scenario.pattern)),
+            code(build_cell(scenario.pattern)),
             md(flow_diagram_markdown(project, scenario)),
-            code(diagram_cell(project, scenario.id.startswith("scenario-16-quote-to-cash"))),
+            code(diagram_cell(project, scenario.pattern, scenario.id.startswith("scenario-16-quote-to-cash"))),
+            code(results_cell(scenario.pattern == "group-chat")),
             md(live_run_markdown(scenario)),
             code(live_run_cell()),
             md(post_run_markdown(scenario)),
