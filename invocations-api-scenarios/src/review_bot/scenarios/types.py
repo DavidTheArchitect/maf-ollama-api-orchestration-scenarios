@@ -22,3 +22,8 @@ class ScenarioSpec:
     #: the labelled parallel findings into one deliverable. ``None`` keeps the
     #: plain fan-out -> fan-in -> aggregated output shape.
     concurrent_synthesizer: str | None = None
+    #: Group-chat-only: phrases that must all appear in the closing message of
+    #: a round-robin cycle for the discussion to end early. The last agent in
+    #: the roster closes each cycle, so it always gets the final word. Empty
+    #: means the chat simply runs its full cycle budget.
+    termination_phrases: tuple[str, ...] = ()

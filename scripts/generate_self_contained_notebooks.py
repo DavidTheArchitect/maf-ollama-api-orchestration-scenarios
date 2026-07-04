@@ -55,7 +55,8 @@ PATTERN_DOCS = {
     ),
     "group-chat": (
         "Group chat orchestration creates a visible multi-agent discussion. A selector function chooses the "
-        "next participant and a termination function decides when the discussion is good enough.",
+        "next participant round-robin, and a per-scenario termination function checks the closing message of "
+        "each full cycle, so the synthesizer or chair always speaks last.",
         "Best fit: decisions that benefit from critique, tradeoffs, and a short transcript."
     ),
     "magentic": (
@@ -86,9 +87,9 @@ PATTERN_ANATOMY = {
         "best_when": "Use when the right owner depends on the request.",
     },
     "group-chat": {
-        "control_flow": "Agents take turns until a termination condition is met.",
-        "coordination": "A selector function chooses the next participant.",
-        "output_behavior": "The transcript shows critique, refinement, and convergence.",
+        "control_flow": "Agents take turns in cycles; the last agent closes each cycle and can end the chat.",
+        "coordination": "A selector function rotates speakers; termination is checked only at cycle boundaries.",
+        "output_behavior": "The transcript shows critique, refinement, and a closing verdict.",
         "best_when": "Use when visible debate improves the answer.",
     },
     "magentic": {
@@ -120,9 +121,11 @@ PATTERN_LIVE_RUN_INTRO = {
         "shows the route taken and whether it came from the model directive or keyword fallback."
     ),
     "group-chat": (
-        "Participants speak in round-robin order. The termination function fires when an "
-        "approved recommendation appears or after seven assistant turns. Intermediate outputs "
-        "from each participant are surfaced alongside the final transcript."
+        "Participants speak in round-robin order, and termination is only checked when the "
+        "last agent closes a full cycle -- so the synthesizer always gets the final word. "
+        "The chat ends early when the scenario's termination phrases appear in that closing "
+        "message, and unconditionally after two full cycles. Intermediate outputs from each "
+        "participant are surfaced alongside the final transcript."
     ),
     "magentic": (
         "The manager agent plans, delegates to specialists, and replans if work stalls or "
@@ -155,9 +158,9 @@ PATTERN_INSPECT = {
     ),
     "group-chat": (
         "Read the transcript chronologically. Later turns should respond to earlier critiques "
-        "rather than restarting the discussion. The termination function fires on 'approved' "
-        "plus 'recommendation' in the same message, or after seven assistant turns -- check "
-        "which condition fired and why."
+        "rather than restarting the discussion. Termination is checked only at the end of each "
+        "full cycle: the chat stops early when the scenario's termination phrases appear in the "
+        "closing agent's message, or after two full cycles -- check which condition fired and why."
     ),
     "magentic": (
         "Follow the specialist outputs to reconstruct the manager delegation path. If the "
@@ -231,6 +234,7 @@ def scenario_data(scenario: Any, sample_attr: str) -> dict[str, Any]:
         sample_attr: getattr(scenario, sample_attr),
         "handoff_finisher": getattr(scenario, "handoff_finisher", None),
         "concurrent_synthesizer": getattr(scenario, "concurrent_synthesizer", None),
+        "termination_phrases": list(getattr(scenario, "termination_phrases", ()) or ()),
         "agents": [
             {
                 "name": agent.name,
@@ -1091,6 +1095,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         agents: tuple[AgentSpec, ...]
         handoff_finisher: str | None = None
         concurrent_synthesizer: str | None = None
+        termination_phrases: tuple[str, ...] = ()
 
 
     SCENARIO_DATA = json.loads(
@@ -1119,6 +1124,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         agents=AGENTS,
         handoff_finisher=SCENARIO_DATA.get("handoff_finisher"),
         concurrent_synthesizer=SCENARIO_DATA.get("concurrent_synthesizer"),
+        termination_phrases=tuple(SCENARIO_DATA.get("termination_phrases", [])),
     )
 
 
@@ -1463,6 +1469,19 @@ def workflow_cell() -> str:
         return builder.build()
 
 
+    def make_group_chat_termination(phrases: tuple[str, ...], participant_count: int, max_cycles: int = 2) -> Any:
+        def should_stop(messages: list[Any]) -> bool:
+            assistant = [m for m in messages if getattr(m, "role", None) == "assistant"]
+            if not assistant or len(assistant) % participant_count != 0:
+                return False
+            if len(assistant) >= max_cycles * participant_count:
+                return True
+            last_text = (getattr(assistant[-1], "text", "") or "").lower()
+            return bool(phrases) and all(phrase in last_text for phrase in phrases)
+
+        return should_stop
+
+
     def build_group_chat_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         from agent_framework.orchestrations import GroupChatBuilder
 
@@ -1472,17 +1491,12 @@ def workflow_cell() -> str:
             participant_names = list(state.participants.keys())
             return participant_names[state.current_round % len(participant_names)]
 
-        def stop_after_council(messages: list[Any]) -> bool:
-            assistant_messages = [m for m in messages if getattr(m, "role", None) == "assistant"]
-            if len(assistant_messages) >= 7:
-                return True
-            last_text = getattr(messages[-1], "text", "").lower() if messages else ""
-            return "approved" in last_text and "recommendation" in last_text
-
         return GroupChatBuilder(
             participants=participants,
             selection_func=round_robin_selector,
-            termination_condition=stop_after_council,
+            termination_condition=make_group_chat_termination(
+                scenario.termination_phrases, len(scenario.agents)
+            ),
             intermediate_output_from=participants,
         ).build()
 

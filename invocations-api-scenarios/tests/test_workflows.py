@@ -1,6 +1,37 @@
 import unittest
 
 from review_bot.output_formatting import agent_response_to_text, workflow_result_to_text
+from review_bot.scenarios import SCENARIOS
+from review_bot.workflows import make_group_chat_termination
+
+
+class GroupChatTerminationTests(unittest.TestCase):
+    def test_group_chat_termination_only_fires_at_cycle_end(self):
+        class Msg:
+            def __init__(self, text):
+                self.role = "assistant"
+                self.text = text
+
+        stop = make_group_chat_termination(("final recommendation",), 5)
+        # mid-cycle: never fires, even with the phrase present
+        self.assertFalse(stop([Msg("FINAL RECOMMENDATION: approve")] * 3))
+        # cycle end without the phrase: continues into cycle two
+        self.assertFalse(stop([Msg("still debating")] * 5))
+        # cycle end with the phrase in the closing message: fires
+        self.assertTrue(stop([Msg("still debating")] * 4 + [Msg("FINAL RECOMMENDATION: approve")]))
+        # hard cap after two full cycles regardless of phrases
+        self.assertTrue(stop([Msg("still debating")] * 10))
+
+    def test_group_chat_scenarios_declare_termination_phrases(self):
+        for scenario in SCENARIOS:
+            if scenario.pattern != "group-chat":
+                continue
+            with self.subTest(scenario=scenario.id):
+                self.assertTrue(scenario.termination_phrases)
+                closing = scenario.agents[-1]
+                joined = closing.instructions.lower()
+                for phrase in scenario.termination_phrases:
+                    self.assertIn(phrase.rstrip(":"), joined)
 
 
 class WorkflowFormattingTests(unittest.TestCase):
