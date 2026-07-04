@@ -73,15 +73,24 @@ def _sequential_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_labe
 
 
 def _concurrent_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
+    synthesizer = next(
+        (agent for agent in scenario.agents if agent.name == scenario.concurrent_synthesizer), None
+    )
+    parallel = [agent for agent in scenario.agents if agent is not synthesizer]
     lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
     lines.append("    orchestrator --> fanout{{Fan out same payload}}")
     pairs: list[tuple[Any, str]] = []
-    for index, agent in enumerate(scenario.agents, start=1):
+    for index, agent in enumerate(parallel, start=1):
         node = f"agent{index}"
         lines.append(f"    fanout --> {node}[{_label(agent.name)}]")
         lines.append(f"    {node} --> aggregate{{Aggregate findings}}")
         pairs.append((agent, node))
-    lines.append("    aggregate --> output[Structured invocation response]")
+    if synthesizer is None:
+        lines.append("    aggregate --> output[Structured invocation response]")
+    else:
+        lines.append(f"    aggregate --> synthesizer[{_label(synthesizer.name)}]")
+        lines.append("    synthesizer --> output[Structured invocation response]")
+        pairs.append((synthesizer, "synthesizer"))
     lines.extend(_mcp_tool_links(pairs))
     return "\n".join(lines)
 

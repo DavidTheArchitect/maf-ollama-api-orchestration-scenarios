@@ -42,7 +42,9 @@ PATTERN_DOCS = {
     ),
     "concurrent": (
         "Concurrent orchestration fans one request out to several specialists. They work independently, "
-        "then a code-defined fan-in executor labels and combines their findings.",
+        "then a code-defined fan-in executor labels and combines their findings. Scenarios with a "
+        "designated synthesizer hold that agent out of the fan-out and run it after fan-in, so the agent "
+        "that combines the perspectives actually sees them.",
         "Best fit: independent reviews where parallel perspectives are more valuable than turn-taking."
     ),
     "handoff": (
@@ -72,9 +74,9 @@ PATTERN_ANATOMY = {
         "best_when": "Use for repeatable pipelines where every request needs the same stages.",
     },
     "concurrent": {
-        "control_flow": "All specialists receive the same input and run independently.",
-        "coordination": "The graph fans out work and aggregates participant outputs.",
-        "output_behavior": "Each participant contributes a labelled perspective.",
+        "control_flow": "Parallel lanes receive the same input and run independently; an optional synthesizer runs after fan-in.",
+        "coordination": "The graph fans out work, aggregates labelled outputs, and can forward them to a synthesis agent.",
+        "output_behavior": "Each lane contributes a labelled perspective; a synthesizer combines them when declared.",
         "best_when": "Use when independent reviews can happen in parallel.",
     },
     "handoff": {
@@ -104,9 +106,11 @@ PATTERN_LIVE_RUN_INTRO = {
         "work so far. The final cell prints the complete stage-by-stage log."
     ),
     "concurrent": (
-        "The request fans out to all specialists simultaneously. A `ConcurrentAggregatorExecutor` "
-        "waits for every response, then labels each contribution and joins them. "
-        "Execution order inside the fan-out is non-deterministic."
+        "The request fans out to the parallel lanes simultaneously. A fan-in executor waits for "
+        "every response and labels each contribution. Without a synthesizer the labelled findings "
+        "are the output; with one, a `ConcurrentSynthesisGateExecutor` forwards them to the "
+        "synthesis agent, which produces the final deliverable. Execution order inside the "
+        "fan-out is non-deterministic."
     ),
     "handoff": (
         "Triage runs first and ends with a `ROUTE: <AgentName>` line. The `HandoffRouterExecutor` "
@@ -137,10 +141,10 @@ PATTERN_INSPECT = {
         "and the gate prompt to see exactly what the agent received."
     ),
     "concurrent": (
-        "Check that each labelled specialist contribution is non-overlapping. Because agents "
+        "Check that each labelled lane contribution is non-overlapping. Because lanes "
         "receive the same input and run independently, their findings should be additive, "
-        "not redundant. If two specialists repeat each other, their roles or instructions "
-        "may need tighter scoping."
+        "not redundant. When the scenario declares a synthesizer, confirm its final entry "
+        "actually reconciles the labelled findings above it rather than repeating one lane."
     ),
     "handoff": (
         "Verify the route matches the triage intent, and check the route source in the output "
@@ -226,6 +230,7 @@ def scenario_data(scenario: Any, sample_attr: str) -> dict[str, Any]:
         "when_to_use": scenario.when_to_use,
         sample_attr: getattr(scenario, sample_attr),
         "handoff_finisher": getattr(scenario, "handoff_finisher", None),
+        "concurrent_synthesizer": getattr(scenario, "concurrent_synthesizer", None),
         "agents": [
             {
                 "name": agent.name,
@@ -1085,6 +1090,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         {sample_attr}: str
         agents: tuple[AgentSpec, ...]
         handoff_finisher: str | None = None
+        concurrent_synthesizer: str | None = None
 
 
     SCENARIO_DATA = json.loads(
@@ -1112,6 +1118,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         {sample_attr}=SCENARIO_DATA["{sample_attr}"],
         agents=AGENTS,
         handoff_finisher=SCENARIO_DATA.get("handoff_finisher"),
+        concurrent_synthesizer=SCENARIO_DATA.get("concurrent_synthesizer"),
     )
 
 
@@ -1254,6 +1261,27 @@ def workflow_cell() -> str:
             await ctx.yield_output("\n\n".join(labelled))
 
 
+    class ConcurrentSynthesisGateExecutor(Executor):
+        def __init__(self, id: str, *, agent_names: list[str]) -> None:
+            super().__init__(id=id)
+            self._agent_names = agent_names
+
+        @handler
+        async def gate(self, responses: list[AgentExecutorResponse], ctx: WorkflowContext[AgentExecutorRequest]) -> None:
+            for index, response in enumerate(responses):
+                name = self._agent_names[index] if index < len(self._agent_names) else f"agent{index + 1}"
+                _append_transcript(ctx, name, response_text(response))
+            prompt = ctx.get_state("prompt") or ""
+            carried = "\n".join(ctx.get_state(_TRANSCRIPT_KEY) or [])
+            await ctx.send_message(
+                make_request(
+                    f"You are the synthesis stage.\nOriginal request:\n{prompt}\n\n"
+                    f"Independent specialist findings:\n{carried}\n\n"
+                    "Combine these findings into the final deliverable."
+                )
+            )
+
+
     _ROUTE_DIRECTIVE = re.compile(r"route\s*:\s*([A-Za-z][A-Za-z0-9 _-]*)", re.IGNORECASE)
 
 
@@ -1376,12 +1404,28 @@ def workflow_cell() -> str:
 
 
     def build_concurrent_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
-        agents = [_agent_executor(i, scenario, config=config) for i in range(len(scenario.agents))]
+        synthesizer_name = scenario.concurrent_synthesizer
+        parallel = [i for i in range(len(scenario.agents)) if scenario.agents[i].name != synthesizer_name]
+        agents = [_agent_executor(i, scenario, config=config) for i in parallel]
+        parallel_names = [scenario.agents[i].name for i in parallel]
         dispatch = PromptDispatchExecutor(id="dispatch")
-        aggregator = ConcurrentAggregatorExecutor(id="aggregator", agent_names=[spec.name for spec in scenario.agents])
-        builder = WorkflowBuilder(start_executor=dispatch, output_from=[aggregator])
+        if synthesizer_name is None:
+            aggregator = ConcurrentAggregatorExecutor(id="aggregator", agent_names=parallel_names)
+            builder = WorkflowBuilder(start_executor=dispatch, output_from=[aggregator])
+            builder.add_fan_out_edges(dispatch, agents)
+            builder.add_fan_in_edges(agents, aggregator)
+            return builder.build()
+        synthesizer_index = next(
+            i for i in range(len(scenario.agents)) if scenario.agents[i].name == synthesizer_name
+        )
+        synthesizer = _agent_executor(synthesizer_index, scenario, config=config)
+        gate = ConcurrentSynthesisGateExecutor(id="synthesis_gate", agent_names=parallel_names)
+        output = SequentialOutputExecutor(id="final_output", stage_name=synthesizer_name)
+        builder = WorkflowBuilder(start_executor=dispatch, output_from=[output])
         builder.add_fan_out_edges(dispatch, agents)
-        builder.add_fan_in_edges(agents, aggregator)
+        builder.add_fan_in_edges(agents, gate)
+        builder.add_edge(gate, synthesizer)
+        builder.add_edge(synthesizer, output)
         return builder.build()
 
 
@@ -1692,15 +1736,24 @@ def diagram_cell(project: dict[str, str], is_quote_to_cash: bool) -> str:
 
 
     def _concurrent_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_label: str) -> str:
+        synthesizer = next(
+            (agent for agent in scenario.agents if agent.name == scenario.concurrent_synthesizer), None
+        )
+        parallel = [agent for agent in scenario.agents if agent is not synthesizer]
         lines = _header(scenario, api_boundary=api_boundary, input_label=input_label)
         lines.append("    orchestrator --> fanout{{Fan out same request}}")
         pairs: list[tuple[AgentSpec, str]] = []
-        for index, agent in enumerate(scenario.agents, start=1):
+        for index, agent in enumerate(parallel, start=1):
             node = f"agent{{index}}"
             lines.append(f"    fanout --> {{node}}[{{_label(agent.name)}}]")
             lines.append(f"    {{node}} --> aggregate{{{{Aggregate findings}}}}")
             pairs.append((agent, node))
-        lines.append("    aggregate --> output[{output_label}]")
+        if synthesizer is None:
+            lines.append("    aggregate --> output[{output_label}]")
+        else:
+            lines.append(f"    aggregate --> synthesizer[{{_label(synthesizer.name)}}]")
+            lines.append("    synthesizer --> output[{output_label}]")
+            pairs.append((synthesizer, "synthesizer"))
         lines.extend(_mcp_tool_links(pairs))
         return "\\n".join(lines)
 

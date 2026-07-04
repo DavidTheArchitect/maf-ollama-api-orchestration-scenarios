@@ -61,6 +61,21 @@ class GraphExecutorTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(text.strip())
         self.assertIn("routed to", text)
 
+    async def test_concurrent_synthesizer_runs_after_fan_in(self):
+        for scenario_id, synthesizer in (
+            ("concurrent-security-alert-enrichment", "IncidentSummaryAgent"),
+            ("scenario-16-quote-to-cash-concurrent", "QuoteGenerationAgent"),
+        ):
+            with self.subTest(scenario=scenario_id):
+                scenario = get_scenario(scenario_id)
+                self.assertEqual(scenario.concurrent_synthesizer, synthesizer)
+                text = await self._run(scenario_id)
+                for spec in scenario.agents:
+                    self.assertIn(spec.name, text)
+                # the synthesizer's entry is last: it speaks after every lane
+                positions = {spec.name: text.rindex(spec.name) for spec in scenario.agents}
+                self.assertEqual(max(positions, key=positions.get), synthesizer)
+
     async def test_handoff_finisher_always_completes_the_run(self):
         for scenario_id, finisher in (
             ("handoff-claims-exception-routing", "CustomerCommsAgent"),

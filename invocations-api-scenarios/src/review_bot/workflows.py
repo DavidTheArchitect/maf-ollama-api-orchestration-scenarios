@@ -17,6 +17,7 @@ from typing import Any
 from .agents import OllamaAgentConfig, build_ollama_config, create_ollama_agent
 from .executors import (
     ConcurrentAggregatorExecutor,
+    ConcurrentSynthesisGateExecutor,
     HandoffFinisherGateExecutor,
     HandoffOutputExecutor,
     HandoffRouterExecutor,
@@ -137,20 +138,45 @@ def build_sequential_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConf
 
 
 def build_concurrent_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
-    """Concurrent graph: dispatch fans out to all agents, aggregator fans in."""
+    """Concurrent graph: dispatch fans out, then fan-in ends or feeds a synthesizer.
+
+    Without ``concurrent_synthesizer``, all agents run in parallel and a code
+    aggregator labels and joins their outputs. With it, the named agent is held
+    out of the fan-out and instead runs after fan-in, receiving every labelled
+    parallel finding so it can genuinely combine them.
+    """
 
     from agent_framework import WorkflowBuilder
 
     config = config or build_ollama_config()
-    agents = [_agent_executor(i, scenario, config=config) for i in range(len(scenario.agents))]
+    synthesizer_name = scenario.concurrent_synthesizer
+    parallel = [i for i in range(len(scenario.agents)) if scenario.agents[i].name != synthesizer_name]
+    if synthesizer_name is not None and len(parallel) == len(scenario.agents):
+        raise ValueError(
+            f"concurrent_synthesizer '{synthesizer_name}' is not an agent of scenario '{scenario.id}'."
+        )
+    agents = [_agent_executor(i, scenario, config=config) for i in parallel]
+    parallel_names = [scenario.agents[i].name for i in parallel]
     dispatch = PromptDispatchExecutor(id="dispatch")
-    aggregator = ConcurrentAggregatorExecutor(
-        id="aggregator", agent_names=[spec.name for spec in scenario.agents]
-    )
 
-    builder = WorkflowBuilder(start_executor=dispatch, output_from=[aggregator])
+    if synthesizer_name is None:
+        aggregator = ConcurrentAggregatorExecutor(id="aggregator", agent_names=parallel_names)
+        builder = WorkflowBuilder(start_executor=dispatch, output_from=[aggregator])
+        builder.add_fan_out_edges(dispatch, agents)
+        builder.add_fan_in_edges(agents, aggregator)
+        return builder.build()
+
+    synthesizer_index = next(
+        i for i in range(len(scenario.agents)) if scenario.agents[i].name == synthesizer_name
+    )
+    synthesizer = _agent_executor(synthesizer_index, scenario, config=config)
+    gate = ConcurrentSynthesisGateExecutor(id="synthesis_gate", agent_names=parallel_names)
+    output = SequentialOutputExecutor(id="final_output", stage_name=synthesizer_name)
+    builder = WorkflowBuilder(start_executor=dispatch, output_from=[output])
     builder.add_fan_out_edges(dispatch, agents)
-    builder.add_fan_in_edges(agents, aggregator)
+    builder.add_fan_in_edges(agents, gate)
+    builder.add_edge(gate, synthesizer)
+    builder.add_edge(synthesizer, output)
     return builder.build()
 
 
