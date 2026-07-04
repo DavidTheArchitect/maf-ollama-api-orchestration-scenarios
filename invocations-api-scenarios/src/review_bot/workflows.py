@@ -232,8 +232,31 @@ def build_handoff_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig 
     return builder.build()
 
 
+def make_group_chat_termination(
+    phrases: tuple[str, ...], participant_count: int, *, max_cycles: int = 2
+) -> Any:
+    """Build a termination condition that only fires at the end of a cycle.
+
+    With round-robin selection the last agent in the roster closes each cycle,
+    so checking only at cycle boundaries guarantees the synthesizer or chair
+    always speaks last. The chat ends early when every phrase appears in the
+    closing message, and unconditionally after ``max_cycles`` full cycles.
+    """
+
+    def should_stop(messages: list[Any]) -> bool:
+        assistant = [m for m in messages if getattr(m, "role", None) == "assistant"]
+        if not assistant or len(assistant) % participant_count != 0:
+            return False
+        if len(assistant) >= max_cycles * participant_count:
+            return True
+        last_text = (getattr(assistant[-1], "text", "") or "").lower()
+        return bool(phrases) and all(phrase in last_text for phrase in phrases)
+
+    return should_stop
+
+
 def build_group_chat_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig | None = None) -> Any:
-    """Group Chat: code-defined round-robin selection and termination."""
+    """Group Chat: code-defined round-robin selection and per-scenario termination."""
 
     from agent_framework.orchestrations import GroupChatBuilder, GroupChatState
 
@@ -243,17 +266,12 @@ def build_group_chat_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConf
         participant_names = list(state.participants.keys())
         return participant_names[state.current_round % len(participant_names)]
 
-    def stop_after_advisory(messages: list[Any]) -> bool:
-        assistant_messages = [m for m in messages if getattr(m, "role", None) == "assistant"]
-        if len(assistant_messages) >= 7:
-            return True
-        last_text = getattr(messages[-1], "text", "").lower() if messages else ""
-        return "approved" in last_text and "recommendation" in last_text
-
     return GroupChatBuilder(
         participants=participants,
         selection_func=round_robin_selector,
-        termination_condition=stop_after_advisory,
+        termination_condition=make_group_chat_termination(
+            scenario.termination_phrases, len(scenario.agents)
+        ),
         intermediate_output_from=participants,
     ).build()
 

@@ -12,6 +12,7 @@ SCENARIO = ScenarioSpec(
     learning_goal="Learn how a group chat board debates a policy exception, with members grounding risk, business need, and compliance in local MCP tools before a chair records the recommendation.",
     when_to_use="Use Responses plus group chat orchestration when a visible debate among board members, backed by tool-grounded facts, should produce a documented exception decision.",
     sample_input="Convene the policy exception board on POLICY-EX-77 (temporary data residency waiver) and produce an approved recommendation with a compensating control and expiry.",
+    termination_phrases=("recommendation:",),
     agents=(
         AgentSpec(
             "RiskAssessorAgent",
@@ -33,8 +34,8 @@ SCENARIO = ScenarioSpec(
         ),
         AgentSpec(
             "BoardChairAgent",
-            "Records the board recommendation.",
-            "Weigh the debate and state an 'approved' or 'denied' recommendation with a compensating control and expiry. Use list_playbook_steps for the policy-exception-board playbook and create_decision_log_entry to record it.",
+            "Records the board recommendation and closes each round.",
+            "Weigh the debate. Use list_playbook_steps for the policy-exception-board playbook and create_decision_log_entry to record the outcome. When the board has heard risk, business need, and compliance, end your turn with a line 'RECOMMENDATION: approved' or 'RECOMMENDATION: denied' plus the compensating control and expiry.",
             mcp_tools=("list_playbook_steps", "create_decision_log_entry"),
         ),
     ),

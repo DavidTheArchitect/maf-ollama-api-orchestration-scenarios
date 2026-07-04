@@ -92,6 +92,35 @@ class WorkflowSelectionTests(unittest.TestCase):
         self.assertIn("Approve after validating rollback.", text)
         self.assertNotIn(" object at 0x", text)
 
+    def test_group_chat_termination_only_fires_at_cycle_end(self):
+        from release_room.workflows import make_group_chat_termination
+
+        class Msg:
+            def __init__(self, text):
+                self.role = "assistant"
+                self.text = text
+
+        stop = make_group_chat_termination(("final recommendation",), 5)
+        # mid-cycle: never fires, even with the phrase present
+        self.assertFalse(stop([Msg("FINAL RECOMMENDATION: launch")] * 3))
+        # cycle end without the phrase: continues into cycle two
+        self.assertFalse(stop([Msg("still debating")] * 5))
+        # cycle end with the phrase in the closing message: fires
+        self.assertTrue(stop([Msg("still debating")] * 4 + [Msg("FINAL RECOMMENDATION: launch")]))
+        # hard cap after two full cycles regardless of phrases
+        self.assertTrue(stop([Msg("still debating")] * 10))
+
+    def test_group_chat_scenarios_declare_termination_phrases(self):
+        for scenario in SCENARIOS:
+            if scenario.pattern != "group-chat":
+                continue
+            with self.subTest(scenario=scenario.id):
+                self.assertTrue(scenario.termination_phrases)
+                closing = scenario.agents[-1]
+                joined = closing.instructions.lower()
+                for phrase in scenario.termination_phrases:
+                    self.assertIn(phrase.rstrip(":"), joined)
+
     def test_uses_intermediate_outputs_for_framework_termination_marker(self):
         class FakeEvents:
             def get_outputs(self):
