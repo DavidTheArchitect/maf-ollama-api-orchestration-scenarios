@@ -11,7 +11,11 @@ SCENARIO = ScenarioSpec(
     title="Group Chat Quarterly Planning",
     learning_goal="Learn how a Responses API endpoint can expose a multi-stakeholder enterprise planning discussion, with a chief of staff who closes each round and ends the debate with the final plan.",
     when_to_use="Use Responses plus group chat orchestration when a visible debate among business stakeholders improves the final decision.",
-    sample_input="Create a quarterly plan for improving enterprise customer retention while balancing roadmap, support capacity, sales commitments, and gross margin.",
+    sample_input=(
+        "Create a quarterly plan for improving enterprise customer retention while balancing roadmap, "
+        "support capacity, sales commitments, and gross margin. Constraint: headcount is frozen this "
+        "quarter, so every commitment must trade off against existing capacity."
+    ),
     termination_phrases=("final plan",),
     agents=(
         AgentSpec("RevenueLeaderAgent", "Represents sales and expansion priorities.", "Argue for priorities that improve renewals, expansion, pipeline confidence, and executive account coverage."),

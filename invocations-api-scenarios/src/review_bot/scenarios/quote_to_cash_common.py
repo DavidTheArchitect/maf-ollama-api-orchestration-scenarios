@@ -14,8 +14,9 @@ MCP_SERVER = "quote_to_cash_context"
 #: One shared quote request used as the sample input/task across all variants.
 SAMPLE_REQUEST = (
     "Create a quote for opportunity OPP-5001 (account ACC-3300, Contoso Manufacturing). "
-    "They want the analytics platform with edge connectors and premier support, "
-    "with standard enterprise terms."
+    "They want the analytics platform with edge connectors and premier support, with standard "
+    "enterprise terms, and they are targeting a 25 percent discount -- check what approvals "
+    "that requires."
 )
 
 

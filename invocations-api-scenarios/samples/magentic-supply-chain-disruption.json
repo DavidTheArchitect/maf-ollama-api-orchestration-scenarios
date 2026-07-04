@@ -1,6 +1,6 @@
 {
   "scenario": "magentic-supply-chain-disruption",
-  "task": "Coordinate response options for a supply chain disruption.",
+  "task": "Coordinate response options for a supply chain disruption threatening two product lines. Constraints: the expedite budget is capped at 250k USD and two strategic customers carry contractual delivery penalties.",
   "subject": "supplier disruption: component AX-17",
   "artifacts": [
     "supply/supplier-risk-brief.md",

@@ -11,7 +11,12 @@ SCENARIO = ScenarioSpec(
     title="Sequential Release Readiness Pipeline",
     learning_goal="Learn how Responses API clients can send a normal chat request while the server runs a fixed multi-stage agent pipeline.",
     when_to_use="Use Responses plus sequential orchestration when each turn should produce a conversational answer through a predictable chain of review stages.",
-    sample_input="Prepare a release readiness brief for version 2.4.0 with billing reconciliation, dashboard exports, and API bug fixes.",
+    sample_input=(
+        "Prepare a release readiness brief for version 2.4.0. Scope: (1) the billing reconciliation "
+        "nightly job moves to streaming, (2) dashboard exports gain CSV scheduling, (3) API fixes for "
+        "pagination and rate-limit headers. Constraints: the finance close freeze starts Friday, and "
+        "rollback must not lose reconciliation state."
+    ),
     agents=(
         AgentSpec("ScopePlannerAgent", "Extracts release scope and readiness questions.", "Turn the user request into a concrete release-scope summary and ordered readiness questions."),
         AgentSpec("DependencyPlannerAgent", "Identifies dependencies and sequencing.", "Identify upstream/downstream teams, rollout dependencies, migration needs, and sequencing constraints."),
