@@ -252,6 +252,10 @@ SCENARIO_SPOTLIGHTS: dict[str, tuple[str, str]] = {
         "The 25 percent discount gives the pricing reviewer a real objection -- check the debate surfaces the legal-approval requirement before the readiness verdict.",
         "Lower the discount to 15 percent in the payload and compare how quickly the council converges.",
     ),
+    "group-chat-partner-launch-review": (
+        "The partner certification expires mid launch window and one compliance finding is open -- both facts live only behind the A2A seats, so the chair's verdict must cite what the remote agents reported.",
+        "Edit PARTNER_FIXTURES so the certification renews before the window opens, rerun the server cell onward, and compare the FINAL RECOMMENDATION.",
+    ),
     "scenario-16-quote-to-cash-magentic": (
         "The discount crosses the legal threshold, so the manager should delegate to pricing/terms before formatting the package -- watch the delegation order.",
         "Lower the discount to 15 percent in the payload and compare the manager's plan.",
@@ -306,9 +310,18 @@ def notebook_paths_by_id(project: dict[str, str], scenarios: tuple[Any, ...]) ->
             raise RuntimeError(f"Could not identify scenario for {path}: {matches}")
         result[matches[0]] = path
     missing = scenario_ids - set(result)
-    if missing:
-        raise RuntimeError(f"Missing notebooks for {sorted(missing)}")
+    for scenario_id in sorted(missing):
+        filename = NEW_NOTEBOOK_FILENAMES.get(scenario_id)
+        if filename is None:
+            raise RuntimeError(f"Missing notebook for {scenario_id} and no filename registered.")
+        result[scenario_id] = ROOT / project["folder"] / "notebooks" / filename
     return result
+
+
+#: Filenames for scenarios whose notebooks do not exist yet.
+NEW_NOTEBOOK_FILENAMES = {
+    "group-chat-partner-launch-review": "17-group-chat-partner-launch-review.ipynb",
+}
 
 
 def scenario_data(scenario: Any, sample_attr: str) -> dict[str, Any]:
@@ -330,10 +343,174 @@ def scenario_data(scenario: Any, sample_attr: str) -> dict[str, Any]:
                 "mcp_tools": list(agent.mcp_tools),
                 "mcp_server": agent.mcp_server,
                 "route_keywords": list(getattr(agent, "route_keywords", ()) or ()),
+                "a2a_url": getattr(agent, "a2a_url", None),
             }
             for agent in scenario.agents
         ],
     }
+
+
+
+def scenario_uses_a2a(scenario: Any) -> bool:
+    return any(getattr(agent, "a2a_url", None) for agent in scenario.agents)
+
+
+def a2a_markdown() -> str:
+    return """
+    ## A2A Partner Context
+
+    Two council seats belong to *partner organizations* and are reached over the
+    **A2A (Agent2Agent) protocol**. Where MCP connects an agent to tools, A2A connects an
+    agent to *peer agents*: each partner publishes an agent card over HTTP and answers
+    JSON-RPC messages; its model, instructions, and facts stay behind its own boundary.
+    In production those agents run in the partner's infrastructure; this notebook hosts
+    deterministic stand-ins in-process so every cell runs without credentials or a second
+    terminal. The next cells walk the protocol on-ramp one step at a time: partner facts,
+    partner behavior, hosting, agent-card discovery, and a direct client round-trip --
+    all before any orchestration exists.
+    """
+
+
+def a2a_fixtures_cell() -> str:
+    return r'''
+    PARTNER_FIXTURES = {
+        "partner-solutions": {
+            "organization": "Fabrikam Integrations (ISV partner)",
+            "integration_certification_expires": "2026-07-20",
+            "launch_window": "2026-07-15 to 2026-07-31",
+            "nightly_integration_tests": "47 passing, 1 failing (bulk-export, since Tuesday)",
+            "connector_version": "2.3.1",
+            "notes": "Certification expires mid launch window; the renewal audit is booked for 2026-07-18.",
+        },
+        "compliance": {
+            "organization": "Meridian Assurance (external audit firm)",
+            "soc2_status": "current",
+            "joint_data_processing_addendum": "signed",
+            "open_findings": 1,
+            "open_finding_detail": "Partner telemetry retention is 120 days; the joint standard requires 90.",
+            "notes": "The open finding needs a remediation date before joint go-live.",
+        },
+    }
+
+    PARTNER_SEATS = {
+        "partner-solutions": ("PartnerSolutionsAgent", "ISV partner agent: argues partner-side integration readiness."),
+        "compliance": ("ExternalComplianceAgent", "External audit firm agent: argues certification and compliance status."),
+    }
+
+
+    def partner_reply(path: str) -> str:
+        """The fixture-grounded answer a partner agent gives -- zero LLM calls."""
+
+        facts = PARTNER_FIXTURES[path]
+        name, _ = PARTNER_SEATS[path]
+        lines = [f"{name} ({facts['organization']}) reports:"]
+        for key, value in facts.items():
+            if key != "organization":
+                lines.append(f"- {key.replace('_', ' ')}: {value}")
+        return "\n".join(lines)
+
+
+    # Demo (offline): the partner behavior is just a function over its facts.
+    print(partner_reply("partner-solutions"))
+    '''
+
+
+def a2a_server_cell() -> str:
+    return r'''
+    import socket
+    import threading
+    import time
+
+    import uvicorn
+    from starlette.applications import Starlette
+
+    from a2a.server.request_handlers import DefaultRequestHandler
+    from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
+    from a2a.server.tasks import InMemoryTaskStore
+    from a2a.types import AgentCapabilities, AgentCard, AgentInterface, AgentSkill
+
+    from agent_framework import AgentResponse, BaseAgent, Message
+    from agent_framework.a2a import A2AExecutor
+
+
+    class DeterministicPartnerAgent(BaseAgent):
+        """The agent behind the A2A endpoint: answers from PARTNER_FIXTURES."""
+
+        def __init__(self, path: str, **kwargs) -> None:
+            super().__init__(**kwargs)
+            self._path = path
+
+        async def run(self, messages=None, *, session=None, **kwargs):
+            return AgentResponse(messages=[Message(role="assistant", contents=[partner_reply(self._path)])])
+
+        async def run_stream(self, messages=None, *, session=None, **kwargs):
+            yield await self.run(messages, session=session, **kwargs)
+
+
+    def _partner_routes(path: str, base_url: str) -> list:
+        name, description = PARTNER_SEATS[path]
+        card = AgentCard(
+            name=name,
+            description=description,
+            version="1.0.0",
+            supported_interfaces=[AgentInterface(url=f"{base_url}/{path}", protocol_binding="JSONRPC")],
+            capabilities=AgentCapabilities(streaming=False),
+            default_input_modes=["text/plain"],
+            default_output_modes=["text/plain"],
+            skills=[AgentSkill(id=f"{path}-launch-review", name="Joint launch review", description=description, tags=["a2a"])],
+        )
+        executor = A2AExecutor(DeterministicPartnerAgent(path, name=name, description=description))
+        handler = DefaultRequestHandler(agent_executor=executor, task_store=InMemoryTaskStore(), agent_card=card)
+        # Flat prefixed routes: the JSON-RPC endpoint lives at exactly /<path>.
+        return create_agent_card_routes(
+            card, card_url=f"/{path}/.well-known/agent-card.json"
+        ) + create_jsonrpc_routes(handler, rpc_url=f"/{path}")
+
+
+    with socket.socket() as _sock:
+        _sock.bind(("127.0.0.1", 0))
+        A2A_PORT = _sock.getsockname()[1]
+    A2A_BASE_URL = f"http://127.0.0.1:{A2A_PORT}"
+
+    _routes = []
+    for _path in PARTNER_SEATS:
+        _routes.extend(_partner_routes(_path, A2A_BASE_URL))
+    _app = Starlette(routes=_routes)
+    _uvicorn_server = uvicorn.Server(uvicorn.Config(_app, host="127.0.0.1", port=A2A_PORT, log_level="error"))
+    threading.Thread(target=_uvicorn_server.run, daemon=True).start()
+    _deadline = time.time() + 10
+    while not _uvicorn_server.started:
+        if time.time() > _deadline:
+            raise RuntimeError("Partner A2A server did not start.")
+        time.sleep(0.05)
+
+    os.environ["A2A_PARTNER_BASE_URL"] = A2A_BASE_URL
+    print(f"Partner A2A server up: {A2A_BASE_URL}  (seats: " + ", ".join(n for n, _ in PARTNER_SEATS.values()) + ")")
+    '''
+
+
+def a2a_discovery_cell() -> str:
+    return r'''
+    import httpx
+
+    # Demo (offline): protocol discovery -- fetch each partner's agent card over HTTP.
+    for _path, (_name, _desc) in PARTNER_SEATS.items():
+        _card = httpx.get(f"{A2A_BASE_URL}/{_path}/.well-known/agent-card.json", timeout=5).json()
+        _iface = (_card.get("supportedInterfaces") or [{}])[0]
+        print(f"{_card.get('name')}: {_iface.get('url')} [{_iface.get('protocolBinding', 'JSONRPC')}]")
+        print(f"  {_card.get('description')}")
+    '''
+
+
+def a2a_client_cell() -> str:
+    return r'''
+    from agent_framework.a2a import A2AAgent
+
+    # Demo (offline): one direct A2A round-trip before any orchestration exists.
+    _partner = A2AAgent(name="PartnerSolutionsAgent", url=f"{A2A_BASE_URL}/partner-solutions")
+    _reply = await _partner.run("Report partner-side launch readiness for the July window.")
+    render_transcript("[PartnerSolutionsAgent] " + (_reply.text or ""))
+    '''
 
 
 def scenario_uses_mcp(scenario: Any) -> bool:
@@ -400,6 +577,13 @@ def concept_markdown(project: dict[str, str], scenario: Any) -> str:
             "quote generation) appear in every Scenario 16 notebook -- only the orchestration "
             "pattern changes. Compare notebooks 16a-16e to see how the same roles behave "
             "under sequential, concurrent, handoff, group-chat, and magentic coordination."
+        )
+    elif scenario_uses_a2a(scenario):
+        story = (
+            "This scenario seats remote partner agents in the council over the A2A protocol. "
+            "MCP (scenarios 11-16) connected agents to tools; A2A connects agents to peer "
+            "agents owned by other organizations. The orchestration below is the same group "
+            "chat used elsewhere -- only where two participants live changes."
         )
     elif scenario_uses_mcp(scenario):
         story = (
@@ -1227,6 +1411,14 @@ def agent_factory_cell() -> str:
 
 
     def make_agent(spec: Any, *, config: OllamaAgentConfig | None = None) -> Any:
+        if spec.a2a_url:
+            from agent_framework.a2a import A2AAgent
+
+            url = spec.a2a_url
+            if not url.startswith("http"):
+                url = os.getenv("A2A_PARTNER_BASE_URL", "http://localhost:8765").rstrip("/") + url
+            return A2AAgent(name=spec.name, description=spec.description, url=url)
+
         resolved = config or build_ollama_config()
         instructions = f"You are {spec.name}. {spec.instructions}"
         tools = tools_for_agent(spec)
@@ -1314,6 +1506,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         mcp_tools: tuple[str, ...] = ()
         mcp_server: str = "enterprise_context"
         route_keywords: tuple[str, ...] = ()
+        a2a_url: str | None = None
 
 
     @dataclass(frozen=True)
@@ -1343,6 +1536,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
             mcp_tools=tuple(item.get("mcp_tools", [])),
             mcp_server=item.get("mcp_server", "enterprise_context"),
             route_keywords=tuple(item.get("route_keywords", [])),
+            a2a_url=item.get("a2a_url"),
         )
         for item in SCENARIO_DATA["agents"]
     )
@@ -2206,6 +2400,14 @@ _DIAGRAM_BODIES = {
         lines.append(f"    {{previous}} --> stop{{{{Termination condition}}}}")
         lines.append("    stop -->|continue| selector")
         lines.append("    stop -->|done| output[{output_label}]")
+        remote_nodes = [node for agent, node in pairs if getattr(agent, "a2a_url", None)]
+        if remote_nodes:
+            lines.append("    subgraph partner_org[Partner organizations via A2A]")
+            for node in remote_nodes:
+                lines.append(f"        {{node}}")
+            lines.append("    end")
+            for node in remote_nodes:
+                lines.append(f"    {{node}} -.->|A2A JSON-RPC| a2a_card([agent card])")
         lines.extend(_mcp_tool_links(pairs))
         return "\n".join(lines)
 
@@ -2450,6 +2652,12 @@ def build_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
             demo_call = ENTERPRISE_DEMO_CALLS.get(scenario.id, 'search_policy("security review")')
             cells.append(code(enterprise_fixtures_cell()))
             cells.append(code(enterprise_tools_cell(demo_call)))
+    if scenario_uses_a2a(scenario):
+        cells.append(md(a2a_markdown()))
+        cells.append(code(a2a_fixtures_cell()))
+        cells.append(code(a2a_server_cell()))
+        cells.append(code(a2a_discovery_cell()))
+        cells.append(code(a2a_client_cell()))
     cells.extend(
         [
             code(scenario_cell(project, data)),

@@ -75,6 +75,11 @@ class NotebookCompanionTests(unittest.TestCase):
                 # Cell-per-concept layout: enough cells, only this pattern's
                 # machinery, an offline demo, and the styled transcript render.
                 minimum_cells = 18 if _scenario_uses_mcp(scenario) else 15
+                if any(getattr(spec, "a2a_url", None) for spec in scenario.agents):
+                    minimum_cells = 20
+                    self.assertIn("A2A Partner Context", source_text)
+                    self.assertIn("agent-card.json", source_text)
+                    self.assertIn("A2AAgent", source_text)
                 self.assertGreaterEqual(len(data.get("cells", [])), minimum_cells)
                 self.assertIn(_PATTERN_MACHINERY_MARKERS[scenario.pattern], source_text)
                 for other_pattern, marker in _PATTERN_MACHINERY_MARKERS.items():

@@ -6,3 +6,6 @@ azure-ai-agentserver-invocations
 httpx<1.0.0
 mcp>=1.24.0,<2
 python-dotenv
+agent-framework-a2a
+a2a-sdk>=1.1,<2
+uvicorn

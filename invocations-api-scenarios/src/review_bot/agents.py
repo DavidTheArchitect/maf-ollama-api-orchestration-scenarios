@@ -45,6 +45,10 @@ class AgentSpec:
     #: Curated routing keywords for handoff scenarios. When empty, the handoff
     #: router falls back to keywords derived from the name and description.
     route_keywords: tuple[str, ...] = ()
+    #: When set, this seat is a remote peer reached over the A2A protocol.
+    #: A path (for example ``/partner-solutions``) resolves against the
+    #: ``A2A_PARTNER_BASE_URL`` env var; a full URL is used as-is.
+    a2a_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -132,7 +136,22 @@ def build_mcp_tool(spec: AgentSpec) -> Any:
 build_enterprise_mcp_tool = build_mcp_tool
 
 
+def resolve_a2a_url(spec: AgentSpec) -> str:
+    """Absolute A2A endpoint for a remote seat (env-resolved for path specs)."""
+
+    url = spec.a2a_url or ""
+    if url.startswith("http"):
+        return url
+    base = os.getenv("A2A_PARTNER_BASE_URL", "http://localhost:8765")
+    return base.rstrip("/") + url
+
+
 def create_ollama_agent(spec: AgentSpec, *, config: OllamaAgentConfig | None = None) -> Any:
+    if spec.a2a_url:
+        from agent_framework.a2a import A2AAgent
+
+        return A2AAgent(name=spec.name, description=spec.description, url=resolve_a2a_url(spec))
+
     from agent_framework.ollama import OllamaChatClient
 
     class ScenarioOllamaChatClient(OllamaChatClient):

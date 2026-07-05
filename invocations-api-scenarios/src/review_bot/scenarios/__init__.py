@@ -4,6 +4,7 @@ from .concurrent_pr_review import SCENARIO as CONCURRENT_PR_REVIEW
 from .concurrent_security_alert_enrichment import SCENARIO as CONCURRENT_SECURITY_ALERT_ENRICHMENT
 from .concurrent_vendor_risk_assessment import SCENARIO as CONCURRENT_VENDOR_RISK_ASSESSMENT
 from .group_chat_launch_council import SCENARIO as GROUP_CHAT_LAUNCH_COUNCIL
+from .group_chat_partner_launch_review import SCENARIO as GROUP_CHAT_PARTNER_LAUNCH_REVIEW
 from .group_chat_policy_exception_board import SCENARIO as GROUP_CHAT_POLICY_EXCEPTION_BOARD
 from .group_chat_quarterly_planning import SCENARIO as GROUP_CHAT_QUARTERLY_PLANNING
 from .handoff_claims_exception_routing import SCENARIO as HANDOFF_CLAIMS_EXCEPTION_ROUTING
@@ -43,6 +44,7 @@ SCENARIOS: tuple[ScenarioSpec, ...] = (
     SCENARIO_16_QUOTE_TO_CASH_HANDOFF,
     SCENARIO_16_QUOTE_TO_CASH_GROUP_CHAT,
     SCENARIO_16_QUOTE_TO_CASH_MAGENTIC,
+    GROUP_CHAT_PARTNER_LAUNCH_REVIEW,
 )
 
 SCENARIOS_BY_ID: dict[str, ScenarioSpec] = {scenario.id: scenario for scenario in SCENARIOS}
@@ -80,6 +82,7 @@ __all__ = [
     "CONCURRENT_VENDOR_RISK_ASSESSMENT",
     "GROUP_CHAT_QUARTERLY_PLANNING",
     "GROUP_CHAT_LAUNCH_COUNCIL",
+    "GROUP_CHAT_PARTNER_LAUNCH_REVIEW",
     "GROUP_CHAT_POLICY_EXCEPTION_BOARD",
     "HANDOFF_CLAIMS_EXCEPTION_ROUTING",
     "HANDOFF_CUSTOMER_ENTITLEMENT",
