@@ -37,6 +37,17 @@
 > forces prioritization), 16d and 16e (8 to 9, the discount gives the debate
 > and the delegation real stakes). Average: **8.4 to 8.65**.
 >
+> **Scenario 17 (added with `SCENARIO_17_A2A_PLAN.md`).**
+> `group-chat-partner-launch-review` -- Group chat + A2A: **9/10**. Two council
+> seats are remote peer agents behind real agent cards and JSON-RPC endpoints
+> served by a bundled deterministic A2A server; the group-chat orchestration
+> from PR #8 is reused verbatim, which is the lesson. The offline protocol
+> tests exercise genuine A2A round-trips with zero LLM calls, and the notebook
+> walks fixtures, hosting, card discovery, and a direct client round-trip
+> before any orchestration exists. Deduction: the deterministic partners reply
+> with their full fact sheet regardless of the question; the `--ollama` mode
+> covers the fully dynamic case.
+>
 > The review below is the original assessment that motivated the changes; its
 > "Cross-Cutting Recommendations" have all been implemented.
 

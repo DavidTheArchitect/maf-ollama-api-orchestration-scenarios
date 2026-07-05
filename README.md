@@ -15,7 +15,7 @@ Start with [LEARNING_PATH.md](LEARNING_PATH.md) if your goal is to compare when 
 
 ## Scenario Catalog
 
-Both directories now contain the same twenty learning scenarios so the API differences are easy to compare. The first five focus on software delivery/support workflows; the next five focus on enterprise application workflows; scenarios 11-15 teach MCP tool usage; and the Scenario 16 quote-to-cash family teaches one shared business story across all five patterns:
+Both directories now contain the same twenty-one learning scenarios so the API differences are easy to compare. The first five focus on software delivery/support workflows; the next five focus on enterprise application workflows; scenarios 11-15 teach MCP tool usage; the Scenario 16 quote-to-cash family teaches one shared business story across all five patterns; and Scenario 17 teaches the A2A protocol by seating remote partner agents in a group chat:
 
 | Scenario | Pattern | Core lesson |
 | --- | --- | --- |
@@ -39,10 +39,13 @@ Both directories now contain the same twenty learning scenarios so the API diffe
 | `scenario-16-quote-to-cash-handoff` | Handoff | The trigger names the specialist the quote needs most via a ROUTE directive; the quote owner always finishes the package. |
 | `scenario-16-quote-to-cash-group-chat` | Group chat | Reviewers debate readiness, fit, SKUs, and pricing risk; the quote owner closes each round with a verdict. |
 | `scenario-16-quote-to-cash-magentic` | Magentic | Manager-led planning that delegates and replans until the quote package is ready. |
+| `group-chat-partner-launch-review` | Group chat + A2A | Two council seats are remote partner agents reached over the A2A protocol; the orchestration is unchanged. |
 
 Scenarios 11-15 attach a local, deterministic `enterprise-context` MCP server (FastMCP over stdio) exposing `lookup_enterprise_record`, `search_policy`, `calculate_priority_score`, `list_playbook_steps`, and `create_decision_log_entry`.
 
 The **Scenario 16 quote-to-cash** family (`16a`-`16e`) uses one quote request to compare how instruction-led LLM agents behave under each orchestration pattern. All five variants reuse the same six roles — `QuoteTriggerAgent`, `CustomerContextAgent`, `SkuDiscoveryAgent`, `ProductFitAgent`, `PricingTermsAgent`, `QuoteGenerationAgent` — grounded by a second local MCP server, `quote-to-cash-context`, exposing `crm_get_quote_trigger`, `crm_get_customer_profile`, `product_search_catalog`, `product_validate_skus`, `pricing_calculate_quote`, `legal_evaluate_terms`, and `quote_format_package`. Each scenario module also supports `python -m <package>.scenarios.<module>` for a direct run.
+
+**Scenario 17** (`group-chat-partner-launch-review`) adds the protocol counterpart to MCP: where MCP connects an agent to *tools*, **A2A (Agent2Agent)** connects an agent to *peer agents* owned by other organizations. A bundled `partner-agents` A2A server (deterministic by default, `--ollama` optional) hosts the two partner seats behind real agent cards and JSON-RPC endpoints; the group-chat orchestration is reused unchanged. Start it with `python -m <package>.a2a_servers.partner_agents --port 8765`, or let the notebook and `run_sample()` start it in-process on an ephemeral port.
 
 Both MCP servers need no network, credentials, or manual setup. Agents with declared `mcp_tools` receive a tool via Agent Framework `MCPStdioTool` (`approval_mode="never_require"`, per-agent `allowed_tools`); the server modules live under `src/.../mcp_servers/` in each package and the agent's `mcp_server` field selects which one to attach.
 

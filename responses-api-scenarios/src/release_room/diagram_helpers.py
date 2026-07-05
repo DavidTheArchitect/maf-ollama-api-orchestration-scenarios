@@ -132,6 +132,14 @@ def _group_chat_diagram(scenario: ScenarioSpec, *, api_boundary: str, input_labe
     lines.append(f"    {previous} --> stop{{Termination condition}}")
     lines.append("    stop -->|continue| selector")
     lines.append("    stop -->|done| output[Responses output]")
+    remote_nodes = [node for agent, node in pairs if getattr(agent, "a2a_url", None)]
+    if remote_nodes:
+        lines.append("    subgraph partner_org[Partner organizations via A2A]")
+        for node in remote_nodes:
+            lines.append(f"        {node}")
+        lines.append("    end")
+        for node in remote_nodes:
+            lines.append(f"    {node} -.->|A2A JSON-RPC| a2a_card([agent card])")
     lines.extend(_mcp_tool_links(pairs))
     return "\n".join(lines)
 

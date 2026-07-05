@@ -19,7 +19,11 @@ This repository is designed to teach two separate choices that often get mixed t
    These attach a local `enterprise-context` MCP server (no network, credentials, or setup) and cover procurement approval, security alert enrichment, claims exception routing, a policy exception board, and a business continuity drill. Each MCP notebook adds an MCP tool context section and dashed tool links in the flow diagram.
 6. Run the Scenario 16 quote-to-cash family (`16a` to `16e`) to compare all five patterns over one shared business story.
    These reuse the same six instruction-led LLM agent roles (trigger, customer context, SKU discovery, product fit, pricing/terms, quote generation) grounded by a local `quote-to-cash-context` MCP server, so you can compare how the same business process changes under each orchestration pattern.
-7. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
+7. Run scenario 17 (`17-group-chat-partner-launch-review`) to learn the A2A protocol: two council seats
+   are remote partner agents behind agent cards and JSON-RPC endpoints, hosted by a bundled deterministic
+   A2A server the notebook starts in-process. Compare it with the MCP scenarios: MCP grounded agents in
+   tools; A2A seats peer agents from other organizations, with the group-chat orchestration unchanged.
+8. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
 
 ## Responses API vs Invocations API
 
