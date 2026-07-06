@@ -100,6 +100,8 @@ def parse_review_request(payload: Any) -> ReviewRequest:
     if not isinstance(task, str) or not task.strip():
         raise RequestValidationError("'task' is required and must be a non-empty string.")
 
+    # 'repo' is an accepted alias for 'subject' (documented in the OpenAPI
+    # spec); the default applies only when neither key is present.
     subject = payload.get("subject", payload.get("repo", "unspecified subject"))
     if not isinstance(subject, str) or not subject.strip():
         raise RequestValidationError("'subject' must be a non-empty string when supplied.")
@@ -110,6 +112,8 @@ def parse_review_request(payload: Any) -> ReviewRequest:
 
     scenario_id = _resolve_scenario(payload)
     scenario = get_scenario(scenario_id)
+    # 'changed_files' is an accepted alias for 'artifacts' (documented in the
+    # OpenAPI spec).
     artifacts = payload.get("artifacts", payload.get("changed_files"))
 
     return ReviewRequest(

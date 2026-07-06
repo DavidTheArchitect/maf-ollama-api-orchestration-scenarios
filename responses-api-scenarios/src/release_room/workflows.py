@@ -112,7 +112,7 @@ async def run_scenario_sample(
 ) -> str:
     """Build and run a scenario in-process and return readable output text."""
 
-    from .notebook_helpers import workflow_result_to_text
+    from .output_formatting import workflow_result_to_text
 
     scenario = get_scenario(scenario_id)
     tokens = max_tokens if max_tokens is not None else default_sample_max_tokens(scenario)
