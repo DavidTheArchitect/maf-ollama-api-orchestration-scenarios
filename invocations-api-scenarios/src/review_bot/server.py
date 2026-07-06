@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import os
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from .agents import (
     DEFAULT_OLLAMA_HOST,
@@ -19,7 +21,37 @@ from .models import RequestValidationError, parse_review_request
 from .scenarios import PATTERNS, SCENARIO_IDS
 from .workflows import run_review
 
+#: Per-session turn history for the optional session-continuity demo. Bounded
+#: so a long-running sample server cannot grow without limit: the oldest
+#: sessions are evicted first (dict preserves insertion order), and each
+#: session keeps only its most recent turns.
 _SESSION_TURNS: dict[str, list[str]] = {}
+_MAX_SESSIONS = 64
+_MAX_TURNS_PER_SESSION = 40
+
+
+def _session_history(session_id: str | None) -> list[str]:
+    """Return (and create) the bounded turn history for ``session_id``."""
+
+    if not session_id:
+        return []
+    turns = _SESSION_TURNS.setdefault(session_id, [])
+    while len(_SESSION_TURNS) > _MAX_SESSIONS:
+        oldest = next(iter(_SESSION_TURNS))
+        if oldest == session_id:
+            break
+        del _SESSION_TURNS[oldest]
+    return turns
+
+
+def _record_turns(session_id: str | None, task: str, summary: str) -> None:
+    """Append one user/assistant exchange to the session, trimming to the cap."""
+
+    if not session_id:
+        return
+    turns = _SESSION_TURNS.setdefault(session_id, [])
+    turns.extend([f"user: {task}", f"assistant: {summary}"])
+    del turns[: max(0, len(turns) - _MAX_TURNS_PER_SESSION)]
 
 
 def _load_dotenv_if_available() -> None:
@@ -77,7 +109,16 @@ def _openapi_spec() -> dict:
                                         "pattern": {"type": "string", "enum": list(PATTERNS)},
                                         "task": {"type": "string"},
                                         "subject": {"type": "string"},
+                                        "repo": {
+                                            "type": "string",
+                                            "description": "Accepted alias for 'subject'.",
+                                        },
                                         "artifacts": {"type": "array", "items": {"type": "string"}},
+                                        "changed_files": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                            "description": "Accepted alias for 'artifacts'.",
+                                        },
                                         "constraints": {"type": "array", "items": {"type": "string"}},
                                         "stream": {"type": "boolean"},
                                     },
@@ -111,7 +152,7 @@ def main() -> None:
             return JSONResponse({"error": str(exc)}, status_code=400)
 
         session_id = getattr(request.state, "session_id", None)
-        prior_turns = _SESSION_TURNS.setdefault(session_id, []) if session_id else []
+        prior_turns = _session_history(session_id)
 
         if review_request.stream:
             return StreamingResponse(
@@ -143,15 +184,11 @@ def main() -> None:
             keep_alive=args.keep_alive,
             think=args.think,
         )
-        if session_id:
-            prior_turns.extend([f"user: {review_request.task}", f"assistant: {response.summary}"])
+        _record_turns(session_id, review_request.task, response.summary)
         return JSONResponse(response.to_dict())
 
     print(f"Serving review-bot invocations with Ollama model {args.model} on http://localhost:{args.port}/invocations")
-    try:
-        app.run(port=args.port)
-    except TypeError:
-        app.run()
+    _run_with_optional_port(app, args.port)
 
 
 async def _stream_review(
@@ -179,15 +216,34 @@ async def _stream_review(
         keep_alive=keep_alive,
         think=think,
     )
-    if session_id:
-        prior_turns.extend([f"user: {review_request.task}", f"assistant: {response.summary}"])
+    _record_turns(session_id, review_request.task, response.summary)
 
     for token in _chunk_text(response.summary):
         yield f"data: {json.dumps({'token': token})}\n\n".encode("utf-8")
     yield b"event: done\ndata: {}\n\n"
 
 
-def _chunk_text(text: str, *, size: int = 80) -> list[str]:
+#: Characters per streamed SSE token chunk: small enough that streaming is
+#: visibly incremental in a terminal, large enough to keep event overhead low.
+_STREAM_CHUNK_CHARS = 80
+
+
+def _chunk_text(text: str, *, size: int = _STREAM_CHUNK_CHARS) -> list[str]:
     if not text:
         return [""]
     return [text[index : index + size] for index in range(0, len(text), size)]
+
+
+def _run_with_optional_port(server: Any, port: int) -> None:
+    """Start the host, passing ``port`` only when the signature accepts it.
+
+    Binding is checked up front so a ``TypeError`` raised *inside* the server
+    propagates instead of being mistaken for an unsupported keyword.
+    """
+
+    try:
+        inspect.signature(server.run).bind(port=port)
+    except TypeError:
+        server.run()
+        return
+    server.run(port=port)

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .agents import DEFAULT_OLLAMA_MAX_TOKENS, DEFAULT_OLLAMA_MODEL
 from .models import ReviewRequest
 from .scenarios import ScenarioSpec
 
@@ -42,12 +43,17 @@ PATTERN_ANATOMY: dict[str, dict[str, str]] = {
 
 
 def default_ollama_options() -> dict[str, Any]:
+    """The sample's real Ollama defaults, sourced from the agent factory."""
+
+    from .agents import build_ollama_config
+
+    config = build_ollama_config()
     return {
-        "model": "qwen3:14b",
-        "temperature": 0,
-        "num_ctx": 4096,
-        "max_tokens": 500,
-        "think": False,
+        "model": config.model,
+        "temperature": config.temperature,
+        "num_ctx": config.num_ctx,
+        "max_tokens": config.max_tokens,
+        "think": config.think,
     }
 
 
@@ -146,7 +152,10 @@ def load_sample_payload(project_root: Path, scenario: ScenarioSpec) -> dict[str,
 
 def invocation_reference(scenario: ScenarioSpec, request: ReviewRequest) -> dict[str, Any]:
     return {
-        "server_command": "python -m review_bot --model qwen3:14b --max-tokens 500 --port 8089",
+        "server_command": (
+            f"python -m review_bot --model {DEFAULT_OLLAMA_MODEL} "
+            f"--max-tokens {DEFAULT_OLLAMA_MAX_TOKENS} --port 8089"
+        ),
         "endpoint": "http://localhost:8089/invocations",
         "scenario": scenario.id,
         "pattern": request.pattern,

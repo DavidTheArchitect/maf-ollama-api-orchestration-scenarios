@@ -1,3 +1,11 @@
+"""Turn Microsoft Agent Framework workflow events into readable scenario text.
+
+This is runtime output handling (used by ``run_scenario_sample`` and tests),
+kept separate from the notebook-display helpers in ``notebook_helpers``. The
+Invocations package has the same module; the two packages stay standalone by
+design, so the duplication across packages is deliberate.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
@@ -8,9 +16,9 @@ from typing import Any
 _MIN_READABLE_OUTPUT_CHARS = 160
 
 
-def workflow_result_to_text(events: Any) -> str:
-    outputs = events.get_outputs() if hasattr(events, "get_outputs") else events
-    intermediate_outputs = events.get_intermediate_outputs() if hasattr(events, "get_intermediate_outputs") else []
+def workflow_result_to_text(result: Any) -> str:
+    outputs = result.get_outputs() if hasattr(result, "get_outputs") else result
+    intermediate_outputs = result.get_intermediate_outputs() if hasattr(result, "get_intermediate_outputs") else []
     if not outputs:
         intermediate_text = join_readable_outputs(intermediate_outputs)
         return clean_workflow_text(intermediate_text) or "No workflow output was produced."

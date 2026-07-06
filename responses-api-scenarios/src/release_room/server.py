@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import os
+from typing import Any
 
 from .agents import (
     DEFAULT_OLLAMA_HOST,
@@ -90,7 +92,19 @@ def main() -> None:
         f"Serving {scenario.id} ({scenario.pattern}) release-room scenario "
         f"with Ollama model {args.model} on http://localhost:{args.port}/responses"
     )
+    _run_with_optional_port(server, args.port)
+
+
+def _run_with_optional_port(server: Any, port: int) -> None:
+    """Start the host, passing ``port`` only when the signature accepts it.
+
+    Binding is checked up front so a ``TypeError`` raised *inside* the server
+    propagates instead of being mistaken for an unsupported keyword.
+    """
+
     try:
-        server.run(port=args.port)
+        inspect.signature(server.run).bind(port=port)
     except TypeError:
         server.run()
+        return
+    server.run(port=port)
