@@ -21,7 +21,7 @@ from .scenario_16_quote_to_cash_sequential import SCENARIO as SCENARIO_16_QUOTE_
 from .sequential_employee_onboarding import SCENARIO as SEQUENTIAL_EMPLOYEE_ONBOARDING
 from .sequential_procurement_approval import SCENARIO as SEQUENTIAL_PROCUREMENT_APPROVAL
 from .sequential_release_readiness import SCENARIO as SEQUENTIAL_RELEASE_READINESS
-from .types import ScenarioSpec
+from .types import PatternName, ScenarioSpec
 
 SCENARIOS: tuple[ScenarioSpec, ...] = (
     SEQUENTIAL_RELEASE_READINESS,

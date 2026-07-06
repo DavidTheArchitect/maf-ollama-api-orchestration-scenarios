@@ -48,6 +48,17 @@
 > with their full fact sheet regardless of the question; the `--ollama` mode
 > covers the fully dynamic case.
 >
+> **Code-review pass (`SCENARIO_CODE_REVIEW.md`, PRs #17-#18).** A combined
+> clean-code and scenario-quality review fixed two real API-layer bugs (a
+> swallowed-TypeError server fallback and an unbounded session cache),
+> restructured the output-extraction helpers, made the documented Ollama
+> defaults truthful, and closed the last per-scenario deductions: sequential
+> stage gates now instruct each stage to add rather than repeat (01),
+> concurrent fan-in labels responses by executor id instead of list position
+> (02), and the Scenario 17 partner agents answer the question they were
+> asked while staying deterministic. With those deductions gone, 01, 02, and
+> 17 rise to **10/10**. Average: **8.67 to 8.81**.
+>
 > The review below is the original assessment that motivated the changes; its
 > "Cross-Cutting Recommendations" have all been implemented.
 

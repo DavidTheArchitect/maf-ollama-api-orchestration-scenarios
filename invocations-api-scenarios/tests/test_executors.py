@@ -109,26 +109,65 @@ class HandoffRouterDirectiveTests(unittest.TestCase):
         return HandoffRouterExecutor(
             id="router",
             routes={
-                "fraud_specialist_agent": ("fraud", "signal"),
-                "payment_specialist_agent": ("payment", "release"),
+                "fraudspecialistagent": ("fraud", "signal"),
+                "paymentspecialistagent": ("payment", "release"),
             },
-            default_route="payment_specialist_agent",
+            default_route="paymentspecialistagent",
+        )
+
+    def test_labels_follow_executor_ids_not_arrival_order(self):
+        from types import SimpleNamespace
+
+        from review_bot.executors import _labelled_responses
+
+        names = ["SecurityReviewerAgent", "PerformanceReviewerAgent", "TestReviewerAgent"]
+
+        def response(executor_id, text):
+            return SimpleNamespace(executor_id=executor_id, agent_response=SimpleNamespace(text=text))
+
+        scrambled = [
+            response("testrevieweragent", "tests fine"),
+            response("securityrevieweragent", "security fine"),
+            response("performancerevieweragent", "performance fine"),
+        ]
+        labelled = _labelled_responses(scrambled, names)
+        self.assertEqual(
+            labelled,
+            [
+                ("TestReviewerAgent", "tests fine"),
+                ("SecurityReviewerAgent", "security fine"),
+                ("PerformanceReviewerAgent", "performance fine"),
+            ],
+        )
+        # unknown executor ids fall back to position
+        unknown = [response("mystery", "who knows")]
+        self.assertEqual(_labelled_responses(unknown, names), [("SecurityReviewerAgent", "who knows")])
+
+    def test_router_decide_reports_route_source(self):
+        router = self._router()
+        self.assertEqual(
+            router.decide("Notes.\nROUTE: FraudSpecialistAgent"),
+            ("fraudspecialistagent", "model-directive"),
+        )
+        self.assertEqual(
+            router.decide("Release the payment for this claim."),
+            ("paymentspecialistagent", "keyword-score"),
         )
 
     def test_route_directive_wins_over_keywords(self):
         router = self._router()
         text = "The payment threshold is exceeded but there is a fraud signal.\nROUTE: FraudSpecialistAgent"
-        self.assertEqual(router.choose(text), "fraud_specialist_agent")
+        self.assertEqual(router.choose(text), "fraudspecialistagent")
 
     def test_invalid_directive_falls_back_to_keyword_scoring(self):
         router = self._router()
         text = "Release the payment for this claim.\nROUTE: NoSuchAgent"
-        self.assertEqual(router.choose(text), "payment_specialist_agent")
+        self.assertEqual(router.choose(text), "paymentspecialistagent")
 
     def test_last_directive_is_honored(self):
         router = self._router()
         text = "ROUTE: PaymentSpecialistAgent\nOn reflection the fraud signal matters more.\nROUTE: FraudSpecialistAgent"
-        self.assertEqual(router.choose(text), "fraud_specialist_agent")
+        self.assertEqual(router.choose(text), "fraudspecialistagent")
 
 
 if __name__ == "__main__":

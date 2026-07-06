@@ -24,3 +24,17 @@ SCENARIO = ScenarioSpec(
         AgentSpec("ActionPlannerAgent", "Produces the final action plan.", "Synthesize the pipeline into next actions, required approvals, and a release recommendation."),
     ),
 )
+
+
+async def run_sample(**config_overrides) -> str:
+    """Run this scenario in-process (shared helper in ``scenarios/_runner.py``)."""
+
+    from ._runner import run_sample as _run_sample
+
+    return await _run_sample(SCENARIO, **config_overrides)
+
+
+if __name__ == "__main__":
+    from ._runner import main
+
+    main(SCENARIO)

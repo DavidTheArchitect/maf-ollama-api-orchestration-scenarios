@@ -22,14 +22,14 @@ SCENARIO = ScenarioSpec(
 
 
 async def run_sample(**config_overrides) -> str:
-    """Build and run this scenario in-process, returning readable output text."""
+    """Run this scenario in-process (shared helper in ``scenarios/_runner.py``)."""
 
-    from ..workflows import run_scenario_sample
+    from ._runner import run_sample as _run_sample
 
-    return await run_scenario_sample(SCENARIO.id, **config_overrides)
+    return await _run_sample(SCENARIO, **config_overrides)
 
 
 if __name__ == "__main__":
-    import asyncio
+    from ._runner import main
 
-    print(asyncio.run(run_sample()))
+    main(SCENARIO)

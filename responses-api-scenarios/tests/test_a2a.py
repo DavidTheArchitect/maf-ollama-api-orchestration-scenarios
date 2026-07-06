@@ -25,14 +25,15 @@ class PartnerServerRoundTripTests(unittest.IsolatedAsyncioTestCase):
     async def test_agent_cards_and_round_trip_over_a2a(self):
         from agent_framework.a2a import A2AAgent
 
+        question = "Report your organization's launch-review facts."
         with PartnerA2AServer() as server:
             for path, spec in PARTNER_AGENTS.items():
                 with self.subTest(partner=spec["name"]):
                     agent = A2AAgent(name=spec["name"], url=f"{server.base_url}/{path}")
-                    reply = await agent.run("Report your organization's launch-review facts.")
+                    reply = await agent.run(question)
                     text = reply.text or ""
                     self.assertIn(PARTNER_FIXTURES[path]["organization"], text)
-                    self.assertEqual(text.strip(), deterministic_reply(path).strip())
+                    self.assertEqual(text.strip(), deterministic_reply(path, question).strip())
 
     async def test_factory_builds_a2a_agents_for_remote_seats(self):
         from agent_framework.a2a import A2AAgent
@@ -66,6 +67,17 @@ class PartnerScenarioShapeTests(unittest.TestCase):
         # the chair closes each cycle and declares the termination phrase
         self.assertEqual(scenario.agents[-1].name, "JointLaunchChairAgent")
         self.assertTrue(scenario.termination_phrases)
+
+    def test_deterministic_reply_is_question_aware(self):
+        # A targeted question returns only the matching facts (plus notes)...
+        targeted = deterministic_reply("partner-solutions", "When does the integration certification expire?")
+        self.assertIn("certification", targeted)
+        self.assertNotIn("connector version", targeted)
+        self.assertIn("notes", targeted)
+        # ...and an unrelated question falls back to the full fact sheet.
+        full = deterministic_reply("partner-solutions", "How is the weather?")
+        self.assertEqual(full, deterministic_reply("partner-solutions"))
+        self.assertIn("connector version", full)
 
     def test_remote_seat_names_match_the_partner_server(self):
         scenario = SCENARIOS_BY_ID[SCENARIO_ID]

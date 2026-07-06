@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from typing import Literal
+
 from ..agents import AgentSpec
+
+PatternName = Literal["sequential", "concurrent", "handoff", "group-chat", "magentic"]
 
 
 @dataclass(frozen=True)
 class ScenarioSpec:
     id: str
-    pattern: str
+    pattern: PatternName
     title: str
     learning_goal: str
     when_to_use: str
