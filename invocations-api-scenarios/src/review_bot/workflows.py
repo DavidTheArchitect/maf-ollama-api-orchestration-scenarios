@@ -31,6 +31,12 @@ from .scenarios import ScenarioSpec, get_scenario
 
 _STOPWORDS = {"agent", "specialist", "the", "and", "for", "with", "that", "from", "into"}
 
+#: Ledger limits for Magentic runs: enough rounds to investigate, bounded
+#: stalls/resets so a small local model cannot loop forever. The notebooks
+#: name the same values in their magentic cell.
+MAGENTIC_LIMITS: dict[str, int] = {"max_round_count": 10, "max_stall_count": 3, "max_reset_count": 2}
+
+
 
 def _slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
@@ -288,9 +294,7 @@ def build_magentic_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig
         participants=participants,
         intermediate_output_from=participants,
         manager_agent=manager_agent,
-        max_round_count=10,
-        max_stall_count=3,
-        max_reset_count=2,
+        **MAGENTIC_LIMITS,
     ).build()
 
 

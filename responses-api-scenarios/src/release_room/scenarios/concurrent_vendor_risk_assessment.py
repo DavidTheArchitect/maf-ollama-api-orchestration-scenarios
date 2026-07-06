@@ -24,3 +24,17 @@ SCENARIO = ScenarioSpec(
         AgentSpec("OperationsRiskAgent", "Reviews supportability and integration readiness.", "Assess integration effort, service reliability, support model, monitoring, and operational fallback."),
     ),
 )
+
+
+async def run_sample(**config_overrides) -> str:
+    """Run this scenario in-process (shared helper in ``scenarios/_runner.py``)."""
+
+    from ._runner import run_sample as _run_sample
+
+    return await _run_sample(SCENARIO, **config_overrides)
+
+
+if __name__ == "__main__":
+    from ._runner import main
+
+    main(SCENARIO)

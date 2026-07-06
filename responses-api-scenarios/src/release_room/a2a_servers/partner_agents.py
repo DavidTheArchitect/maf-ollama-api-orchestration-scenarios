@@ -26,6 +26,7 @@ Clients attach with ``agent_framework.a2a.A2AAgent(url=...)``.
 from __future__ import annotations
 
 import argparse
+import re
 import socket
 import threading
 import time
@@ -79,17 +80,41 @@ PARTNER_AGENTS: dict[str, dict[str, str]] = {
 }
 
 
-def deterministic_reply(path: str) -> str:
-    """The fixture-grounded answer a partner agent gives, with zero LLM calls."""
+def deterministic_reply(path: str, question: str | None = None) -> str:
+    """The fixture-grounded answer a partner agent gives, with zero LLM calls.
+
+    Question-aware but still deterministic: fact keys whose words overlap the
+    question are returned (plus the notes); with no overlap or no question,
+    the full fact sheet is the fallback.
+    """
 
     facts = PARTNER_FIXTURES[path]
     spec = PARTNER_AGENTS[path]
+    selected = {key: value for key, value in facts.items() if key != "organization"}
+    if question:
+        words = {word for word in re.findall(r"[a-z0-9]+", question.lower()) if len(word) > 3}
+        matched = {
+            key: value for key, value in selected.items() if set(key.split("_")) & words
+        }
+        if matched:
+            matched.setdefault("notes", facts["notes"])
+            selected = matched
     lines = [f"{spec['name']} ({facts['organization']}) reports:"]
-    for key, value in facts.items():
-        if key == "organization":
-            continue
+    for key, value in selected.items():
         lines.append(f"- {key.replace('_', ' ')}: {value}")
     return "\n".join(lines)
+
+
+def _message_text(messages: Any) -> str:
+    """Best-effort text of the incoming A2A message(s) for fact selection."""
+
+    if messages is None:
+        return ""
+    if isinstance(messages, str):
+        return messages
+    if isinstance(messages, (list, tuple)):
+        return " ".join(_message_text(message) for message in messages)
+    return getattr(messages, "text", "") or ""
 
 
 def _make_local_agent(path: str, *, use_ollama: bool = False) -> Any:
@@ -112,7 +137,8 @@ def _make_local_agent(path: str, *, use_ollama: bool = False) -> Any:
 
     class DeterministicPartnerAgent(BaseAgent):
         async def run(self, messages=None, *, session=None, **kwargs):
-            return AgentResponse(messages=[Message(role="assistant", contents=[deterministic_reply(path)])])
+            reply = deterministic_reply(path, _message_text(messages))
+            return AgentResponse(messages=[Message(role="assistant", contents=[reply])])
 
         async def run_stream(self, messages=None, *, session=None, **kwargs):
             yield await self.run(messages, session=session, **kwargs)

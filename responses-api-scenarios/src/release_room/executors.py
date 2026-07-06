@@ -76,7 +76,12 @@ class StageGateExecutor(Executor):
         transcript = _append_transcript(ctx, self._stage_name, response_text(response))
         prompt = ctx.get_state("prompt") or ""
         carried = "\n".join(transcript)
-        await ctx.send_message(make_request(f"Original request:\n{prompt}\n\nWork so far:\n{carried}"))
+        await ctx.send_message(
+            make_request(
+                f"Original request:\n{prompt}\n\nWork so far:\n{carried}\n\n"
+                "Add your stage's contribution; do not repeat the earlier stages."
+            )
+        )
 
 
 class SequentialOutputExecutor(Executor):
@@ -92,6 +97,26 @@ class SequentialOutputExecutor(Executor):
         await ctx.yield_output("\n\n".join(transcript))
 
 
+def _labelled_responses(
+    responses: list[AgentExecutorResponse], agent_names: list[str]
+) -> list[tuple[str, str]]:
+    """Pair each fan-in response with its agent name.
+
+    Matching uses the response's ``executor_id`` (agent executors are created
+    with the slug of the agent name), so labels stay correct even if fan-in
+    delivers responses out of submission order; position is only a fallback.
+    """
+
+    names_by_slug = {_route_slug(name): name for name in agent_names}
+    labelled: list[tuple[str, str]] = []
+    for index, response in enumerate(responses):
+        name = names_by_slug.get(getattr(response, "executor_id", None) or "")
+        if name is None:
+            name = agent_names[index] if index < len(agent_names) else f"agent{index + 1}"
+        labelled.append((name, response_text(response)))
+    return labelled
+
+
 class ConcurrentAggregatorExecutor(Executor):
     """Fan-in executor: merge independent specialist responses into one output."""
 
@@ -103,11 +128,8 @@ class ConcurrentAggregatorExecutor(Executor):
     async def aggregate(
         self, responses: list[AgentExecutorResponse], ctx: WorkflowContext[Never, str]
     ) -> None:
-        labelled: list[str] = []
-        for index, response in enumerate(responses):
-            name = self._agent_names[index] if index < len(self._agent_names) else f"agent{index + 1}"
-            labelled.append(f"[{name}]\n{response_text(response)}")
-        await ctx.yield_output("\n\n".join(labelled))
+        labelled = _labelled_responses(responses, self._agent_names)
+        await ctx.yield_output("\n\n".join(f"[{name}]\n{text}" for name, text in labelled))
 
 
 class ConcurrentSynthesisGateExecutor(Executor):
@@ -127,9 +149,8 @@ class ConcurrentSynthesisGateExecutor(Executor):
     async def gate(
         self, responses: list[AgentExecutorResponse], ctx: WorkflowContext[AgentExecutorRequest]
     ) -> None:
-        for index, response in enumerate(responses):
-            name = self._agent_names[index] if index < len(self._agent_names) else f"agent{index + 1}"
-            _append_transcript(ctx, name, response_text(response))
+        for name, text in _labelled_responses(responses, self._agent_names):
+            _append_transcript(ctx, name, text)
         prompt = ctx.get_state("prompt") or ""
         carried = "\n".join(ctx.get_state(_TRANSCRIPT_KEY) or [])
         await ctx.send_message(
@@ -181,25 +202,30 @@ class HandoffRouterExecutor(Executor):
                 return slug
         return None
 
-    def choose(self, text: str) -> str:
+    def decide(self, text: str) -> tuple[str, str]:
+        """Return ``(route, source)`` -- the directive wins, keywords are fallback."""
+
         directed = self.directed(text)
         if directed is not None:
-            return directed
+            return directed, "model-directive"
         lowered = text.lower()
         best_route, best_hits = self._default_route, 0
         for route, keywords in self._routes.items():
             hits = sum(1 for keyword in keywords if keyword in lowered)
             if hits > best_hits:
                 best_route, best_hits = route, hits
-        return best_route
+        return best_route, "keyword-score"
+
+    def choose(self, text: str) -> str:
+        return self.decide(text)[0]
 
     @handler
     async def route(self, response: AgentExecutorResponse, ctx: WorkflowContext[AgentExecutorRequest]) -> None:
         triage_text = response_text(response)
-        chosen = self.choose(triage_text)
+        chosen, source = self.decide(triage_text)
         ctx.set_state("route", chosen)
         ctx.set_state("route_name", self._display_names.get(chosen, chosen))
-        ctx.set_state("route_source", "model-directive" if self.directed(triage_text) else "keyword-score")
+        ctx.set_state("route_source", source)
         prompt = ctx.get_state("prompt") or ""
         await ctx.send_message(
             make_request(f"Triage routed this to you.\nRequest:\n{prompt}\n\nTriage notes:\n{triage_text}"),

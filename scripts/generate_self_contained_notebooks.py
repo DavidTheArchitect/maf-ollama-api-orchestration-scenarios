@@ -398,20 +398,35 @@ def a2a_fixtures_cell() -> str:
     }
 
 
-    def partner_reply(path: str) -> str:
-        """The fixture-grounded answer a partner agent gives -- zero LLM calls."""
+    def partner_reply(path: str, question: str | None = None) -> str:
+        """The fixture-grounded answer a partner agent gives -- zero LLM calls.
+
+        Question-aware but deterministic: fact keys whose words overlap the
+        question are returned (plus notes); the full sheet is the fallback.
+        """
+
+        import re as _re
 
         facts = PARTNER_FIXTURES[path]
         name, _ = PARTNER_SEATS[path]
+        selected = {key: value for key, value in facts.items() if key != "organization"}
+        if question:
+            words = {word for word in _re.findall(r"[a-z0-9]+", question.lower()) if len(word) > 3}
+            matched = {key: value for key, value in selected.items() if set(key.split("_")) & words}
+            if matched:
+                matched.setdefault("notes", facts["notes"])
+                selected = matched
         lines = [f"{name} ({facts['organization']}) reports:"]
-        for key, value in facts.items():
-            if key != "organization":
-                lines.append(f"- {key.replace('_', ' ')}: {value}")
+        for key, value in selected.items():
+            lines.append(f"- {key.replace('_', ' ')}: {value}")
         return "\n".join(lines)
 
 
-    # Demo (offline): the partner behavior is just a function over its facts.
+    # Demo (offline): the partner behavior is a function over its facts, and it
+    # answers the question it was asked -- compare the full sheet vs a targeted ask.
     print(partner_reply("partner-solutions"))
+    print()
+    print(partner_reply("partner-solutions", "When does the integration certification expire?"))
     '''
 
 
@@ -441,7 +456,11 @@ def a2a_server_cell() -> str:
             self._path = path
 
         async def run(self, messages=None, *, session=None, **kwargs):
-            return AgentResponse(messages=[Message(role="assistant", contents=[partner_reply(self._path)])])
+            question = messages if isinstance(messages, str) else getattr(messages, "text", "") or ""
+            if isinstance(messages, (list, tuple)):
+                question = " ".join(getattr(m, "text", "") or str(m) for m in messages)
+            reply = partner_reply(self._path, question)
+            return AgentResponse(messages=[Message(role="assistant", contents=[reply])])
 
         async def run_stream(self, messages=None, *, session=None, **kwargs):
             yield await self.run(messages, session=session, **kwargs)
@@ -1686,7 +1705,12 @@ _PATTERN_MACHINERY = {
             transcript = _append_transcript(ctx, self._stage_name, response_text(response))
             prompt = ctx.get_state("prompt") or ""
             carried = "\n".join(transcript)
-            await ctx.send_message(make_request(f"Original request:\n{prompt}\n\nWork so far:\n{carried}"))
+            await ctx.send_message(
+                make_request(
+                    f"Original request:\n{prompt}\n\nWork so far:\n{carried}\n\n"
+                    "Add your stage's contribution; do not repeat the earlier stages."
+                )
+            )
 
 
     class SequentialOutputExecutor(Executor):
@@ -1709,6 +1733,19 @@ _PATTERN_MACHINERY = {
     print("Original request:\n" + SAMPLE_PROMPT + "\n\nWork so far:\n" + "\n".join(_demo_transcript))
     ''',
     'concurrent': r'''
+    def _labelled_responses(responses: list, agent_names: list) -> list:
+        """Pair fan-in responses with agent names by executor_id, position fallback."""
+
+        names_by_slug = {_slug(name): name for name in agent_names}
+        labelled = []
+        for index, response in enumerate(responses):
+            name = names_by_slug.get(getattr(response, "executor_id", None) or "")
+            if name is None:
+                name = agent_names[index] if index < len(agent_names) else f"agent{index + 1}"
+            labelled.append((name, response_text(response)))
+        return labelled
+
+
     class ConcurrentAggregatorExecutor(Executor):
         def __init__(self, id: str, *, agent_names: list[str]) -> None:
             super().__init__(id=id)
@@ -1716,11 +1753,8 @@ _PATTERN_MACHINERY = {
 
         @handler
         async def aggregate(self, responses: list[AgentExecutorResponse], ctx: WorkflowContext[Never, str]) -> None:
-            labelled: list[str] = []
-            for index, response in enumerate(responses):
-                name = self._agent_names[index] if index < len(self._agent_names) else f"agent{index + 1}"
-                labelled.append(f"[{name}]\n{response_text(response)}")
-            await ctx.yield_output("\n\n".join(labelled))
+            labelled = _labelled_responses(responses, self._agent_names)
+            await ctx.yield_output("\n\n".join(f"[{name}]\n{text}" for name, text in labelled))
 
 
     class ConcurrentSynthesisGateExecutor(Executor):
@@ -1730,9 +1764,8 @@ _PATTERN_MACHINERY = {
 
         @handler
         async def gate(self, responses: list[AgentExecutorResponse], ctx: WorkflowContext[AgentExecutorRequest]) -> None:
-            for index, response in enumerate(responses):
-                name = self._agent_names[index] if index < len(self._agent_names) else f"agent{index + 1}"
-                _append_transcript(ctx, name, response_text(response))
+            for name, text in _labelled_responses(responses, self._agent_names):
+                _append_transcript(ctx, name, text)
             prompt = ctx.get_state("prompt") or ""
             carried = "\n".join(ctx.get_state(_TRANSCRIPT_KEY) or [])
             await ctx.send_message(
@@ -1789,25 +1822,28 @@ _PATTERN_MACHINERY = {
                     return slug
             return None
 
-        def choose(self, text: str) -> str:
+        def decide(self, text: str) -> tuple[str, str]:
             directed = self.directed(text)
             if directed is not None:
-                return directed
+                return directed, "model-directive"
             lowered = text.lower()
             best_route, best_hits = self._default_route, 0
             for route, keywords in self._routes.items():
                 hits = sum(1 for keyword in keywords if keyword in lowered)
                 if hits > best_hits:
                     best_route, best_hits = route, hits
-            return best_route
+            return best_route, "keyword-score"
+
+        def choose(self, text: str) -> str:
+            return self.decide(text)[0]
 
         @handler
         async def route(self, response: AgentExecutorResponse, ctx: WorkflowContext[AgentExecutorRequest]) -> None:
             triage_text = response_text(response)
-            chosen = self.choose(triage_text)
+            chosen, source = self.decide(triage_text)
             ctx.set_state("route", chosen)
             ctx.set_state("route_name", self._display_names.get(chosen, chosen))
-            ctx.set_state("route_source", "model-directive" if self.directed(triage_text) else "keyword-score")
+            ctx.set_state("route_source", source)
             prompt = ctx.get_state("prompt") or ""
             await ctx.send_message(
                 make_request(f"Triage routed this to you.\nRequest:\n{prompt}\n\nTriage notes:\n{triage_text}"),
