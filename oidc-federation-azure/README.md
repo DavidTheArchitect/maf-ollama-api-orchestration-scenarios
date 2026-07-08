@@ -64,8 +64,9 @@ script — performs the entire flow (~15–20 minutes on first run):
    environment, PostgreSQL Flexible Server, the Keycloak + Caddy container
    app, the user-assigned managed identity with `Reader` on the resource
    group and `Storage Blob Data Reader` on a demo storage account.
-2. **In-Azure bootstrap** (`infra/scripts/bootstrap.sh`, run by an embedded
-   `deploymentScripts` resource under a dedicated deployer identity) — waits
+2. **In-Azure bootstrap** (`infra/scripts/bootstrap.ps1`, run by an embedded
+   `AzurePowerShell` `deploymentScripts` resource under a dedicated deployer
+   identity) — waits
    for Keycloak, creates realm `azure`, confidential client `azure-federation`
    (service-account **and** direct-access-grant flows, secret from your
    parameter), the hardcoded audience mapper `aud: api://AzureADTokenExchange`,
@@ -226,7 +227,7 @@ development only.
 | Path | Purpose |
 | --- | --- |
 | `infra/main.bicep` (+ `infra/modules/*.bicep`) | Subscription-scope deployment of everything, including the in-Azure bootstrap and the FIC. |
-| `infra/scripts/bootstrap.sh` | Runs inside the `deploymentScripts` container: Keycloak realm/client/mapper + test-user setup (idempotent), demo blob, lockdown. |
+| `infra/scripts/bootstrap.ps1` | PowerShell run inside the `AzurePowerShell` `deploymentScripts` container: Keycloak realm/client/mapper + test-user setup (idempotent), demo blob, lockdown. |
 | `infra/modules/federation.bicep` | Creates both federated credentials (service account + test user) on the managed identity. |
 | `caddy/Caddyfile.aca` | Sidecar proxy: admin lockdown + JWKS cache headers. |
 | `caddy/Caddyfile.local` | Local TLS proxy for the compose stack. |

@@ -16,7 +16,7 @@ possible: one Bicep template plus PowerShell orchestration.
 | Hosting | Azure Container Apps | Platform ingress terminates TLS with a publicly trusted cert on the default `*.azurecontainerapps.io` FQDN — exactly what Entra needs to fetch the issuer's discovery document; no custom domain or Let's Encrypt plumbing. |
 | Caddy's role | Sidecar in the same Container App | TLS is already terminated at ingress, so Caddy handles admin-surface lockdown (`/admin*`, master realm, `/metrics`) and JWKS cache headers instead. On a VM-based alternative it would own TLS. |
 | Persistence | Azure Database for PostgreSQL Flexible Server (B1ms) | Realm/client config and signing keys survive revisions and restarts. |
-| Scripting | PowerShell 7 + `az` CLI | Matches the repo's PowerShell-first convention. |
+| Scripting | PowerShell everywhere (Python for the SDK sample) | Matches the repo's PowerShell-first convention; no bash. The local wrapper `deploy.ps1` uses `az` CLI, and the in-Azure bootstrap is a PowerShell `deploymentScripts` script using Az modules (`Invoke-RestMethod`, `Set-AzStorageBlobContent`, `Invoke-AzRestMethod`) — no `az`/`jq`/`curl` shell dependencies. |
 | Local dev | `docker-compose.yml` (Caddy + Keycloak + Postgres) | Mirrors the Azure topology for iterating on realm config; a local issuer cannot federate (not publicly reachable). |
 
 ## Hard constraints (from Microsoft Learn)
@@ -61,8 +61,8 @@ federated by adding a credential for its `sub`, up to the 20-per-identity limit.
 
 - `infra/main.bicep` + `infra/modules/{network-logs,postgres,keycloak-app,identity,bootstrap,federation,storage-demo}.bicep`
   — self-sufficient subscription-scope deployment. An embedded
-  `deploymentScripts` resource (`infra/scripts/bootstrap.sh`, run in Azure
-  under a dedicated deployer identity with Contributor on the resource group)
+  `AzurePowerShell` `deploymentScripts` resource (`infra/scripts/bootstrap.ps1`,
+  run in Azure under a dedicated deployer identity with Contributor on the RG)
   waits for Keycloak, bootstraps realm/client/audience mapper, provisions a
   test user, uploads the demo blob, and re-enables the admin lockdown; the two
   FICs (service account + test user) are then created from its `subject` /

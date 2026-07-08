@@ -1,9 +1,9 @@
-// In-deployment bootstrap: a deploymentScripts resource runs
-// infra/scripts/bootstrap.sh inside Azure after the container app is up, so
+// In-deployment bootstrap: an AzurePowerShell deploymentScripts resource runs
+// infra/scripts/bootstrap.ps1 inside Azure after the container app is up, so
 // a plain Bicep deployment (CLI or the Bicep extension GUI) configures
-// Keycloak, uploads the demo blob, and re-enables the admin lockdown without
-// any local scripting. Outputs the service-account UUID for the federated
-// identity credential.
+// Keycloak, provisions the test user, uploads the demo blob, and re-enables
+// the admin lockdown without any local scripting. Outputs the service-account
+// and test-user UUIDs for the two federated identity credentials.
 param location string
 param baseName string
 param keycloakUrl string
@@ -48,7 +48,7 @@ resource deployerContributor 'Microsoft.Authorization/roleAssignments@2022-04-01
 resource bootstrap 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
   name: 'bootstrap-keycloak'
   location: location
-  kind: 'AzureCLI'
+  kind: 'AzurePowerShell'
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -59,12 +59,12 @@ resource bootstrap 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
     deployerContributor
   ]
   properties: {
-    azCliVersion: '2.69.0'
+    azPowerShellVersion: '12.3'
     forceUpdateTag: forceUpdateTag
     timeout: 'PT45M'
     retentionInterval: 'PT1H'
     cleanupPreference: 'OnSuccess'
-    scriptContent: loadTextContent('../scripts/bootstrap.sh')
+    scriptContent: loadTextContent('../scripts/bootstrap.ps1')
     environmentVariables: [
       {
         name: 'KEYCLOAK_URL'
@@ -109,6 +109,10 @@ resource bootstrap 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       {
         name: 'RESOURCE_GROUP'
         value: resourceGroup().name
+      }
+      {
+        name: 'SUBSCRIPTION_ID'
+        value: subscription().subscriptionId
       }
     ]
   }
