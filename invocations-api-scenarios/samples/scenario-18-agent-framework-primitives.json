@@ -1,0 +1,14 @@
+{
+  "scenario": "scenario-18-agent-framework-primitives",
+  "task": "Create an engineering enablement brief for a new Agent Framework team. Explain messages, agents, function tools, MCP, A2A, WorkflowBuilder graphs, custom executors, AgentExecutor nodes, fan-out/fan-in, routing, group chat, magentic coordination, hosting, and observability. Exclude hosted cloud-only primitives that do not fit a local Ollama sample.",
+  "subject": "agent-framework-primitives-lab",
+  "artifacts": [
+    "docs/README.md",
+    "notebooks/18-agent-framework-primitives-lab.ipynb"
+  ],
+  "constraints": [
+    "Keep every primitive observable.",
+    "Name primitives intentionally excluded from the local lab."
+  ],
+  "stream": false
+}

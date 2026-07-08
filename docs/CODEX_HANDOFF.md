@@ -31,7 +31,7 @@ Execute all notebooks against local Ollama:
 .\scripts\execute_notebooks.ps1
 ```
 
-The execution harness expects `ollama serve` to be reachable and `qwen3:14b` to be pulled. It runs all 42 notebooks with nbconvert and a 20-minute timeout per notebook.
+The execution harness expects `ollama serve` to be reachable and `qwen3:14b` to be pulled. It runs all 44 notebooks with nbconvert and a 20-minute timeout per notebook.
 
 Run the reference test suites from each project folder:
 

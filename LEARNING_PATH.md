@@ -23,7 +23,10 @@ This repository is designed to teach two separate choices that often get mixed t
    are remote partner agents behind agent cards and JSON-RPC endpoints, hosted by a bundled deterministic
    A2A server the notebook starts in-process. Compare it with the MCP scenarios: MCP grounded agents in
    tools; A2A seats peer agents from other organizations, with the group-chat orchestration unchanged.
-8. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
+8. Run scenario 18 (`18-agent-framework-primitives-lab`) as a capstone map of the framework primitives.
+   Each cell teaches one building block: messages, agents, tools, MCP, A2A, workflow executors, graph
+   builders, orchestration builders, hosting, and observability.
+9. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
 
 ## Responses API vs Invocations API
 

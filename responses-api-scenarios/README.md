@@ -1,6 +1,6 @@
 # Responses API Scenarios
 
-This sample hosts 21 Microsoft Agent Framework multi-agent scenarios behind the OpenAI-compatible Responses API.
+This sample hosts 22 Microsoft Agent Framework multi-agent scenarios behind the OpenAI-compatible Responses API.
 
 Use this shape when the caller is a chat UI, OpenAI-compatible SDK, DevUI-style frontend, or anything that benefits from standard `/responses` semantics.
 
@@ -37,11 +37,12 @@ Supported scenarios:
 | `scenario-16-quote-to-cash-group-chat` | Group chat + MCP | 6 | Quote reviewers debate readiness, SKU fit, and pricing risk before a verdict. |
 | `scenario-16-quote-to-cash-magentic` | Magentic + MCP | 6 | A quote manager dynamically delegates until the quote package is ready. |
 | `group-chat-partner-launch-review` | Group chat + A2A | 5 | Two seats are remote partner agents reached through Agent2Agent. |
+| `scenario-18-agent-framework-primitives` | Sequential + primitives lab | 5 | A capstone notebook maps common Agent Framework primitives with one concept per cell. |
 
 Each scenario definition lives in its own module under `src/responses_scenarios/scenarios/`. The `notebooks/` directory contains one companion notebook per scenario with executable learning cells.
 Each notebook includes a Mermaid flow diagram cell that renders through `mermaid.ink` at runtime and returns the Mermaid source for inspection or copy/paste.
 
-Scenarios 11-15 use a bundled deterministic `enterprise-context` MCP stdio server. Scenario 16 uses a separate `quote-to-cash-context` MCP server across all five orchestration patterns. Scenario 17 starts a local A2A partner-agent server in-process for notebooks and sample runs.
+Scenarios 11-15 use a bundled deterministic `enterprise-context` MCP stdio server. Scenario 16 uses a separate `quote-to-cash-context` MCP server across all five orchestration patterns. Scenario 17 starts a local A2A partner-agent server in-process for notebooks and sample runs. Scenario 18 is a primitive lab covering the common local Agent Framework building blocks and explicitly naming cloud-hosted primitives that are excluded from this Ollama workspace.
 
 ## API And Pattern Comparison
 

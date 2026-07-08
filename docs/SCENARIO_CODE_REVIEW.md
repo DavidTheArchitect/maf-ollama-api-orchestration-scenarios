@@ -1,12 +1,16 @@
 # Scenario Quality & Clean-Code Review
 
-A combined instructor + Python-developer review of all 21 scenarios and the
+A combined instructor + Python-developer review of all 22 scenarios and the
 code that runs them, across both packages (`responses_scenarios`, `invocations_scenarios`), the
 API layer, and the notebook generator. Scenario *pattern* quality was already
 driven to an 8.67 average by the earlier improvement passes (see
 `SCENARIO_RATINGS.md`); this review focuses on the code-quality dimension and
 the remaining per-scenario deductions, and every recommendation below has been
 implemented (PR references in each section).
+
+This review predates the Scenario 18 primitives lab. That scenario was added
+as a capstone-style teaching notebook and is tracked separately in
+`SCENARIO_RATINGS.md`.
 
 ## A. API layer & helpers (implemented in the "clean code" PR)
 

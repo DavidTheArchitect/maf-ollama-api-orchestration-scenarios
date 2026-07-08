@@ -5,6 +5,8 @@ from pathlib import Path
 
 from responses_scenarios.scenarios import SCENARIOS, SCENARIOS_BY_ID
 
+PRIMITIVES_SCENARIO_ID = "scenario-18-agent-framework-primitives"
+
 
 def _scenario_uses_mcp(scenario):
     return any(agent.mcp_tools for agent in scenario.agents)
@@ -68,6 +70,37 @@ class NotebookCompanionTests(unittest.TestCase):
                 self.assertNotIn("coded_agent_tool_map", source_text)
 
                 scenario = SCENARIOS_BY_ID[scenario_ids[0]]
+                if scenario.id == PRIMITIVES_SCENARIO_ID:
+                    self.assertGreaterEqual(len(data.get("cells", [])), 30)
+                    for marker in (
+                        "Message",
+                        "Function tool",
+                        "MCPStdioTool",
+                        "A2AAgent",
+                        "WorkflowBuilder",
+                        "AgentExecutor",
+                        "HandoffRouterExecutor",
+                        "ConcurrentAggregatorExecutor",
+                        "GroupChatBuilder",
+                        "MagenticBuilder",
+                        "ResponsesHostServer",
+                        "InvocationAgentServerHost",
+                    ):
+                        self.assertIn(marker, source_text)
+                    self.assertIn("Primitive Map", source_text)
+                    self.assertIn("Excluded Here", source_text)
+                    self.assertIn("# Demo (offline)", source_text)
+                    self.assertIn("render_transcript", source_text)
+                    self.assertIn("render_roster", source_text)
+                    for index, cell in enumerate(data.get("cells", [])):
+                        self.assertIsNone(cell.get("execution_count"))
+                        self.assertFalse(cell.get("outputs"))
+                        if cell.get("cell_type") == "code":
+                            source = "".join(cell.get("source", []))
+                            compile(source, f"{path}#cell{index}", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+                            self.assertFalse(_imports_package(source, "responses_scenarios"))
+                    continue
+
                 if _scenario_uses_mcp(scenario):
                     self.assertIn("MCP Tool Context", source_text)
                     self.assertIn("mcp_tool_context", source_text)

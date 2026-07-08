@@ -9,6 +9,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
+PRIMITIVES_SCENARIO_ID = "scenario-18-agent-framework-primitives"
 
 PROJECTS = (
     {
@@ -321,6 +322,7 @@ def notebook_paths_by_id(project: dict[str, str], scenarios: tuple[Any, ...]) ->
 #: Filenames for scenarios whose notebooks do not exist yet.
 NEW_NOTEBOOK_FILENAMES = {
     "group-chat-partner-launch-review": "17-group-chat-partner-launch-review.ipynb",
+    PRIMITIVES_SCENARIO_ID: "18-agent-framework-primitives-lab.ipynb",
 }
 
 
@@ -2671,7 +2673,821 @@ ENTERPRISE_DEMO_CALLS = {
 }
 
 
+def primitives_title_markdown(project: dict[str, str], scenario: Any) -> str:
+    return f"""
+    # {scenario.title}
+
+    | Field | Value |
+    | --- | --- |
+    | Scenario id | `{scenario.id}` |
+    | Pattern used for server execution | `{scenario.pattern}` |
+    | API | `{project['api_name']}` |
+
+    **Learning goal:** {scenario.learning_goal}
+
+    > {scenario.when_to_use}
+
+    This notebook is a primitive lab, not a single-pattern deep dive. Each cell
+    introduces one practical Microsoft Agent Framework building block and ends
+    with an observable artifact: a rendered card, trace entry, object summary,
+    Mermaid diagram, or guarded live-run hook.
+    """
+
+
+def primitives_overview_markdown() -> str:
+    return """
+    ## Primitive Map
+
+    Agent Framework has two large families of capability: **agents** and
+    **workflows**. Agents wrap model-backed reasoning, tools, context, sessions,
+    streaming, and remote-agent protocols. Workflows wire agents and code into
+    explicit graphs with deterministic routing, state, fan-out/fan-in, and
+    orchestration builders.
+
+    This lab still uses the repo's **Instruction-Led LLM Agents** teaching
+    style: every model-facing role has crisp instructions, explicit tool
+    grants, and a visible runtime boundary.
+
+    ## Pattern Anatomy
+
+    | Primitive | Why it is in this lab |
+    | --- | --- |
+    | `Message` | The smallest unit of user/assistant/system exchange. |
+    | Chat-client-backed agent | The common local prototype shape with Ollama. |
+    | Function tool | The simplest grounded action an agent can call. |
+    | Session/thread state | Keeps multi-turn context from becoming global state. |
+    | Streaming | Lets UI and logs observe long-running model output. |
+    | `MCPStdioTool` | Connects an agent to local or external tools through MCP. |
+    | `A2AAgent` | Connects orchestration to a peer agent owned elsewhere. |
+    | `Executor` + `@handler` | Custom code node in a workflow graph. |
+    | `WorkflowContext` | Shared graph state, message sends, and outputs. |
+    | `AgentExecutor` | Wraps an agent so it can sit inside a workflow graph. |
+    | `WorkflowBuilder` | Explicit graph wiring for deterministic control. |
+    | Fan-out/fan-in | Parallel lanes with deterministic aggregation. |
+    | Handoff routing | Model-guided ownership, code-validated. |
+    | `GroupChatBuilder` | Multi-agent discussion with selection and termination. |
+    | `MagenticBuilder` | Manager-led planning and dynamic delegation. |
+    | Hosting boundary | Responses and Invocations expose the same workflow differently. |
+    | Observability | Trace events, transcript extraction, and visible state. |
+
+    ## Excluded Here
+
+    Hosted file search, hosted code interpreter, web search, Foundry toolboxes,
+    durable workflow persistence, and cloud-specific memory providers are
+    important but intentionally excluded. They require cloud credentials,
+    provider-specific setup, or external state, while this repository is a
+    local Ollama teaching workspace.
+    """
+
+
+def primitives_environment_cell() -> str:
+    return r'''
+    import base64
+    import html
+    import json
+    import os
+    from dataclasses import dataclass
+    from pprint import pprint
+    from typing import Any
+
+    from IPython.display import HTML, Markdown, display
+
+
+    DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:14b")
+    DEFAULT_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    RUN_LIVE_AGENT = os.getenv("RUN_LIVE_AGENT", "0").lower() in {"1", "true", "yes"}
+
+    _APTOS_STYLE = """
+    <style>
+    :root { --jp-content-font-family: 'Aptos', 'Segoe UI', 'Helvetica Neue', sans-serif; }
+    .jp-RenderedHTMLCommon, .jp-RenderedMarkdown, .rendered_html, .jp-OutputArea-output {
+        font-family: 'Aptos', 'Segoe UI', 'Helvetica Neue', sans-serif;
+        line-height: 1.55;
+    }
+    .jp-RenderedHTMLCommon h1, .jp-RenderedHTMLCommon h2, .jp-RenderedHTMLCommon h3 {
+        font-family: 'Aptos Display', 'Aptos', 'Segoe UI', sans-serif;
+        font-weight: 650;
+    }
+    .primitive-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+    .primitive-card {
+        border: 1px solid rgba(100, 116, 139, 0.35); border-radius: 8px; padding: 10px 12px;
+        background: linear-gradient(180deg, rgba(248,250,252,.9), rgba(241,245,249,.9));
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+    .primitive-card b { color: #1d4ed8; display: block; margin-bottom: 4px; }
+    .primitive-chip {
+        display: inline-block; border-radius: 999px; padding: 2px 8px; margin: 2px 4px 2px 0;
+        background: #e0f2fe; color: #075985; font-size: 12px; font-weight: 600;
+    }
+    .trace-row {
+        border-left: 4px solid #2563eb; margin: 6px 0; padding: 6px 10px;
+        background: rgba(37, 99, 235, 0.08); border-radius: 6px;
+    }
+    .transcript-block {
+        border: 1px solid rgba(100, 116, 139, 0.35); border-radius: 8px; padding: 10px 12px;
+        background: rgba(255,255,255,.72); white-space: pre-wrap;
+    }
+    </style>
+    """
+
+
+    def apply_notebook_style() -> str:
+        display(HTML(_APTOS_STYLE))
+        return _APTOS_STYLE
+
+
+    def render_cards(items: list[dict[str, str]]) -> None:
+        cards = []
+        for item in items:
+            chips = "".join(f"<span class='primitive-chip'>{html.escape(chip)}</span>" for chip in item.get("chips", "").split("|") if chip)
+            cards.append(
+                "<div class='primitive-card'>"
+                f"<b>{html.escape(item['title'])}</b>"
+                f"<div>{html.escape(item['body'])}</div>"
+                f"<div>{chips}</div>"
+                "</div>"
+            )
+        display(HTML("<div class='primitive-grid'>" + "".join(cards) + "</div>"))
+
+
+    def render_trace(events: list[dict[str, str]]) -> None:
+        rows = [
+            f"<div class='trace-row'><b>{html.escape(event['stage'])}</b>: {html.escape(event['detail'])}</div>"
+            for event in events
+        ]
+        display(HTML("".join(rows)))
+
+
+    def render_transcript(text: str) -> None:
+        display(HTML("<div class='transcript-block'>" + html.escape(text) + "</div>"))
+
+
+    def render_roster(scenario: Any) -> None:
+        render_cards([
+            {
+                "title": spec.name,
+                "body": spec.description,
+                "chips": "agent|instructions" + ("|tools" if getattr(spec, "mcp_tools", ()) else ""),
+            }
+            for spec in scenario.agents
+        ])
+
+
+    apply_notebook_style()
+    render_trace([
+        {"stage": "model", "detail": DEFAULT_MODEL},
+        {"stage": "host", "detail": DEFAULT_HOST},
+        {"stage": "live agent calls", "detail": "enabled" if RUN_LIVE_AGENT else "guarded off; set RUN_LIVE_AGENT=1"},
+    ])
+    '''
+
+
+def primitives_scenario_cell(project: dict[str, str], scenario: Any) -> str:
+    sample_attr = project["sample_attr"]
+    data = scenario_data(scenario, sample_attr)
+    scenario_json = textwrap.indent(json.dumps(data, indent=2), "    ")
+    payload_code = (
+        'RESPONSES_PAYLOAD = {"input": SCENARIO.sample_input, "stream": False}'
+        if sample_attr == "sample_input"
+        else textwrap.dedent(
+            '''
+            INVOCATION_PAYLOAD = {
+                "scenario": SCENARIO.id,
+                "pattern": SCENARIO.pattern,
+                "task": SCENARIO.sample_task,
+                "subject": "agent-framework-primitives-lab",
+                "artifacts": ["docs/README.md"],
+                "constraints": ["One primitive per teaching cell", "Observable output in every cell"],
+                "stream": False,
+            }
+            '''
+        ).strip()
+    )
+    return f'''
+    @dataclass(frozen=True)
+    class AgentSpec:
+        name: str
+        description: str
+        instructions: str
+        mcp_tools: tuple[str, ...] = ()
+        mcp_server: str = "enterprise_context"
+        route_keywords: tuple[str, ...] = ()
+        a2a_url: str | None = None
+
+
+    @dataclass(frozen=True)
+    class ScenarioSpec:
+        id: str
+        pattern: str
+        title: str
+        learning_goal: str
+        when_to_use: str
+        {sample_attr}: str
+        agents: tuple[AgentSpec, ...]
+        handoff_finisher: str | None = None
+        concurrent_synthesizer: str | None = None
+        termination_phrases: tuple[str, ...] = ()
+
+
+    SCENARIO_DATA = json.loads(
+        r"""
+{scenario_json}
+        """
+    )
+    AGENTS = tuple(
+        AgentSpec(
+            name=agent["name"],
+            description=agent["description"],
+            instructions=agent["instructions"],
+            mcp_tools=tuple(agent.get("mcp_tools", ())),
+            mcp_server=agent.get("mcp_server", "enterprise_context"),
+            route_keywords=tuple(agent.get("route_keywords", ())),
+            a2a_url=agent.get("a2a_url"),
+        )
+        for agent in SCENARIO_DATA["agents"]
+    )
+    SCENARIO = ScenarioSpec(
+        id=SCENARIO_DATA["id"],
+        pattern=SCENARIO_DATA["pattern"],
+        title=SCENARIO_DATA["title"],
+        learning_goal=SCENARIO_DATA["learning_goal"],
+        when_to_use=SCENARIO_DATA["when_to_use"],
+        {sample_attr}=SCENARIO_DATA["{sample_attr}"],
+        agents=AGENTS,
+    )
+    {payload_code}
+
+
+    def agent_capability_map(scenario: ScenarioSpec) -> list[dict[str, Any]]:
+        return [
+            {{
+                "agent": spec.name,
+                "description": spec.description,
+                "instructions": spec.instructions,
+                "tools": list(spec.mcp_tools),
+            }}
+            for spec in scenario.agents
+        ]
+
+
+    render_roster(SCENARIO)
+    print(json.dumps({{"scenario": SCENARIO.id, "pattern": SCENARIO.pattern, "api": "{project['api_name']}"}}, indent=2))
+    print(json.dumps(agent_capability_map(SCENARIO), indent=2))
+    '''
+
+
+def primitives_message_cell() -> str:
+    return r'''
+    # Primitive: Message
+    from agent_framework import Message
+
+    inbound = Message(role="user", contents=["Explain the primitive map for a local Agent Framework prototype."])
+    system_hint = Message(role="system", contents=["Use concrete primitives, not marketing language."])
+
+    MESSAGE_TRACE = [
+        {"stage": "system message", "detail": str(system_hint.contents[0])},
+        {"stage": "user message", "detail": str(inbound.contents[0])},
+    ]
+    render_trace(MESSAGE_TRACE)
+    print("Message objects are the smallest portable unit passed to agents and workflow executors.")
+    '''
+
+
+def primitives_function_tool_cell() -> str:
+    return r'''
+    # Primitive: Function tool
+    ENABLEMENT_FIXTURES = {
+        "prototype": {"model": "qwen3:14b", "provider": "Ollama", "boundary": "local"},
+        "workflow": {"state": "WorkflowContext", "routing": "code-defined", "visibility": "trace events"},
+        "protocols": {"tools": "MCP", "remote_agents": "A2A"},
+    }
+
+
+    def lookup_primitive_fact(topic: str) -> dict[str, str]:
+        """A small function tool: deterministic, inspectable, and easy to test."""
+
+        return ENABLEMENT_FIXTURES.get(topic, {"error": f"unknown topic: {topic}"})
+
+
+    def draft_enablement_check(topic: str) -> str:
+        fact = lookup_primitive_fact(topic)
+        return "; ".join(f"{key}={value}" for key, value in fact.items())
+
+
+    # Demo (offline): call the tool directly before any agent is allowed to use it.
+    print(draft_enablement_check("workflow"))
+    render_cards([
+        {"title": "Function tool", "body": "Plain Python callable exposed to an agent.", "chips": "tool|deterministic|testable"},
+        {"title": "Grounding", "body": "The model reasons over returned facts instead of inventing them.", "chips": "facts|least privilege"},
+    ])
+    '''
+
+
+def primitives_agent_cell() -> str:
+    return r'''
+    # Primitive: Chat-client-backed agent
+    from agent_framework.ollama import OllamaChatClient
+
+
+    def make_agent(spec: AgentSpec, *, tools: list[object] | None = None):
+        """Create an instruction-led local agent. Construction is cheap; model calls happen on run."""
+
+        client = OllamaChatClient(host=DEFAULT_HOST, model=DEFAULT_MODEL)
+        return client.as_agent(
+            name=spec.name,
+            description=spec.description,
+            instructions=f"You are {spec.name}. {spec.instructions}",
+            tools=tools or None,
+            default_options={"temperature": 0.0, "max_tokens": 400, "think": False},
+            require_per_service_call_history_persistence=True,
+        )
+
+
+    TOOL_GRANTS = {
+        "PrimitiveMapAgent": [lookup_primitive_fact],
+        "AgentRuntimeAgent": [lookup_primitive_fact, draft_enablement_check],
+    }
+    AGENT_BLUEPRINTS = [
+        {"title": spec.name, "body": spec.description, "chips": "agent|instructions" + ("|function tools" if TOOL_GRANTS.get(spec.name) else "")}
+        for spec in SCENARIO.agents
+    ]
+    render_cards(AGENT_BLUEPRINTS)
+    print("make_agent(spec) is ready. The notebook delays real model calls until RUN_LIVE_AGENT is enabled.")
+    '''
+
+
+def primitives_session_cell() -> str:
+    return r'''
+    # Primitive: session or thread state
+    SESSION_TURNS: dict[str, list[str]] = {}
+    MAX_TURNS = 6
+
+
+    def record_turn(session_id: str, role: str, text: str) -> list[str]:
+        turns = SESSION_TURNS.setdefault(session_id, [])
+        turns.append(f"{role}: {text}")
+        del turns[: max(0, len(turns) - MAX_TURNS)]
+        return turns
+
+
+    record_turn("demo-session", "user", "Explain workflow routing.")
+    record_turn("demo-session", "assistant", "Use WorkflowContext state plus code-defined router decisions.")
+    render_transcript("\n".join(SESSION_TURNS["demo-session"]))
+    print("Session state is explicit here; production agents can use framework-supported thread/history providers.")
+    '''
+
+
+def primitives_run_stream_cell() -> str:
+    return r'''
+    # Primitive: run and stream
+    async def run_live_agent_once() -> None:
+        agent = make_agent(SCENARIO.agents[0], tools=TOOL_GRANTS.get("PrimitiveMapAgent"))
+        result = await agent.run("Return a six-bullet primitive checklist for this lab.")
+        render_transcript(result.text or str(result))
+
+
+    async def stream_live_agent_once() -> None:
+        agent = make_agent(SCENARIO.agents[1], tools=TOOL_GRANTS.get("AgentRuntimeAgent"))
+        chunks: list[str] = []
+        async for update in agent.run("Explain function tools in one short paragraph.", stream=True):
+            if getattr(update, "text", None):
+                chunks.append(update.text)
+        render_transcript("".join(chunks))
+
+
+    if RUN_LIVE_AGENT:
+        await run_live_agent_once()
+        await stream_live_agent_once()
+    else:
+        render_trace([
+            {"stage": "agent.run", "detail": "guarded off"},
+            {"stage": "agent.run(..., stream=True)", "detail": "guarded off"},
+        ])
+    '''
+
+
+def primitives_mcp_cell() -> str:
+    return r'''
+    # Primitive: MCPStdioTool
+    from agent_framework import MCPStdioTool
+
+
+    def describe_local_mcp_tool() -> dict[str, object]:
+        return {
+            "class": "MCPStdioTool",
+            "command": "python",
+            "args": ["-m", "sample_mcp_server"],
+            "approval_mode": "never_require",
+            "allowed_tools": ["lookup_primitive_fact"],
+        }
+
+
+    # Demo (offline): show the safe tool envelope rather than starting a subprocess.
+    pprint(describe_local_mcp_tool())
+    render_cards([
+        {"title": "MCPStdioTool", "body": "Launches a local MCP server and exposes only approved tools.", "chips": "MCP|stdio|least privilege"},
+        {"title": "Excluded here", "body": "Hosted MCP requires provider-side configuration, so this lab shows local MCP shape.", "chips": "local sample"},
+    ])
+    '''
+
+
+def primitives_a2a_cell() -> str:
+    return r'''
+    # Primitive: A2AAgent
+    from agent_framework.a2a import A2AAgent
+
+
+    def make_remote_peer_reference() -> dict[str, str]:
+        url = os.getenv("A2A_PARTNER_BASE_URL", "http://localhost:8765").rstrip("/") + "/primitive-peer"
+        return {"class": "A2AAgent", "name": "PrimitivePeerAgent", "url": url}
+
+
+    # Demo (offline): represent the remote seat without requiring a running server.
+    pprint(make_remote_peer_reference())
+    render_cards([
+        {"title": "A2AAgent", "body": "A local proxy for a remote peer agent with its own card and runtime.", "chips": "A2A|remote agent"},
+        {"title": "When to use", "body": "Use when another team owns the agent and you only orchestrate its seat.", "chips": "boundary|protocol"},
+    ])
+    '''
+
+
+def primitives_workflow_cell() -> str:
+    return r'''
+    # Primitive: Executor, @handler, WorkflowContext, and Message routing
+    import re
+    from typing import Never
+
+    from agent_framework import (
+        AgentExecutor,
+        AgentExecutorRequest,
+        AgentExecutorResponse,
+        Executor,
+        Message,
+        WorkflowBuilder,
+        WorkflowContext,
+        handler,
+    )
+
+    TRANSCRIPT_KEY = "primitive_transcript"
+
+
+    def make_request(text: str) -> AgentExecutorRequest:
+        return AgentExecutorRequest(messages=[Message(role="user", contents=[text])])
+
+
+    def response_text(response: AgentExecutorResponse) -> str:
+        agent_response = getattr(response, "agent_response", None)
+        return (getattr(agent_response, "text", None) or "").strip()
+
+
+    class PromptDispatchExecutor(Executor):
+        @handler
+        async def dispatch(self, prompt: str, ctx: WorkflowContext[AgentExecutorRequest]) -> None:
+            ctx.set_state("prompt", prompt)
+            ctx.set_state(TRANSCRIPT_KEY, [])
+            await ctx.send_message(make_request(prompt))
+
+
+    class PrimitiveOutputExecutor(Executor):
+        @handler
+        async def finish(self, response: AgentExecutorResponse, ctx: WorkflowContext[Never, str]) -> None:
+            transcript = list(ctx.get_state(TRANSCRIPT_KEY) or [])
+            transcript.append(response_text(response))
+            await ctx.yield_output("\n\n".join(transcript))
+
+
+    # Demo (offline): the custom executors define graph behavior; agents fill in model work.
+    render_trace([
+        {"stage": "Executor", "detail": "a code node in the graph"},
+        {"stage": "@handler", "detail": "typed method that receives messages"},
+        {"stage": "WorkflowContext", "detail": "state, sends, target routing, outputs"},
+    ])
+    '''
+
+
+def primitives_agent_executor_cell() -> str:
+    return r'''
+    # Primitive: AgentExecutor
+    def slug(name: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+
+
+    def build_agent_executor(spec: AgentSpec, *, tools: list[object] | None = None) -> AgentExecutor:
+        agent = make_agent(spec, tools=tools)
+        return AgentExecutor(agent, id=slug(spec.name))
+
+
+    EXECUTOR_IDS = [slug(spec.name) for spec in SCENARIO.agents]
+    render_cards([
+        {"title": "AgentExecutor", "body": "Wraps an agent so WorkflowBuilder can route messages to it.", "chips": "agent|workflow node"},
+        {"title": "Stable ids", "body": ", ".join(EXECUTOR_IDS[:3]) + " ...", "chips": "observability|routing"},
+    ])
+    '''
+
+
+def primitives_sequential_graph_cell() -> str:
+    return r'''
+    # Primitive: WorkflowBuilder graph
+    class StageGateExecutor(Executor):
+        def __init__(self, id: str, *, stage_name: str) -> None:
+            super().__init__(id=id)
+            self._stage_name = stage_name
+
+        @handler
+        async def gate(self, response: AgentExecutorResponse, ctx: WorkflowContext[AgentExecutorRequest]) -> None:
+            transcript = list(ctx.get_state(TRANSCRIPT_KEY) or [])
+            transcript.append(f"[{self._stage_name}] {response_text(response)}")
+            ctx.set_state(TRANSCRIPT_KEY, transcript)
+            prompt = ctx.get_state("prompt") or ""
+            await ctx.send_message(make_request(prompt + "\n\nWork so far:\n" + "\n".join(transcript)))
+
+
+    def build_workflow(scenario: ScenarioSpec):
+        dispatch = PromptDispatchExecutor(id="dispatch")
+        output = PrimitiveOutputExecutor(id="final_output")
+        agents = [build_agent_executor(spec, tools=TOOL_GRANTS.get(spec.name)) for spec in scenario.agents]
+        builder = WorkflowBuilder(start_executor=dispatch, output_from=[output])
+        builder.add_edge(dispatch, agents[0])
+        for index in range(len(agents) - 1):
+            gate = StageGateExecutor(id=f"gate_{index}", stage_name=scenario.agents[index].name)
+            builder.add_edge(agents[index], gate)
+            builder.add_edge(gate, agents[index + 1])
+        builder.add_edge(agents[-1], output)
+        return builder.build()
+
+
+    # Demo (offline): describe the graph without calling a model.
+    render_trace([
+        {"stage": "dispatch", "detail": "normalizes prompt"},
+        {"stage": "agent nodes", "detail": "AgentExecutor wraps each role"},
+        {"stage": "stage gates", "detail": "carry transcript via WorkflowContext"},
+        {"stage": "final output", "detail": "yields readable text"},
+    ])
+    '''
+
+
+def primitives_handoff_cell() -> str:
+    return r'''
+    # Primitive: code-validated handoff routing
+    class HandoffRouterExecutor(Executor):
+        def __init__(self, id: str, *, routes: dict[str, tuple[str, ...]], default_route: str) -> None:
+            super().__init__(id=id)
+            self._routes = routes
+            self._default_route = default_route
+
+        def choose(self, text: str) -> str:
+            lowered = text.lower()
+            if "route:" in lowered:
+                candidate = lowered.rsplit("route:", 1)[1].strip().split()[0]
+                if candidate in self._routes:
+                    return candidate
+            scored = sorted(
+                ((sum(keyword in lowered for keyword in keywords), route) for route, keywords in self._routes.items()),
+                reverse=True,
+            )
+            return scored[0][1] if scored and scored[0][0] else self._default_route
+
+
+    router = HandoffRouterExecutor(
+        id="router",
+        routes={"tooling": ("tool", "mcp", "function"), "workflow": ("workflow", "executor", "graph")},
+        default_route="workflow",
+    )
+    # Demo (offline): model text can suggest, but code validates.
+    print(router.choose("Need MCP and function tool guidance. ROUTE: tooling"))
+    '''
+
+
+def primitives_concurrent_cell() -> str:
+    return r'''
+    # Primitive: fan-out and fan-in
+    class ConcurrentAggregatorExecutor(Executor):
+        def __init__(self, id: str, *, agent_names: list[str]) -> None:
+            super().__init__(id=id)
+            self._agent_names = agent_names
+
+        def label_outputs(self, texts: list[str]) -> str:
+            return "\n\n".join(f"[{name}]\n{text}" for name, text in zip(self._agent_names, texts))
+
+
+    class ConcurrentSynthesisGateExecutor(Executor):
+        def __init__(self, id: str, *, agent_names: list[str]) -> None:
+            super().__init__(id=id)
+            self._agent_names = agent_names
+
+
+    aggregator = ConcurrentAggregatorExecutor(id="aggregator", agent_names=["AgentRuntimeAgent", "WorkflowGraphAgent"])
+    # Demo (offline): labelled fan-in keeps parallel evidence attributable.
+    render_transcript(aggregator.label_outputs(["Agent runtime facts", "Workflow graph facts"]))
+    '''
+
+
+def primitives_group_chat_cell() -> str:
+    return r'''
+    # Primitive: GroupChatBuilder
+    from agent_framework.orchestrations import GroupChatBuilder, GroupChatState
+
+
+    def round_robin_selector(state: GroupChatState) -> str:
+        participant_names = list(state.participants.keys())
+        return participant_names[state.current_round % len(participant_names)]
+
+
+    def termination_condition(messages: list[Any]) -> bool:
+        assistant = [message for message in messages if getattr(message, "role", None) == "assistant"]
+        return bool(assistant) and "final primitive map" in (getattr(assistant[-1], "text", "") or "").lower()
+
+
+    render_cards([
+        {"title": "GroupChatBuilder", "body": "Coordinates a visible multi-agent discussion.", "chips": "selector|termination"},
+        {"title": "Selector", "body": "A function chooses who speaks next.", "chips": "code-defined"},
+        {"title": "Termination", "body": "A function decides when the discussion is done.", "chips": "bounded"},
+    ])
+    '''
+
+
+def primitives_magentic_cell() -> str:
+    return r'''
+    # Primitive: MagenticBuilder
+    from agent_framework.orchestrations import MagenticBuilder
+
+    MAGENTIC_LIMITS = {"max_round_count": 10, "max_stall_count": 3, "max_reset_count": 2}
+    render_cards([
+        {"title": "MagenticBuilder", "body": "A manager agent plans, delegates, observes progress, and replans.", "chips": "manager|dynamic"},
+        {"title": "Ledger limits", "body": json.dumps(MAGENTIC_LIMITS), "chips": "bounded|observable"},
+    ])
+    '''
+
+
+def primitives_hosting_cell(project: dict[str, str]) -> str:
+    return f'''
+    # Primitive: hosting boundary
+    HOSTING_SHAPES = {{
+        "ResponsesHostServer": "Expose one selected workflow through OpenAI-compatible /responses.",
+        "InvocationAgentServerHost": "Expose a custom /invocations contract where each request can choose a scenario.",
+        "current notebook boundary": "{project['api_boundary']}",
+    }}
+    pprint(HOSTING_SHAPES)
+    render_cards([
+        {{"title": "Responses", "body": "Best for chat clients and OpenAI-compatible tooling.", "chips": "standard endpoint"}},
+        {{"title": "Invocations", "body": "Best for jobs, webhooks, CI, and custom payloads.", "chips": "custom contract"}},
+    ])
+    '''
+
+
+def primitives_observability_cell() -> str:
+    return r'''
+    # Primitive: observability
+    def workflow_result_to_text(events: Any) -> str:
+        if hasattr(events, "get_outputs"):
+            outputs = events.get_outputs()
+            if outputs:
+                return "\n".join(str(output) for output in outputs)
+        return str(events)
+
+
+    OBSERVABILITY_CHECKLIST = [
+        {"stage": "name every executor", "detail": "ids make traces readable"},
+        {"stage": "label fan-in outputs", "detail": "parallel findings stay attributable"},
+        {"stage": "record route source", "detail": "model-directive vs keyword fallback"},
+        {"stage": "bound dynamic loops", "detail": "max rounds, stalls, and resets"},
+        {"stage": "render transcript", "detail": "teach from the actual conversation, not a summary"},
+    ]
+    render_trace(OBSERVABILITY_CHECKLIST)
+    render_transcript("Observability is a design primitive: name nodes, expose state, label outputs, and bound loops.")
+    '''
+
+
+def primitives_flow_diagram_cell(project: dict[str, str]) -> str:
+    api_boundary = project["api_boundary"]
+    api_label = api_boundary.replace('"', "'")
+    return f'''
+    # Flow Diagram
+    def _label(value: str) -> str:
+        return value.replace('"', "'")
+
+
+    def _mermaid_image_url(mermaid: str) -> str:
+        encoded = base64.urlsafe_b64encode(mermaid.encode("utf-8")).decode("ascii").rstrip("=")
+        return f"https://mermaid.ink/img/{{encoded}}"
+
+
+    def display_scenario_flow() -> str:
+        mermaid = "\\n".join([
+            "%%{{init: {{'theme': 'neutral'}}}}%%",
+            "flowchart LR",
+            "    input[Request] --> messages[Message]",
+            "    messages --> agent[Chat-client-backed agent]",
+            "    agent --> tools[Function tools]",
+            "    agent -. local tools .-> mcp[MCPStdioTool]",
+            "    agent -. remote peer .-> a2a[A2AAgent]",
+            "    agent --> executor[AgentExecutor]",
+            "    executor --> workflow[WorkflowBuilder graph]",
+            "    workflow --> routing[Routing / fan-out / fan-in]",
+            "    workflow --> group[GroupChatBuilder]",
+            "    workflow --> magentic[MagenticBuilder]",
+            "    workflow --> host[{api_label}]",
+            "    workflow --> trace[Trace + transcript]",
+        ])
+        display(HTML(
+            "<figure style='margin:0'>"
+            f"<img src='{{html.escape(_mermaid_image_url(mermaid))}}' alt='Agent Framework primitive flow' "
+            "style='max-width:100%; height:auto;' />"
+            "<figcaption style='font-size:.9em; color:#475569'>Agent Framework primitive flow</figcaption>"
+            "</figure>"
+        ))
+        return mermaid
+
+
+    flow_diagram = display_scenario_flow()
+    print(flow_diagram)
+    '''
+
+
+def primitives_post_markdown() -> str:
+    return """
+    ## What to Inspect
+
+    Check that each primitive has a visible boundary:
+
+    - Messages are data, not orchestration.
+    - Agents own model calls and tool access.
+    - Tools own deterministic external action.
+    - MCP and A2A are protocol boundaries, not prompt tricks.
+    - Executors own code-defined workflow behavior.
+    - WorkflowContext owns graph state and message sends.
+    - Builders own graph shape and dynamic coordination.
+    - Hosting owns the client contract.
+    - Observability is designed into names, labels, traces, and transcripts.
+
+    ## Experiments
+
+    - Set `RUN_LIVE_AGENT=1` and rerun the run/stream cell after Ollama is available.
+    - Add one more function tool and grant it to only one agent.
+    - Change the handoff router sample text and watch the route decision move.
+    - Add a third fan-out lane to the aggregator demo.
+    - Decide which excluded hosted primitive you would add first in a cloud-backed version.
+    """
+
+
+def build_primitives_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
+    cells = [
+        md(primitives_title_markdown(project, scenario)),
+        code(primitives_environment_cell()),
+        md(primitives_overview_markdown()),
+        code(primitives_scenario_cell(project, scenario)),
+        md("## Primitive: Message\n\nMessages are the typed boundary between user, system, assistant, agents, and workflow nodes."),
+        code(primitives_message_cell()),
+        md("## Primitive: Function Tool\n\nFunction tools are the smallest useful grounding mechanism: a callable with a narrow, testable contract."),
+        code(primitives_function_tool_cell()),
+        md("## Primitive: Agent\n\nInstruction-led agents combine a chat client, role instructions, optional tools, runtime options, and a run interface."),
+        code(primitives_agent_cell()),
+        md("## Primitive: Session Or Thread State\n\nState is explicit. Keep it bounded and visible in local samples; use provider or framework history stores when appropriate."),
+        code(primitives_session_cell()),
+        md("## Primitive: Run And Stream\n\nNon-streaming returns a final response; streaming exposes incremental updates for UI and logs."),
+        code(primitives_run_stream_cell()),
+        md("## Primitive: MCP\n\nMCP connects an agent to tools. Local stdio MCP is the right primitive for this local teaching repo."),
+        code(primitives_mcp_cell()),
+        md("## Primitive: A2A\n\nA2A connects an agent orchestration to a peer agent owned by another runtime or organization."),
+        code(primitives_a2a_cell()),
+        md("## Primitive: Workflow Executor\n\nCustom executors make business logic explicit and testable inside the graph."),
+        code(primitives_workflow_cell()),
+        md("## Primitive: AgentExecutor\n\nAgentExecutor is the bridge from an agent to a workflow node."),
+        code(primitives_agent_executor_cell()),
+        md("## Primitive: WorkflowBuilder\n\nWorkflowBuilder turns executors and agents into a deterministic graph."),
+        code(primitives_sequential_graph_cell()),
+        md("## Primitive: Handoff Routing\n\nA router lets the model suggest ownership while code validates the allowed route."),
+        code(primitives_handoff_cell()),
+        md("## Primitive: Fan-Out And Fan-In\n\nConcurrent work is useful only when aggregation keeps each lane attributable."),
+        code(primitives_concurrent_cell()),
+        md("## Primitive: Group Chat\n\nGroup chat is a visible discussion with code-defined speaker selection and termination."),
+        code(primitives_group_chat_cell()),
+        md("## Primitive: Magentic\n\nMagentic coordination uses a manager agent plus bounded progress-ledger behavior."),
+        code(primitives_magentic_cell()),
+        md("## Primitive: Hosting\n\nThe same workflow can sit behind different API contracts."),
+        code(primitives_hosting_cell(project)),
+        md("## Primitive: Observability\n\nGood agent systems are inspectable by construction."),
+        code(primitives_observability_cell()),
+        md("## Flow Diagram\n\nThis diagram connects the primitives from request to hosted, observable workflow."),
+        code(primitives_flow_diagram_cell(project)),
+        md(primitives_post_markdown()),
+    ]
+    add_cell_ids(cells, scenario.id)
+    return {
+        "cells": cells,
+        "metadata": {
+            "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+            "language_info": {"name": "python", "pygments_lexer": "ipython3"},
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+
+
 def build_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
+    if scenario.id == PRIMITIVES_SCENARIO_ID:
+        return build_primitives_notebook(project, scenario)
+
     data = scenario_data(scenario, project["sample_attr"])
     server = scenario_mcp_server(scenario)
     cells = [

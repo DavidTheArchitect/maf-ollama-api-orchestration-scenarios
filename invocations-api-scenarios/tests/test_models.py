@@ -56,11 +56,12 @@ class InvocationRequestTests(unittest.TestCase):
         # Scenario families 01-16 land in complete sets of five (one per pattern).
         # Scenario 17 adds a fifth group chat on purpose: it teaches the A2A
         # protocol, and group chat is the pattern where a remote peer seat is
-        # most instructive. Update these counts deliberately when adding scenarios.
+        # most instructive. Scenario 18 adds a fifth sequential scenario as a
+        # primitive lab because sequential is the least surprising runtime shell.
         pattern_counts = {pattern: [scenario.pattern for scenario in SCENARIOS].count(pattern) for pattern in PATTERNS}
         self.assertEqual(
             pattern_counts,
-            {"sequential": 4, "concurrent": 4, "handoff": 4, "group-chat": 5, "magentic": 4},
+            {"sequential": 5, "concurrent": 4, "handoff": 4, "group-chat": 5, "magentic": 4},
         )
         self.assertEqual(len(SCENARIOS), sum(pattern_counts.values()))
 

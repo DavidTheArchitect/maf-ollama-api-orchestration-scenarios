@@ -2,7 +2,7 @@
 
 ## Context
 
-The 21 learning scenarios (x2 packages, 42 generated notebooks) teach orchestration patterns well after the improvement pass (PRs #6-#9, ratings 7.6 -> 8.4), but the notebooks fight the teaching goal: `scripts/generate_self_contained_notebooks.py` assembles each notebook from 11-13 cells of which three are monoliths - `agent_factory_cell()` (~100 lines), `workflow_cell()` (~250 lines containing **all five** pattern builders regardless of the notebook's pattern), and the inlined MCP server cell (~250-400 lines mixing fixtures and tools). The user wants: (1) cell-per-concept layout for every scenario (matching the convention set in `SCENARIO_17_A2A_PLAN.md`), (2) a logic double-check of every scenario, (3) deeper domain logic so each scenario is sufficiently advanced (**no new framework features** - user's explicit choice), (4) polished docs, and (5) polished teaching visuals (user's explicit choice).
+The 22 learning scenarios (x2 packages, 44 generated notebooks) teach orchestration patterns well after the improvement pass (PRs #6-#9, ratings 7.6 -> 8.4), but the notebooks fight the teaching goal: `scripts/generate_self_contained_notebooks.py` assembles each notebook from 11-13 cells of which three are monoliths - `agent_factory_cell()` (~100 lines), `workflow_cell()` (~250 lines containing **all five** pattern builders regardless of the notebook's pattern), and the inlined MCP server cell (~250-400 lines mixing fixtures and tools). The user wants: (1) cell-per-concept layout for every scenario (matching the convention set in `SCENARIO_17_A2A_PLAN.md`), (2) a logic double-check of every scenario, (3) deeper domain logic so each scenario is sufficiently advanced (**no new framework features** - user's explicit choice), (4) polished docs, and (5) polished teaching visuals (user's explicit choice).
 
 **Status:** implemented. The cell-per-concept generator refactor
 (`scripts/generate_self_contained_notebooks.py`), the logic audit, and the
@@ -22,7 +22,7 @@ Rework `build_notebook()` (scripts/generate_self_contained_notebooks.py:1999) in
 
 This is the same generator investment Scenario 17's plan requires (per-scenario cell sequences), so 17 plugs into this foundation unchanged.
 
-## Workstream B — Logic double-check (all 21 scenarios, both packages)
+## Workstream B — Logic double-check (all 22 scenarios, both packages)
 
 Audit checklist applied per scenario, with cheap durable invariants added to tests:
 
@@ -48,7 +48,7 @@ Audit checklist applied per scenario, with cheap durable invariants added to tes
 ## Files touched
 
 - `scripts/generate_self_contained_notebooks.py` (main refactor; cell functions + `build_notebook`)
-- All 42 notebooks (regenerated, not hand-edited)
+- All 44 notebooks (regenerated, not hand-edited)
 - Scenario modules with logic/depth/docs fixes: `responses-api-scenarios/src/responses_scenarios/scenarios/*.py` + mirrors in `invocations-api-scenarios/src/invocations_scenarios/scenarios/*.py`
 - Fixture servers where wrinkles land: `src/*/mcp_servers/enterprise_context.py`, `quote_to_cash_context.py` (both packages)
 - Tests: `tests/test_notebooks.py` (per-pattern cell assertions: minimum cell count; sequential notebooks must NOT contain `MagenticBuilder`, etc.), `test_mcp.py`, `test_quote_to_cash.py`, `test_workflows.py`
@@ -56,7 +56,7 @@ Audit checklist applied per scenario, with cheap durable invariants added to tes
 
 ## Verification
 
-- Regenerate all 42 notebooks via the generator; `python -m compileall` both packages + scripts.
+- Regenerate all 44 notebooks via the generator; `python -m compileall` both packages + scripts.
 - Both offline suites green (currently 48 + 54; new invariant tests added in Workstream B raise these).
 - New notebook assertions prove the cell-per-concept layout: every code cell compiles standalone (existing), per-pattern machinery exclusivity, minimum cell counts, and each demo cell's marker present.
 - Manual live-run checklist documented for the user (requires local Ollama, unavailable in this environment): one scenario per pattern tier — 01, 07, 13, 14, 16e.

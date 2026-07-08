@@ -48,6 +48,16 @@
 > with their full fact sheet regardless of the question; the `--ollama` mode
 > covers the fully dynamic case.
 >
+> **Scenario 18.** `scenario-18-agent-framework-primitives` -- Sequential +
+> primitives lab: **9/10**. This is not meant to be a new orchestration-pattern
+> benchmark; it is a capstone map of the common Agent Framework primitives.
+> The notebook gives each primitive its own cell and visible artifact:
+> messages, agents, function tools, session state, streaming, MCP, A2A,
+> workflow executors, `AgentExecutor`, `WorkflowBuilder`, routing, fan-out,
+> group chat, magentic coordination, hosting, and observability. Deduction:
+> cloud-hosted primitives are intentionally excluded to keep the lab local and
+> credential-free.
+>
 > **Code-review pass (`SCENARIO_CODE_REVIEW.md`, PRs #17-#18).** A combined
 > clean-code and scenario-quality review fixed two real API-layer bugs (a
 > swallowed-TypeError server fallback and an unbounded session cache),

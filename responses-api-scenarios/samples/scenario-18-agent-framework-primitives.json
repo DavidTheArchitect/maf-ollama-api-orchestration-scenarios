@@ -1,0 +1,4 @@
+{
+  "input": "Create an engineering enablement brief for a new Agent Framework team. Explain messages, agents, function tools, MCP, A2A, WorkflowBuilder graphs, custom executors, AgentExecutor nodes, fan-out/fan-in, routing, group chat, magentic coordination, hosting, and observability. Exclude hosted cloud-only primitives that do not fit a local Ollama sample.",
+  "stream": false
+}
