@@ -1,6 +1,6 @@
-# Invocations API Review Bot
+# Invocations API Scenarios
 
-This sample hosts ten Microsoft Agent Framework multi-agent scenarios behind the custom Invocations API.
+This sample hosts 21 Microsoft Agent Framework multi-agent scenarios behind the custom Invocations API.
 
 Use this shape when the caller is not a normal chat client: CI jobs, webhooks, schedulers, internal services, batch processors, or APIs that need a custom payload and response contract.
 
@@ -33,9 +33,22 @@ Supported scenarios:
 | `handoff-customer-entitlement` | Handoff | 5 | A customer entitlement case routes to the right enterprise specialist. |
 | `group-chat-quarterly-planning` | Group chat | 5 | A stakeholder planning job returns a decision record from a council discussion. |
 | `magentic-supply-chain-disruption` | Magentic | 6 | A manager-led operations job coordinates dynamic disruption response planning. |
+| `sequential-procurement-approval` | Sequential + MCP | 5 | A grounded procurement approval pipeline uses local enterprise-context tools. |
+| `concurrent-security-alert-enrichment` | Concurrent + MCP | 5 | Independent alert-enrichment lanes fan in to an incident summary agent. |
+| `handoff-claims-exception-routing` | Handoff + MCP | 5 | A grounded triage decision routes a claim, then customer communications finishes. |
+| `group-chat-policy-exception-board` | Group chat + MCP | 4 | A board debates a policy exception using deterministic enterprise context. |
+| `magentic-business-continuity-drill` | Magentic + MCP | 6 | A manager-led continuity drill delegates against facility and policy facts. |
+| `scenario-16-quote-to-cash-sequential` | Sequential + MCP | 6 | Quote-to-cash runs as a staged CRM, product, pricing, legal, and quote pipeline. |
+| `scenario-16-quote-to-cash-concurrent` | Concurrent + MCP | 6 | Quote lanes enrich the same request independently, then a quote owner reconciles them. |
+| `scenario-16-quote-to-cash-handoff` | Handoff + MCP | 6 | A trigger routes to the most-needed quote specialist; the quote owner always finishes. |
+| `scenario-16-quote-to-cash-group-chat` | Group chat + MCP | 6 | Quote reviewers debate readiness, SKU fit, and pricing risk before a verdict. |
+| `scenario-16-quote-to-cash-magentic` | Magentic + MCP | 6 | A quote manager dynamically delegates until the quote package is ready. |
+| `group-chat-partner-launch-review` | Group chat + A2A | 5 | Two seats are remote partner agents reached through Agent2Agent. |
 
-Each scenario definition lives in its own module under `src/review_bot/scenarios/`. The `notebooks/` directory contains one companion notebook per scenario with executable learning cells.
+Each scenario definition lives in its own module under `src/invocations_scenarios/scenarios/`. The `notebooks/` directory contains one companion notebook per scenario with executable learning cells.
 Each notebook includes a Mermaid flow diagram cell that renders through `mermaid.ink` at runtime and returns the Mermaid source for inspection or copy/paste.
+
+Scenarios 11-15 use a bundled deterministic `enterprise-context` MCP stdio server. Scenario 16 uses a separate `quote-to-cash-context` MCP server across all five orchestration patterns. Scenario 17 starts a local A2A partner-agent server in-process for notebooks and sample runs.
 
 ## API And Pattern Comparison
 
@@ -62,7 +75,7 @@ Copy-Item .env.example .env
 ## Run And Invoke
 
 ```powershell
-python -m review_bot --model qwen3:14b --max-tokens 500 --port 8089
+python -m invocations_scenarios --model qwen3:14b --max-tokens 500 --port 8089
 ```
 
 Invoke a scenario:

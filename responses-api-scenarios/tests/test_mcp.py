@@ -1,14 +1,14 @@
 import unittest
 
-from release_room.agents import (
+from responses_scenarios.agents import (
     ENTERPRISE_MCP_MODULE,
     MCP_SERVER_MODULES,
     QUOTE_TO_CASH_MCP_MODULE,
     AgentSpec,
     build_mcp_tool,
 )
-from release_room.mcp_servers import enterprise_context, quote_to_cash_context
-from release_room.scenarios import SCENARIOS
+from responses_scenarios.mcp_servers import enterprise_context, quote_to_cash_context
+from responses_scenarios.scenarios import SCENARIOS
 
 SERVERS = {
     "enterprise_context": enterprise_context,
@@ -175,8 +175,8 @@ class QuoteToCashContextToolTests(unittest.TestCase):
 
 class McpToolBuildTests(unittest.TestCase):
     def test_module_constants(self):
-        self.assertEqual(ENTERPRISE_MCP_MODULE, "release_room.mcp_servers.enterprise_context")
-        self.assertEqual(QUOTE_TO_CASH_MCP_MODULE, "release_room.mcp_servers.quote_to_cash_context")
+        self.assertEqual(ENTERPRISE_MCP_MODULE, "responses_scenarios.mcp_servers.enterprise_context")
+        self.assertEqual(QUOTE_TO_CASH_MCP_MODULE, "responses_scenarios.mcp_servers.quote_to_cash_context")
         self.assertEqual(set(MCP_SERVER_MODULES), {"enterprise_context", "quote_to_cash_context"})
 
     def test_build_tool_selects_server_and_restricts_tools(self):

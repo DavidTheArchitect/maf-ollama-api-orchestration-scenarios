@@ -1,7 +1,7 @@
 import unittest
 
-from release_room.diagram_helpers import scenario_flow_diagram
-from release_room.scenarios import SCENARIOS
+from responses_scenarios.diagram_helpers import scenario_flow_diagram
+from responses_scenarios.scenarios import SCENARIOS
 
 
 PATTERN_MARKERS = {

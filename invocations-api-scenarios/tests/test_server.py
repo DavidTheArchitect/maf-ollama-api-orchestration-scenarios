@@ -2,7 +2,7 @@
 
 import unittest
 
-from review_bot.server import (
+from invocations_scenarios.server import (
     _MAX_SESSIONS,
     _MAX_TURNS_PER_SESSION,
     _SESSION_TURNS,

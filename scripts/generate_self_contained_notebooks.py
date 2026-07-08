@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROJECTS = (
     {
         "folder": "responses-api-scenarios",
-        "package": "release_room",
+        "package": "responses_scenarios",
         "api_name": "Responses API",
         "api_boundary": "Responses API /responses",
         "input_label": "OpenAI-style input",
@@ -23,7 +23,7 @@ PROJECTS = (
     },
     {
         "folder": "invocations-api-scenarios",
-        "package": "review_bot",
+        "package": "invocations_scenarios",
         "api_name": "Invocations API",
         "api_boundary": "Invocations API /invocations",
         "input_label": "Job payload",

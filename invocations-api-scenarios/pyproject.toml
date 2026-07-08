@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "maf-invocations-review-bot"
+name = "maf-invocations-api-scenarios"
 version = "0.1.0"
 description = "Microsoft Agent Framework Invocations API multi-agent sample using Ollama."
 requires-python = ">=3.11"

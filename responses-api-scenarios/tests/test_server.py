@@ -2,7 +2,7 @@
 
 import unittest
 
-from release_room.server import _run_with_optional_port, build_parser
+from responses_scenarios.server import _run_with_optional_port, build_parser
 
 
 class RunDispatchTests(unittest.TestCase):

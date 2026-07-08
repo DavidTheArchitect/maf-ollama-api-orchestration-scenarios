@@ -94,7 +94,7 @@ python -m pip install --upgrade pip
 python -m pip install --pre -r requirements.txt
 python -m pip install -e . --no-deps
 Copy-Item .env.example .env
-python -m release_room --scenario sequential-release-readiness --model qwen3:14b --max-tokens 500 --port 8088
+python -m responses_scenarios --scenario sequential-release-readiness --model qwen3:14b --max-tokens 500 --port 8088
 ```
 
 In a second terminal:
@@ -113,7 +113,7 @@ python -m pip install --upgrade pip
 python -m pip install --pre -r requirements.txt
 python -m pip install -e . --no-deps
 Copy-Item .env.example .env
-python -m review_bot --model qwen3:14b --max-tokens 500 --port 8089
+python -m invocations_scenarios --model qwen3:14b --max-tokens 500 --port 8089
 ```
 
 In a second terminal:

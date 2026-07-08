@@ -3,20 +3,20 @@ import unittest
 from importlib import import_module
 from pathlib import Path
 
-from review_bot.models import RequestValidationError, build_review_prompt, parse_review_request
-from review_bot.notebook_helpers import invocation_reference, pattern_anatomy
-from review_bot.scenarios import PATTERNS, SCENARIOS
+from invocations_scenarios.models import RequestValidationError, build_invocation_prompt, parse_invocation_request
+from invocations_scenarios.notebook_helpers import invocation_reference, pattern_anatomy
+from invocations_scenarios.scenarios import PATTERNS, SCENARIOS
 
 
-class ReviewRequestTests(unittest.TestCase):
+class InvocationRequestTests(unittest.TestCase):
     def test_parse_defaults_to_concurrent(self):
-        request = parse_review_request({"task": "Review this change"})
+        request = parse_invocation_request({"task": "Review this change"})
         self.assertEqual(request.pattern, "concurrent")
         self.assertEqual(request.scenario, "concurrent-pr-review")
         self.assertEqual(request.subject, "unspecified subject")
 
     def test_parse_accepts_scenario(self):
-        request = parse_review_request(
+        request = parse_invocation_request(
             {
                 "scenario": "handoff-support-triage",
                 "task": "Route this risk",
@@ -29,24 +29,24 @@ class ReviewRequestTests(unittest.TestCase):
         self.assertEqual(request.artifacts, ["a.py"])
 
     def test_pattern_alias_maps_to_default_scenario(self):
-        request = parse_review_request({"pattern": "magentic", "task": "Coordinate incident"})
+        request = parse_invocation_request({"pattern": "magentic", "task": "Coordinate incident"})
         self.assertEqual(request.scenario, "magentic-incident-response")
 
     def test_rejects_missing_task(self):
         with self.assertRaises(RequestValidationError):
-            parse_review_request({"subject": "owner/repo"})
+            parse_invocation_request({"subject": "owner/repo"})
 
     def test_rejects_invalid_pattern(self):
         with self.assertRaises(RequestValidationError):
-            parse_review_request({"pattern": "unknown", "task": "Review"})
+            parse_invocation_request({"pattern": "unknown", "task": "Review"})
 
     def test_rejects_scenario_pattern_mismatch(self):
         with self.assertRaises(RequestValidationError):
-            parse_review_request({"scenario": "handoff-support-triage", "pattern": "concurrent", "task": "Review"})
+            parse_invocation_request({"scenario": "handoff-support-triage", "pattern": "concurrent", "task": "Review"})
 
     def test_prompt_contains_core_fields(self):
-        request = parse_review_request({"task": "Review", "subject": "owner/repo", "artifacts": ["a.py"]})
-        prompt = build_review_prompt(request, ["assistant: prior summary"])
+        request = parse_invocation_request({"task": "Review", "subject": "owner/repo", "artifacts": ["a.py"]})
+        prompt = build_invocation_prompt(request, ["assistant: prior summary"])
         self.assertIn("owner/repo", prompt)
         self.assertIn("a.py", prompt)
         self.assertIn("prior summary", prompt)
@@ -83,7 +83,7 @@ class ReviewRequestTests(unittest.TestCase):
         for scenario in SCENARIOS:
             with self.subTest(scenario=scenario.id):
                 module_name = scenario.id.replace("-", "_")
-                module = import_module(f"review_bot.scenarios.{module_name}")
+                module = import_module(f"invocations_scenarios.scenarios.{module_name}")
                 self.assertIs(module.SCENARIO, scenario)
 
     def test_notebook_helpers_describe_each_pattern(self):
@@ -92,7 +92,7 @@ class ReviewRequestTests(unittest.TestCase):
                 anatomy = pattern_anatomy(scenario)
                 self.assertIn("control_flow", anatomy)
                 self.assertIn("best_when", anatomy)
-                request = parse_review_request({"scenario": scenario.id, "task": scenario.sample_task})
+                request = parse_invocation_request({"scenario": scenario.id, "task": scenario.sample_task})
                 reference = invocation_reference(scenario, request)
                 self.assertEqual(reference["scenario"], scenario.id)
                 self.assertEqual(reference["pattern"], scenario.pattern)
@@ -103,7 +103,7 @@ class ReviewRequestTests(unittest.TestCase):
             with self.subTest(scenario=scenario.id):
                 sample_path = project_root / "samples" / f"{scenario.id}.json"
                 payload = json.loads(sample_path.read_text(encoding="utf-8"))
-                request = parse_review_request(payload)
+                request = parse_invocation_request(payload)
                 self.assertEqual(request.scenario, scenario.id)
                 self.assertEqual(request.pattern, scenario.pattern)
 

@@ -3,7 +3,7 @@ import json
 import unittest
 from pathlib import Path
 
-from review_bot.scenarios import SCENARIOS, SCENARIOS_BY_ID
+from invocations_scenarios.scenarios import SCENARIOS, SCENARIOS_BY_ID
 
 
 def _scenario_uses_mcp(scenario):
@@ -51,7 +51,7 @@ class NotebookCompanionTests(unittest.TestCase):
                 seen.add(scenario_ids[0])
                 self.assertNotIn("find_project_root", source_text)
                 self.assertNotIn("sys.path", source_text)
-                self.assertNotIn("review_bot", source_text)
+                self.assertNotIn("invocations_scenarios", source_text)
                 self.assertIn("qwen3:14b", source_text)
                 self.assertIn("_APTOS_STYLE", source_text)
                 self.assertIn("Pattern Anatomy", source_text)
@@ -95,7 +95,7 @@ class NotebookCompanionTests(unittest.TestCase):
                     if cell.get("cell_type") == "code":
                         source = "".join(cell.get("source", []))
                         compile(source, f"{path}#cell{index}", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
-                        self.assertFalse(_imports_package(source, "review_bot"))
+                        self.assertFalse(_imports_package(source, "invocations_scenarios"))
 
         self.assertEqual(seen, {scenario.id for scenario in SCENARIOS})
 

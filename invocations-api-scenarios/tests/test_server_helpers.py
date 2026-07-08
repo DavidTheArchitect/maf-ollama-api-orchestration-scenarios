@@ -1,6 +1,6 @@
 import unittest
 
-from review_bot.server import _chunk_text
+from invocations_scenarios.server import _chunk_text
 
 
 class ServerHelperTests(unittest.TestCase):

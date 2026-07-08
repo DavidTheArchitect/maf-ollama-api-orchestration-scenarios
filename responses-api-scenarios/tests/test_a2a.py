@@ -9,14 +9,14 @@ messages over HTTP/JSON-RPC.
 import os
 import unittest
 
-from release_room.a2a_servers.partner_agents import (
+from responses_scenarios.a2a_servers.partner_agents import (
     PARTNER_AGENTS,
     PARTNER_FIXTURES,
     PartnerA2AServer,
     deterministic_reply,
 )
-from release_room.agents import AgentSpec, create_ollama_agent, resolve_a2a_url
-from release_room.scenarios import SCENARIOS_BY_ID
+from responses_scenarios.agents import AgentSpec, create_ollama_agent, resolve_a2a_url
+from responses_scenarios.scenarios import SCENARIOS_BY_ID
 
 SCENARIO_ID = "group-chat-partner-launch-review"
 

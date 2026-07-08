@@ -2,9 +2,9 @@ import unittest
 
 from agent_framework import AgentResponse, BaseAgent, Message
 
-import release_room.workflows as workflows
-from release_room.notebook_helpers import workflow_result_to_text
-from release_room.scenarios import get_scenario
+import responses_scenarios.workflows as workflows
+from responses_scenarios.notebook_helpers import workflow_result_to_text
+from responses_scenarios.scenarios import get_scenario
 
 _STOP_MARKERS = (
     "termination condition",
@@ -38,7 +38,7 @@ class GraphExecutorTests(unittest.IsolatedAsyncioTestCase):
 
     async def _run(self, scenario_id: str) -> str:
         scenario = get_scenario(scenario_id)
-        workflow = workflows.build_release_workflow(scenario_id)
+        workflow = workflows.build_responses_workflow(scenario_id)
         result = await workflow.run(scenario.sample_input)
         return workflow_result_to_text(result)
 
@@ -105,7 +105,7 @@ class HandoffRouterDirectiveTests(unittest.TestCase):
     """The router honors valid ROUTE directives and falls back to keywords."""
 
     def _router(self):
-        from release_room.executors import HandoffRouterExecutor
+        from responses_scenarios.executors import HandoffRouterExecutor
 
         return HandoffRouterExecutor(
             id="router",
@@ -119,7 +119,7 @@ class HandoffRouterDirectiveTests(unittest.TestCase):
     def test_labels_follow_executor_ids_not_arrival_order(self):
         from types import SimpleNamespace
 
-        from release_room.executors import _labelled_responses
+        from responses_scenarios.executors import _labelled_responses
 
         names = ["SecurityReviewerAgent", "PerformanceReviewerAgent", "TestReviewerAgent"]
 

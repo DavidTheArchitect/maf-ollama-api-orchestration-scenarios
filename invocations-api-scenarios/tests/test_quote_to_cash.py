@@ -3,8 +3,8 @@ import unittest
 from importlib import import_module
 from pathlib import Path
 
-from review_bot.diagram_helpers import quote_to_cash_flow_diagram
-from review_bot.scenarios import SCENARIOS_BY_ID
+from invocations_scenarios.diagram_helpers import quote_to_cash_flow_diagram
+from invocations_scenarios.scenarios import SCENARIOS_BY_ID
 
 PATTERN_TO_LETTER = {
     "sequential": "16a",
@@ -58,7 +58,7 @@ class QuoteToCashScenarioTests(unittest.TestCase):
         for sid in scenario_ids():
             module_name = sid.replace("-", "_")
             with self.subTest(scenario=sid):
-                module = import_module(f"review_bot.scenarios.{module_name}")
+                module = import_module(f"invocations_scenarios.scenarios.{module_name}")
                 self.assertIs(module.SCENARIO, SCENARIOS_BY_ID[sid])
                 self.assertTrue(inspect.iscoroutinefunction(module.run_sample))
                 source = inspect.getsource(module)

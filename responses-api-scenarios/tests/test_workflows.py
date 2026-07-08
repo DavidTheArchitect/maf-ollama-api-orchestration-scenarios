@@ -3,9 +3,9 @@ import unittest
 from importlib import import_module
 from pathlib import Path
 
-from release_room.notebook_helpers import agent_response_to_text, pattern_anatomy, responses_api_reference, workflow_result_to_text
-from release_room.scenarios import PATTERNS, SCENARIOS, normalize_scenario_id
-from release_room.workflows import normalize_workflow_name
+from responses_scenarios.notebook_helpers import agent_response_to_text, pattern_anatomy, responses_api_reference, workflow_result_to_text
+from responses_scenarios.scenarios import PATTERNS, SCENARIOS, normalize_scenario_id
+from responses_scenarios.workflows import normalize_workflow_name
 
 
 class WorkflowSelectionTests(unittest.TestCase):
@@ -54,7 +54,7 @@ class WorkflowSelectionTests(unittest.TestCase):
         for scenario in SCENARIOS:
             with self.subTest(scenario=scenario.id):
                 module_name = scenario.id.replace("-", "_")
-                module = import_module(f"release_room.scenarios.{module_name}")
+                module = import_module(f"responses_scenarios.scenarios.{module_name}")
                 self.assertIs(module.SCENARIO, scenario)
 
     def test_notebook_helpers_describe_each_pattern(self):
@@ -111,7 +111,7 @@ class WorkflowSelectionTests(unittest.TestCase):
                         self.assertEqual(keyword, keyword.lower())
 
     def test_group_chat_termination_only_fires_at_cycle_end(self):
-        from release_room.workflows import make_group_chat_termination
+        from responses_scenarios.workflows import make_group_chat_termination
 
         class Msg:
             def __init__(self, text):

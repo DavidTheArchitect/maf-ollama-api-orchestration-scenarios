@@ -1,8 +1,8 @@
 import unittest
 
-from review_bot.output_formatting import agent_response_to_text, workflow_result_to_text
-from review_bot.scenarios import SCENARIOS
-from review_bot.workflows import make_group_chat_termination
+from invocations_scenarios.output_formatting import agent_response_to_text, workflow_result_to_text
+from invocations_scenarios.scenarios import SCENARIOS
+from invocations_scenarios.workflows import make_group_chat_termination
 
 
 class GroupChatTerminationTests(unittest.TestCase):

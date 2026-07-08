@@ -1,7 +1,7 @@
 import unittest
 
-from review_bot.diagram_helpers import scenario_flow_diagram
-from review_bot.scenarios import SCENARIOS
+from invocations_scenarios.diagram_helpers import scenario_flow_diagram
+from invocations_scenarios.scenarios import SCENARIOS
 
 
 PATTERN_MARKERS = {
