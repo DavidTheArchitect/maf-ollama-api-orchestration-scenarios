@@ -671,7 +671,7 @@ def environment_cell() -> str:
     import os
     import re as _re
 
-    from IPython.display import HTML, display
+    from IPython.display import HTML, Markdown, display
 
 
     _AGENT_COLORS = ("#3868c8", "#b0530f", "#2f7d4f", "#7d3f98", "#a3374b", "#0f7d8a", "#8a6d0f", "#54596b")
@@ -708,6 +708,11 @@ def environment_cell() -> str:
         white-space: pre-wrap;
     }
     .maf-turn b { color: var(--maf-agent, inherit); }
+    .maf-turn-label {
+        border-left: 4px solid var(--maf-agent, #54596b); border-radius: 6px;
+        padding: 0.3em 0.7em; margin: 0.7em 0 0.15em; background: rgba(128, 128, 128, 0.09);
+    }
+    .maf-turn-label b { color: var(--maf-agent, inherit); }
     </style>
     """
 
@@ -754,22 +759,27 @@ def environment_cell() -> str:
 
 
     def render_transcript(text: str) -> None:
-        """Render workflow output as color-coded per-agent turns; plain print fallback."""
+        """Render workflow output as color-coded per-agent turns.
+
+        Each turn's body is emitted as a ``text/markdown`` output (via
+        ``Markdown``) so Jupyter renders the agent's markdown, while the
+        per-agent accent color rides on an HTML label bar above the body.
+        """
 
         pieces = _TURN_LABEL.split(text)
-        turns = []
         preamble = pieces[0].strip()
+        labeled = list(zip(pieces[1::2], pieces[2::2]))
+        if not preamble and not labeled:
+            display(Markdown(text))
+            return
         if preamble:
-            turns.append("<div class='maf-turn'>" + _escape_html(preamble) + "</div>")
-        for label, body in zip(pieces[1::2], pieces[2::2]):
-            turns.append(
-                "<div class='maf-turn' style='--maf-agent: " + agent_color(label) + "'>"
-                + "<b>" + _escape_html(label) + "</b><br>" + _escape_html(body.strip()) + "</div>"
-            )
-        if turns:
-            display(HTML("<div>" + "".join(turns) + "</div>"))
-        else:
-            print(text)
+            display(Markdown(preamble))
+        for label, body in labeled:
+            display(HTML(
+                "<div class='maf-turn-label' style='--maf-agent: " + agent_color(label) + "'>"
+                + "<b>" + _escape_html(label) + "</b></div>"
+            ))
+            display(Markdown(body.strip()))
 
 
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:14b")
@@ -2819,7 +2829,7 @@ def primitives_environment_cell() -> str:
 
 
     def render_transcript(text: str) -> None:
-        display(HTML("<div class='transcript-block'>" + html.escape(text) + "</div>"))
+        display(Markdown(text))
 
 
     def render_roster(scenario: Any) -> None:
