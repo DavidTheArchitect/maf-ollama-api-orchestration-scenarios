@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .agents import DEFAULT_OLLAMA_MAX_TOKENS, DEFAULT_OLLAMA_MODEL
+from .agents import DEFAULT_OLLAMA_MODEL
 from .models import InvocationRequest
 from .scenarios import ScenarioSpec
 
@@ -65,6 +65,7 @@ def scenario_summary(scenario: ScenarioSpec) -> dict[str, str]:
         "learning_goal": scenario.learning_goal,
         "when_to_use": scenario.when_to_use,
         "sample_task": scenario.sample_task,
+        "max_tokens": str(scenario.max_tokens),
     }
 
 
@@ -154,7 +155,7 @@ def invocation_reference(scenario: ScenarioSpec, request: InvocationRequest) -> 
     return {
         "server_command": (
             f"python -m invocations_scenarios --model {DEFAULT_OLLAMA_MODEL} "
-            f"--max-tokens {DEFAULT_OLLAMA_MAX_TOKENS} --port 8089"
+            f"--max-tokens {scenario.max_tokens} --port 8089"
         ),
         "endpoint": "http://localhost:8089/invocations",
         "scenario": scenario.id,

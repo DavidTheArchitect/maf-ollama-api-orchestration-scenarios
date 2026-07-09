@@ -63,9 +63,9 @@ def _route_keywords(spec: Any) -> tuple[str, ...]:
 
 
 def default_sample_max_tokens(scenario: ScenarioSpec) -> int:
-    """Token budget for a sample run: 500 for Magentic, 250 for the rest."""
+    """Scenario-specific token budget for local sample runs."""
 
-    return 500 if scenario.pattern == "magentic" else 250
+    return scenario.max_tokens
 
 
 async def run_scenario_sample(
@@ -100,12 +100,13 @@ def build_invocation_workflow(
     think: bool | None = None,
 ) -> Any:
     scenario = scenario if isinstance(scenario, ScenarioSpec) else get_scenario(scenario)
+    tokens = max_tokens if max_tokens is not None else scenario.max_tokens
     config = build_ollama_config(
         model=model,
         host=ollama_host,
         temperature=temperature,
         num_ctx=num_ctx,
-        max_tokens=max_tokens,
+        max_tokens=tokens,
         keep_alive=keep_alive,
         think=think,
     )

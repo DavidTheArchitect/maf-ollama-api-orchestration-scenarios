@@ -64,7 +64,7 @@ Scenarios 11-15 use a bundled deterministic `enterprise-context` MCP stdio serve
 ## Install
 
 ```powershell
-ollama pull qwen3:14b
+ollama pull gemma4:12b
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -76,7 +76,7 @@ Copy-Item .env.example .env
 ## Run And Invoke
 
 ```powershell
-python -m invocations_scenarios --model qwen3:14b --max-tokens 500 --port 8089
+python -m invocations_scenarios --model gemma4:12b --port 8089
 ```
 
 Invoke a scenario:
@@ -119,6 +119,6 @@ This sample stores session summaries in memory. That is useful for local learnin
 
 - This sample uses the native `agent-framework-ollama` provider, so model calls stay local.
 - Use `--ollama-host`, `--temperature`, `--num-ctx`, `--max-tokens`, `--keep-alive`, and `--think` to tune the local Ollama runtime.
-- `--max-tokens` defaults to `500` per agent turn so local multi-agent jobs finish predictably.
+- `--max-tokens` is optional. Without it, each request scenario uses its own `1000` or `1500` token budget per agent turn.
 - Notebook outputs are intentionally not committed. Run a notebook from this project virtual environment after installing with `python -m pip install -e . --no-deps`.
 - Ollama supports local function tools through Agent Framework, but it does not provide hosted tools such as hosted code interpreter, file search, web search, or hosted MCP.

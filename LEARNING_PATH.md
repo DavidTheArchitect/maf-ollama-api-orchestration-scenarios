@@ -60,7 +60,7 @@ the legal threshold), so learners know what a correct run should surface.
 
 ## Manual Live-Run Verification
 
-When validating changes with a local Ollama (`qwen3:14b` pulled), run one notebook per
+When validating changes with a local Ollama (`gemma4:12b` pulled), run one notebook per
 pattern tier end-to-end and check the scenario spotlight is surfaced:
 
 1. `01-sequential-release-readiness` -- the brief cites the finance freeze and rollback constraint.
@@ -71,8 +71,8 @@ pattern tier end-to-end and check the scenario spotlight is surfaced:
 
 ## Local Runtime Notes
 
-- The notebooks call Ollama by default, so `ollama serve` must be running and `qwen3:14b` must be pulled.
+- The notebooks call Ollama by default, so `ollama serve` must be running and `gemma4:12b` must be pulled.
 - Each notebook renders a Mermaid flow diagram through `mermaid.ink`; if remote image rendering is unavailable, inspect the `flow_diagram.mermaid` source returned by the diagram cell.
-- `max_tokens` defaults to `500` per agent turn to keep local multi-agent runs practical.
+- `max_tokens` defaults per scenario: `1000` for lighter flows and `1500` for heavier group-chat, magentic, quote-to-cash, A2A, and primitives-lab flows.
 - Group chat and magentic scenarios usually take longer than sequential, concurrent, and handoff scenarios.
 - Notebook outputs are intentionally not committed. Re-run cells locally when you want fresh output.

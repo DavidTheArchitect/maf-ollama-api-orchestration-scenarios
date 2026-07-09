@@ -8,6 +8,14 @@ from invocations_scenarios.notebook_helpers import invocation_reference, pattern
 from invocations_scenarios.scenarios import PATTERNS, SCENARIOS
 
 
+def _expected_max_tokens(scenario) -> int:
+    if scenario.pattern in {"group-chat", "magentic"}:
+        return 1500
+    if scenario.id.startswith("scenario-16-") or scenario.id == "scenario-18-agent-framework-primitives":
+        return 1500
+    return 1000
+
+
 class InvocationRequestTests(unittest.TestCase):
     def test_parse_defaults_to_concurrent(self):
         request = parse_invocation_request({"task": "Review this change"})
@@ -80,6 +88,12 @@ class InvocationRequestTests(unittest.TestCase):
                 self.assertTrue(scenario.learning_goal)
                 self.assertTrue(scenario.when_to_use)
 
+    def test_each_scenario_has_recommended_token_budget(self):
+        for scenario in SCENARIOS:
+            with self.subTest(scenario=scenario.id):
+                self.assertIn(scenario.max_tokens, {1000, 1500})
+                self.assertEqual(scenario.max_tokens, _expected_max_tokens(scenario))
+
     def test_each_scenario_has_companion_module(self):
         for scenario in SCENARIOS:
             with self.subTest(scenario=scenario.id):
@@ -97,6 +111,7 @@ class InvocationRequestTests(unittest.TestCase):
                 reference = invocation_reference(scenario, request)
                 self.assertEqual(reference["scenario"], scenario.id)
                 self.assertEqual(reference["pattern"], scenario.pattern)
+                self.assertIn(f"--max-tokens {scenario.max_tokens}", reference["server_command"])
 
     def test_each_scenario_has_valid_sample_payload(self):
         project_root = Path(__file__).resolve().parents[1]

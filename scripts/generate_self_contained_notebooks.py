@@ -350,6 +350,7 @@ def scenario_data(scenario: Any, sample_attr: str) -> dict[str, Any]:
         "title": scenario.title,
         "learning_goal": scenario.learning_goal,
         "when_to_use": scenario.when_to_use,
+        "max_tokens": scenario.max_tokens,
         sample_attr: getattr(scenario, sample_attr),
         "handoff_finisher": getattr(scenario, "handoff_finisher", None),
         "concurrent_synthesizer": getattr(scenario, "concurrent_synthesizer", None),
@@ -581,6 +582,7 @@ def title_markdown(project: dict[str, str], scenario: Any) -> str:
     | Scenario id | `{scenario.id}` |
     | Pattern | `{scenario.pattern}` |
     | API | `{project['api_name']}` |
+    | Recommended max tokens | `{scenario.max_tokens}` per agent turn |
 
     **Learning goal:** {scenario.learning_goal}
 
@@ -687,7 +689,7 @@ def environment_cells() -> list[dict[str, Any]]:
     config = r'''
     import os
 
-    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:14b")
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:12b")
     OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
     # Domain tools register themselves here; every agent looks up its granted
@@ -1470,13 +1472,13 @@ def agent_factory_cells() -> list[dict[str, Any]]:
         think: bool | None = None,
     ) -> OllamaAgentConfig:
         return OllamaAgentConfig(
-            model=model or os.getenv("OLLAMA_MODEL") or "qwen3:14b",
+            model=model or os.getenv("OLLAMA_MODEL") or "gemma4:12b",
             host=host or os.getenv("OLLAMA_HOST") or "http://localhost:11434",
             temperature=temperature
             if temperature is not None
             else float(os.getenv("OLLAMA_TEMPERATURE", str(DEFAULT_OLLAMA_TEMPERATURE))),
             num_ctx=num_ctx if num_ctx is not None else int(os.getenv("OLLAMA_NUM_CTX", str(DEFAULT_OLLAMA_NUM_CTX))),
-            max_tokens=max_tokens if max_tokens is not None else int(os.getenv("OLLAMA_MAX_TOKENS", "500")),
+            max_tokens=max_tokens if max_tokens is not None else int(os.getenv("OLLAMA_MAX_TOKENS", "1000")),
             keep_alive=keep_alive or os.getenv("OLLAMA_KEEP_ALIVE") or DEFAULT_OLLAMA_KEEP_ALIVE,
             think=think if think is not None else parse_env_bool("OLLAMA_THINK", DEFAULT_OLLAMA_THINK),
         )
@@ -1628,6 +1630,7 @@ def scenario_cells(project: dict[str, str], data: dict[str, Any]) -> list[dict[s
         when_to_use: str
         {sample_attr}: str
         agents: tuple[AgentSpec, ...]
+        max_tokens: int
         handoff_finisher: str | None = None
         concurrent_synthesizer: str | None = None
         termination_phrases: tuple[str, ...] = ()
@@ -1662,6 +1665,7 @@ def scenario_cells(project: dict[str, str], data: dict[str, Any]) -> list[dict[s
         when_to_use=SCENARIO_DATA["when_to_use"],
         {sample_attr}=SCENARIO_DATA["{sample_attr}"],
         agents=AGENTS,
+        max_tokens=SCENARIO_DATA["max_tokens"],
         handoff_finisher=SCENARIO_DATA.get("handoff_finisher"),
         concurrent_synthesizer=SCENARIO_DATA.get("concurrent_synthesizer"),
         termination_phrases=tuple(SCENARIO_DATA.get("termination_phrases", [])),
@@ -1688,6 +1692,7 @@ def scenario_cells(project: dict[str, str], data: dict[str, Any]) -> list[dict[s
             "pattern": scenario.pattern,
             "learning_goal": scenario.learning_goal,
             "when_to_use": scenario.when_to_use,
+            "max_tokens": str(scenario.max_tokens),
             "sample": getattr(scenario, "{sample_attr}"),
         }}
 
@@ -1720,7 +1725,7 @@ def scenario_cells(project: dict[str, str], data: dict[str, Any]) -> list[dict[s
     import json
 
 
-    MAX_TOKENS = 500 if SCENARIO.pattern == "magentic" else 250
+    MAX_TOKENS = int(os.getenv("OLLAMA_MAX_TOKENS", str(SCENARIO.max_tokens)))
 {payload}
     {sample_prompt}
 
@@ -2994,7 +2999,7 @@ def live_run_markdown(scenario: Any) -> str:
 
     {intro}
 
-    > **Instructor note:** `qwen3:14b` runs with `think: False` by default (extended reasoning off).
+    > **Instructor note:** `gemma4:12b` runs with `think: False` by default in this repo.
     > Set `OLLAMA_THINK=true` before the environment cell to enable chain-of-thought reasoning --
     > useful when debugging unexpected routing decisions or tool call sequences.
     """
@@ -3025,7 +3030,7 @@ def experiments_markdown(project: dict[str, str], scenario: Any) -> str:
     - Change {payload_line} and rerun the live cell.
     - Override `OLLAMA_MODEL` or `OLLAMA_HOST` before the environment cell to target a different local Ollama setup.
     - Inspect `agent_capability_map(SCENARIO)` and tighten one agent's instructions to see how orchestration behavior changes.
-    - Lower `MAX_TOKENS` for faster runs or raise it when {scenario.pattern} needs more room.
+    - Lower `MAX_TOKENS` for faster smoke tests or raise it when {scenario.pattern} needs more room.
     """
 
 
@@ -3047,6 +3052,7 @@ def primitives_title_markdown(project: dict[str, str], scenario: Any) -> str:
     | Scenario id | `{scenario.id}` |
     | Pattern used for server execution | `{scenario.pattern}` |
     | API | `{project['api_name']}` |
+    | Recommended max tokens | `{scenario.max_tokens}` per agent turn |
 
     **Learning goal:** {scenario.learning_goal}
 
@@ -3118,7 +3124,7 @@ def primitives_environment_cells() -> list[dict[str, Any]]:
     from IPython.display import HTML, Markdown, display
 
 
-    DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:14b")
+    DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:12b")
     DEFAULT_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     RUN_LIVE_AGENT = os.getenv("RUN_LIVE_AGENT", "0").lower() in {"1", "true", "yes"}
     '''
@@ -3277,6 +3283,7 @@ def primitives_scenario_cells(project: dict[str, str], scenario: Any) -> list[di
         when_to_use: str
         {sample_attr}: str
         agents: tuple[AgentSpec, ...]
+        max_tokens: int
         handoff_finisher: str | None = None
         concurrent_synthesizer: str | None = None
         termination_phrases: tuple[str, ...] = ()
@@ -3308,6 +3315,7 @@ def primitives_scenario_cells(project: dict[str, str], scenario: Any) -> list[di
         when_to_use=SCENARIO_DATA["when_to_use"],
         {sample_attr}=SCENARIO_DATA["{sample_attr}"],
         agents=AGENTS,
+        max_tokens=SCENARIO_DATA["max_tokens"],
     )
     {payload_code}
     '''
@@ -3326,7 +3334,7 @@ def primitives_scenario_cells(project: dict[str, str], scenario: Any) -> list[di
 
 
     render_roster(SCENARIO)
-    print(json.dumps({{"scenario": SCENARIO.id, "pattern": SCENARIO.pattern, "api": "{project['api_name']}"}}, indent=2))
+    print(json.dumps({{"scenario": SCENARIO.id, "pattern": SCENARIO.pattern, "api": "{project['api_name']}", "max_tokens": SCENARIO.max_tokens}}, indent=2))
     print(json.dumps(agent_capability_map(SCENARIO), indent=2))
     '''
 
@@ -3376,7 +3384,8 @@ def primitives_function_tool_cell() -> str:
     return r'''
     # Primitive: Function tool
     ENABLEMENT_FIXTURES = {
-        "prototype": {"model": "qwen3:14b", "provider": "Ollama", "boundary": "local"},
+        "prototype": {"model": "gemma4:12b", "provider": "Ollama", "boundary": "local"},
+        "budget": {"max_tokens": str(SCENARIO.max_tokens), "scope": "per agent turn"},
         "workflow": {"state": "WorkflowContext", "routing": "code-defined", "visibility": "trace events"},
         "protocols": {"tools": "MCP", "remote_agents": "A2A"},
     }
@@ -3417,7 +3426,7 @@ def primitives_agent_cells() -> list[dict[str, Any]]:
             description=spec.description,
             instructions=f"You are {spec.name}. {spec.instructions}",
             tools=tools or None,
-            default_options={"temperature": 0.0, "max_tokens": 400, "think": False},
+            default_options={"temperature": 0.0, "max_tokens": SCENARIO.max_tokens, "think": False},
             require_per_service_call_history_persistence=True,
         )
     '''

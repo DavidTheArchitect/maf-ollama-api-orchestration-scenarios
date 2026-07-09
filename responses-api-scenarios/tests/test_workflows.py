@@ -8,6 +8,14 @@ from responses_scenarios.scenarios import PATTERNS, SCENARIOS, normalize_scenari
 from responses_scenarios.workflows import normalize_workflow_name
 
 
+def _expected_max_tokens(scenario) -> int:
+    if scenario.pattern in {"group-chat", "magentic"}:
+        return 1500
+    if scenario.id.startswith("scenario-16-") or scenario.id == "scenario-18-agent-framework-primitives":
+        return 1500
+    return 1000
+
+
 class WorkflowSelectionTests(unittest.TestCase):
     def test_normalizes_default_to_sequential(self):
         self.assertEqual(normalize_workflow_name(None), "sequential-release-readiness")
@@ -51,6 +59,12 @@ class WorkflowSelectionTests(unittest.TestCase):
                 self.assertTrue(scenario.when_to_use)
                 self.assertTrue(all(spec.instructions for spec in scenario.agents))
 
+    def test_each_scenario_has_recommended_token_budget(self):
+        for scenario in SCENARIOS:
+            with self.subTest(scenario=scenario.id):
+                self.assertIn(scenario.max_tokens, {1000, 1500})
+                self.assertEqual(scenario.max_tokens, _expected_max_tokens(scenario))
+
     def test_each_scenario_has_companion_module(self):
         for scenario in SCENARIOS:
             with self.subTest(scenario=scenario.id):
@@ -67,6 +81,7 @@ class WorkflowSelectionTests(unittest.TestCase):
                 reference = responses_api_reference(scenario)
                 self.assertEqual(reference["payload"]["input"], scenario.sample_input)
                 self.assertIn(scenario.id, reference["server_command"])
+                self.assertIn(f"--max-tokens {scenario.max_tokens}", reference["server_command"])
 
     def test_each_scenario_has_sample_payload(self):
         project_root = Path(__file__).resolve().parents[1]

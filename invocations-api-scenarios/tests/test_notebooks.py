@@ -54,7 +54,7 @@ class NotebookCompanionTests(unittest.TestCase):
                 self.assertNotIn("find_project_root", source_text)
                 self.assertNotIn("sys.path", source_text)
                 self.assertNotIn("invocations_scenarios", source_text)
-                self.assertIn("qwen3:14b", source_text)
+                self.assertIn("gemma4:12b", source_text)
                 self.assertIn("_APTOS_STYLE", source_text)
                 self.assertIn("Pattern Anatomy", source_text)
                 self.assertIn("Flow Diagram", source_text)
@@ -64,12 +64,14 @@ class NotebookCompanionTests(unittest.TestCase):
                 self.assertIn("Instruction-Led LLM Agents", source_text)
                 self.assertIn("make_agent", source_text)
                 self.assertIn("build_workflow", source_text)
+                self.assertIn("Recommended max tokens", source_text)
                 self.assertNotIn("CODE_TOOLS", source_text)
                 self.assertNotIn("effective_code_tools", source_text)
                 self.assertNotIn("resolve_code_tools", source_text)
                 self.assertNotIn("coded_agent_tool_map", source_text)
 
                 scenario = SCENARIOS_BY_ID[scenario_ids[0]]
+                self.assertIn(str(scenario.max_tokens), source_text)
                 if scenario.id == PRIMITIVES_SCENARIO_ID:
                     self.assertGreaterEqual(len(data.get("cells", [])), 48)
                     for marker in (

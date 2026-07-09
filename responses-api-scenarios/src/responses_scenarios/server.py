@@ -29,6 +29,7 @@ def _load_dotenv_if_available() -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the Microsoft Agent Framework Responses API scenario sample.")
+    env_max_tokens = os.getenv("OLLAMA_MAX_TOKENS")
     parser.add_argument(
         "--scenario",
         default=os.getenv("RESPONSE_SCENARIO") or os.getenv("RESPONSE_WORKFLOW") or "sequential-release-readiness",
@@ -47,8 +48,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--max-tokens",
         type=int,
-        default=int(os.getenv("OLLAMA_MAX_TOKENS", str(DEFAULT_OLLAMA_MAX_TOKENS))),
-        help="Maximum tokens each local Ollama agent may generate per turn.",
+        default=int(env_max_tokens) if env_max_tokens else None,
+        help=(
+            "Maximum tokens each local Ollama agent may generate per turn. "
+            f"Defaults to the selected scenario's 1000/1500 budget; generic fallback is {DEFAULT_OLLAMA_MAX_TOKENS}."
+        ),
     )
     parser.add_argument("--keep-alive", default=os.getenv("OLLAMA_KEEP_ALIVE") or DEFAULT_OLLAMA_KEEP_ALIVE)
     parser.add_argument(

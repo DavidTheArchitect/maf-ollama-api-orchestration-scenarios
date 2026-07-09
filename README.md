@@ -81,8 +81,8 @@ The point of the repo is to show how ordinary instruction-led LLM agents become 
 - Recommended local model:
 
 ```powershell
-ollama pull qwen3:14b
-ollama run qwen3:14b "Return only OK"
+ollama pull gemma4:12b
+ollama run gemma4:12b "Return only OK"
 ```
 
 Each sample has its own `requirements.txt`. The Agent Framework packages are still preview, so install with `--pre`.
@@ -97,7 +97,7 @@ python -m pip install --upgrade pip
 python -m pip install --pre -r requirements.txt
 python -m pip install -e . --no-deps
 Copy-Item .env.example .env
-python -m responses_scenarios --scenario sequential-release-readiness --model qwen3:14b --max-tokens 500 --port 8088
+python -m responses_scenarios --scenario sequential-release-readiness --model gemma4:12b --port 8088
 ```
 
 In a second terminal:
@@ -116,7 +116,7 @@ python -m pip install --upgrade pip
 python -m pip install --pre -r requirements.txt
 python -m pip install -e . --no-deps
 Copy-Item .env.example .env
-python -m invocations_scenarios --model qwen3:14b --max-tokens 500 --port 8089
+python -m invocations_scenarios --model gemma4:12b --port 8089
 ```
 
 In a second terminal:
@@ -149,13 +149,13 @@ $files = rg --files -g "*.json" -g "!**/.venv/**"
 foreach ($file in $files) { $null = Get-Content $file -Raw | ConvertFrom-Json; $file }
 ```
 
-Live scenario runs require Ollama to be running with `qwen3:14b` or your selected `OLLAMA_MODEL` already pulled. Both samples default `OLLAMA_MAX_TOKENS` to `500` per agent turn so multi-agent local runs finish predictably; raise it when you want longer learning output.
+Live scenario runs require Ollama to be running with `gemma4:12b` or your selected `OLLAMA_MODEL` already pulled. Scenarios default to either `1000` or `1500` max tokens per agent turn: lighter deterministic flows use `1000`, while group-chat, magentic, quote-to-cash, A2A, and primitives-lab flows use `1500`. Set `OLLAMA_MAX_TOKENS` or pass `--max-tokens` only when you want to override the scenario recommendation.
 
 ## References
 
 - Microsoft Agent Framework overview: https://learn.microsoft.com/en-us/agent-framework/overview/
 - Ollama provider: https://learn.microsoft.com/en-us/agent-framework/agents/providers/ollama
-- Ollama qwen3 model library: https://ollama.com/library/qwen3
+- Ollama Gemma 4 model library: https://ollama.com/library/gemma4
 - Foundry Responses and Invocations hosting: https://learn.microsoft.com/en-us/agent-framework/hosting/foundry-hosted-agent
 - OpenAI-compatible endpoints: https://learn.microsoft.com/en-us/agent-framework/integrations/openai-endpoints
 - Workflow orchestrations: https://learn.microsoft.com/en-us/agent-framework/workflows/orchestrations/

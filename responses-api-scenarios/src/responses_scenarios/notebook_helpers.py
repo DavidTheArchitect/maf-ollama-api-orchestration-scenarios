@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .agents import DEFAULT_OLLAMA_MAX_TOKENS, DEFAULT_OLLAMA_MODEL
+from .agents import DEFAULT_OLLAMA_MODEL
 from .scenarios import ScenarioSpec
 
 # Re-exported so existing imports (tests, notebooks) keep working after the
@@ -75,6 +75,7 @@ def scenario_summary(scenario: ScenarioSpec) -> dict[str, str]:
         "learning_goal": scenario.learning_goal,
         "when_to_use": scenario.when_to_use,
         "sample_input": scenario.sample_input,
+        "max_tokens": str(scenario.max_tokens),
     }
 
 
@@ -159,7 +160,7 @@ def responses_api_reference(scenario: ScenarioSpec) -> dict[str, Any]:
     return {
         "server_command": (
             f"python -m responses_scenarios --scenario {scenario.id} "
-            f"--model {DEFAULT_OLLAMA_MODEL} --max-tokens {DEFAULT_OLLAMA_MAX_TOKENS} --port 8088"
+            f"--model {DEFAULT_OLLAMA_MODEL} --max-tokens {scenario.max_tokens} --port 8088"
         ),
         "endpoint": "http://localhost:8088/responses",
         "payload": {"input": scenario.sample_input, "stream": False},
