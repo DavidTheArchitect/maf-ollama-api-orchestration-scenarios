@@ -71,7 +71,7 @@ class NotebookCompanionTests(unittest.TestCase):
 
                 scenario = SCENARIOS_BY_ID[scenario_ids[0]]
                 if scenario.id == PRIMITIVES_SCENARIO_ID:
-                    self.assertGreaterEqual(len(data.get("cells", [])), 30)
+                    self.assertGreaterEqual(len(data.get("cells", [])), 48)
                     for marker in (
                         "Message",
                         "Function tool",
@@ -107,9 +107,9 @@ class NotebookCompanionTests(unittest.TestCase):
 
                 # Cell-per-concept layout: enough cells, only this pattern's
                 # machinery, an offline demo, and the styled transcript render.
-                minimum_cells = 18 if _scenario_uses_mcp(scenario) else 15
+                minimum_cells = 44 if _scenario_uses_mcp(scenario) else 40
                 if any(getattr(spec, "a2a_url", None) for spec in scenario.agents):
-                    minimum_cells = 20
+                    minimum_cells = 50
                     self.assertIn("A2A Partner Context", source_text)
                     self.assertIn("agent-card.json", source_text)
                     self.assertIn("A2AAgent", source_text)

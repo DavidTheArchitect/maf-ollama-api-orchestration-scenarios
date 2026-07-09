@@ -286,6 +286,23 @@ def code(source: str) -> dict[str, Any]:
     }
 
 
+#: Lead-in badges that let a reader tell framework surface from glue at a glance.
+#: Kept as literal, greppable strings so the split can be verified mechanically.
+PRIMITIVE = "**Agent Framework primitive.**"
+SUPPORT = "**Supporting code.**"
+
+
+def teach(title: str, tag: str, body: str, code_source: str) -> list[dict[str, Any]]:
+    """One teaching unit: a titled, tagged markdown lead-in + one runnable code cell.
+
+    ``tag`` is ``PRIMITIVE`` (introduces an Agent Framework class/call) or
+    ``SUPPORT`` (scaffolding/glue). ``body`` says why the code exists and what it does.
+    """
+
+    explanation = f"### {title}\n\n{tag} {body}"
+    return [md(explanation), code(code_source)]
+
+
 def add_cell_ids(cells: list[dict[str, Any]], scenario_id: str) -> None:
     safe_id = "".join(char if char.isalnum() or char == "-" else "-" for char in scenario_id)
     prefix = safe_id[:56].strip("-") or "scenario"
@@ -666,11 +683,21 @@ def concept_markdown(project: dict[str, str], scenario: Any) -> str:
     """
 
 
-def environment_cell() -> str:
-    return r'''
+def environment_cells() -> list[dict[str, Any]]:
+    config = r'''
     import os
-    import re as _re
 
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:14b")
+    OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+
+    # Domain tools register themselves here; every agent looks up its granted
+    # tools by name, so this registry is the one piece of shared runtime state.
+    MCP_TOOL_FUNCTIONS: dict[str, object] = {}
+
+    print(f"Ollama target: {OLLAMA_HOST} / {OLLAMA_MODEL}")
+    '''
+
+    styling = r'''
     from IPython.display import HTML, Markdown, display
 
 
@@ -720,6 +747,13 @@ def environment_cell() -> str:
     def apply_notebook_style() -> str:
         display(HTML(_APTOS_STYLE))
         return _APTOS_STYLE
+
+
+    apply_notebook_style()
+    '''
+
+    render_helpers = r'''
+    import re as _re
 
 
     def _escape_html(value) -> str:
@@ -780,15 +814,31 @@ def environment_cell() -> str:
                 + "<b>" + _escape_html(label) + "</b></div>"
             ))
             display(Markdown(body.strip()))
-
-
-    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:14b")
-    OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-    MCP_TOOL_FUNCTIONS: dict[str, object] = {}
-
-    apply_notebook_style()
-    print(f"Ollama target: {OLLAMA_HOST} / {OLLAMA_MODEL}")
     '''
+
+    return (
+        teach(
+            "Runtime configuration",
+            SUPPORT,
+            "Reads the Ollama model/host from the environment and creates the shared "
+            "`MCP_TOOL_FUNCTIONS` registry that later cells populate and agents read from.",
+            config,
+        )
+        + teach(
+            "Notebook styling",
+            SUPPORT,
+            "Loads the Aptos look and the per-agent accent colors the render helpers reuse. "
+            "Pure presentation -- no Agent Framework surface here.",
+            styling,
+        )
+        + teach(
+            "Rendering helpers",
+            SUPPORT,
+            "`render_roster` and `render_transcript` turn scenario specs and workflow output "
+            "into readable HTML and markdown. Glue for the notebook, not framework API.",
+            render_helpers,
+        )
+    )
 
 
 def mcp_markdown(server: str | None) -> str:
@@ -1353,8 +1403,8 @@ def quote_to_cash_tools_cell(demo_call: str) -> str:
     return template.replace("__DEMO_CALL__", demo_call)
 
 
-def agent_factory_cell() -> str:
-    return r'''
+def agent_factory_cells() -> list[dict[str, Any]]:
+    config = r'''
     from dataclasses import dataclass
     from typing import Any
 
@@ -1366,6 +1416,7 @@ def agent_factory_cell() -> str:
     DEFAULT_OLLAMA_KEEP_ALIVE = "10m"
     DEFAULT_OLLAMA_THINK = False
 
+    # Ollama's chat endpoint rejects a few OpenAI-style options; we strip these later.
     _UNSUPPORTED_OLLAMA_CHAT_OPTIONS = {
         "allow_multiple_tool_calls",
         "conversation_id",
@@ -1429,9 +1480,12 @@ def agent_factory_cell() -> str:
             keep_alive=keep_alive or os.getenv("OLLAMA_KEEP_ALIVE") or DEFAULT_OLLAMA_KEEP_ALIVE,
             think=think if think is not None else parse_env_bool("OLLAMA_THINK", DEFAULT_OLLAMA_THINK),
         )
+    '''
 
-
+    client_subclass = r'''
     class ScenarioOllamaChatClient(OllamaChatClient):
+        """OllamaChatClient that drops chat options the local Ollama server rejects."""
+
         def _prepare_options(self, messages: Any, options: Any) -> dict[str, Any]:
             filtered = {
                 key: value
@@ -1439,8 +1493,9 @@ def agent_factory_cell() -> str:
                 if key not in _UNSUPPORTED_OLLAMA_CHAT_OPTIONS
             }
             return super()._prepare_options(messages, filtered)
+    '''
 
-
+    make_agent = r'''
     def make_agent(spec: Any, *, config: OllamaAgentConfig | None = None) -> Any:
         if spec.a2a_url:
             from agent_framework.a2a import A2AAgent
@@ -1467,8 +1522,33 @@ def agent_factory_cell() -> str:
           "with its granted tools attached.")
     '''
 
+    return (
+        teach(
+            "Ollama configuration",
+            SUPPORT,
+            "Frozen `OllamaAgentConfig` plus env-driven defaults. This is local-runtime "
+            "plumbing, independent of any Agent Framework class.",
+            config,
+        )
+        + teach(
+            "Chat-client shim",
+            SUPPORT,
+            "A thin `OllamaChatClient` subclass that filters out chat options the local "
+            "Ollama server rejects -- an adapter, not framework surface.",
+            client_subclass,
+        )
+        + teach(
+            "make_agent",
+            PRIMITIVE,
+            "The factory: `client.as_agent(...)` turns a chat client + role instructions "
+            "+ granted tools into an agent (or an `A2AAgent` for remote peers). This is the "
+            "Agent Framework's core agent-construction call.",
+            make_agent,
+        )
+    )
 
-def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
+
+def scenario_cells(project: dict[str, str], data: dict[str, Any]) -> list[dict[str, Any]]:
     sample_attr = project["sample_attr"]
     scenario_json = textwrap.indent(json.dumps(data, indent=2), "    ")
     sample_prompt = (
@@ -1523,8 +1603,7 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
             "    ",
         )
     )
-    return f'''
-    import json
+    schema = f'''
     from dataclasses import dataclass
     from typing import Any, Sequence
 
@@ -1552,6 +1631,10 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         handoff_finisher: str | None = None
         concurrent_synthesizer: str | None = None
         termination_phrases: tuple[str, ...] = ()
+    '''
+
+    hydrate = f'''
+    import json
 
 
     SCENARIO_DATA = json.loads(
@@ -1584,7 +1667,10 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         termination_phrases=tuple(SCENARIO_DATA.get("termination_phrases", [])),
     )
 
+    print(f"Loaded {{SCENARIO.title}} with {{len(SCENARIO.agents)}} agents.")
+    '''
 
+    helpers = f'''
     def tools_for_agent(spec: AgentSpec) -> list[object]:
         tools: list[object] = []
         for tool_name in spec.mcp_tools:
@@ -1628,6 +1714,11 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
             "all_tools_used": all_tools_used,
         }}
 {invocation_prompt}
+    '''
+
+    finalize = f'''
+    import json
+
 
     MAX_TOKENS = 500 if SCENARIO.pattern == "magentic" else 250
 {payload}
@@ -1640,9 +1731,41 @@ def scenario_cell(project: dict[str, str], data: dict[str, Any]) -> str:
         print(json.dumps(mcp_tool_context(SCENARIO), indent=2))
     '''
 
+    return (
+        teach(
+            "Scenario schema",
+            SUPPORT,
+            "Plain frozen dataclasses -- `AgentSpec` and `ScenarioSpec` -- that mirror the "
+            "scenario JSON. Not framework types; just the shape every later cell reads.",
+            schema,
+        )
+        + teach(
+            "Load the scenario",
+            SUPPORT,
+            "Hydrates the embedded JSON into the `SCENARIO` object this notebook drives. "
+            "Data plumbing, no Agent Framework surface.",
+            hydrate,
+        )
+        + teach(
+            "Inspection helpers",
+            SUPPORT,
+            "`agent_capability_map`, `mcp_tool_context`, and `tools_for_agent` let you read "
+            "the roster and resolve each agent's granted tools by name -- supporting utilities "
+            "used later by `make_agent`.",
+            helpers,
+        )
+        + teach(
+            "Sample prompt and budget",
+            SUPPORT,
+            "Fixes the token budget and the exact `SAMPLE_PROMPT` the live run will send, then "
+            "prints the roster so you can see who is on the team before any orchestration.",
+            finalize,
+        )
+    )
 
-def plumbing_cell() -> str:
-    return r'''
+
+def plumbing_cells() -> list[dict[str, Any]]:
+    imports_and_messages = r'''
     import re
     from typing import Any, Never
 
@@ -1658,6 +1781,8 @@ def plumbing_cell() -> str:
     )
 
 
+    # State keys shared across executors: the running transcript, and the stopwords
+    # the handoff router strips when it derives routing keywords from agent names.
     _TRANSCRIPT_KEY = "transcript"
     _STOPWORDS = {"agent", "specialist", "the", "and", "for", "with", "that", "from", "into"}
 
@@ -1669,23 +1794,26 @@ def plumbing_cell() -> str:
     def response_text(response: AgentExecutorResponse) -> str:
         agent_response = getattr(response, "agent_response", None)
         return (getattr(agent_response, "text", None) or "").strip()
+    '''
 
-
+    transcript_state = r'''
     def _append_transcript(ctx: WorkflowContext[Any], author: str, text: str) -> list[str]:
         transcript = list(ctx.get_state(_TRANSCRIPT_KEY) or [])
         transcript.append(f"[{author}] {text}")
         ctx.set_state(_TRANSCRIPT_KEY, transcript)
         return transcript
+    '''
 
-
+    dispatch_executor = r'''
     class PromptDispatchExecutor(Executor):
         @handler
         async def dispatch(self, prompt: str, ctx: WorkflowContext[AgentExecutorRequest]) -> None:
             ctx.set_state("prompt", prompt)
             ctx.set_state(_TRANSCRIPT_KEY, [])
             await ctx.send_message(make_request(prompt))
+    '''
 
-
+    agent_nodes = r'''
     def _slug(name: str) -> str:
         return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
@@ -1699,14 +1827,52 @@ def plumbing_cell() -> str:
         return AgentExecutor(make_agent(spec, config=config), id=_slug(spec.name))
 
 
-
     print("Workflow plumbing ready: dispatch executor, shared transcript state, and "
           "request/response helpers.")
     '''
 
+    return (
+        teach(
+            "Framework imports and message helpers",
+            PRIMITIVE,
+            "Imports the workflow primitives (`Executor`, `WorkflowBuilder`, "
+            "`WorkflowContext`, `AgentExecutor`, `handler`, ...) and wraps text into an "
+            "`AgentExecutorRequest`. This is the Agent Framework surface every pattern builds on.",
+            imports_and_messages,
+        )
+        + teach(
+            "Transcript state",
+            SUPPORT,
+            "A helper that appends a labelled turn to workflow state via "
+            "`ctx.get_state`/`set_state`. Bookkeeping the executors reuse -- not framework API itself.",
+            transcript_state,
+        )
+        + teach(
+            "Your first executor",
+            PRIMITIVE,
+            "`PromptDispatchExecutor` subclasses `Executor` and marks its method with `@handler`. "
+            "It seeds state and `send_message`s the first request -- the entry node of every graph here.",
+            dispatch_executor,
+        )
+        + teach(
+            "Agents as workflow nodes",
+            PRIMITIVE,
+            "`_agent_executor` wraps an agent in an `AgentExecutor` so it can sit in the graph. "
+            "This is the bridge from a standalone agent to a workflow node.",
+            agent_nodes,
+        )
+    )
+
 
 _PATTERN_MACHINERY = {
-    'sequential': r'''
+    'sequential': [
+        (
+            "StageGateExecutor: carry the transcript forward",
+            PRIMITIVE,
+            "A custom `Executor` whose `@handler` runs after each stage: it appends the stage's "
+            "output to the transcript and `send_message`s the next stage the original request plus "
+            "the accumulated work.",
+            r'''
     class StageGateExecutor(Executor):
         def __init__(self, id: str, *, stage_name: str) -> None:
             super().__init__(id=id)
@@ -1723,8 +1889,14 @@ _PATTERN_MACHINERY = {
                     "Add your stage's contribution; do not repeat the earlier stages."
                 )
             )
-
-
+    ''',
+        ),
+        (
+            "SequentialOutputExecutor: yield the final transcript",
+            PRIMITIVE,
+            "The terminal `Executor`: instead of forwarding, its handler calls `ctx.yield_output(...)` "
+            "with the joined transcript, which becomes the workflow's result.",
+            r'''
     class SequentialOutputExecutor(Executor):
         def __init__(self, id: str, *, stage_name: str) -> None:
             super().__init__(id=id)
@@ -1734,9 +1906,14 @@ _PATTERN_MACHINERY = {
         async def finish(self, response: AgentExecutorResponse, ctx: WorkflowContext[Never, str]) -> None:
             transcript = _append_transcript(ctx, self._stage_name, response_text(response))
             await ctx.yield_output("\n\n".join(transcript))
-
-
-
+    ''',
+        ),
+        (
+            "Preview the stage handoff",
+            SUPPORT,
+            "An offline sanity check -- no model call -- showing the exact prompt one stage hands "
+            "the next, so you can see what each agent actually receives.",
+            r'''
     # Demo (offline): the exact prompt a stage gate hands to the next stage.
     _demo_transcript = [
         f"[{SCENARIO.agents[0].name}] First-stage findings would appear here.",
@@ -1744,7 +1921,15 @@ _PATTERN_MACHINERY = {
     ]
     print("Original request:\n" + SAMPLE_PROMPT + "\n\nWork so far:\n" + "\n".join(_demo_transcript))
     ''',
-    'concurrent': r'''
+        ),
+    ],
+    'concurrent': [
+        (
+            "Attribute each parallel result",
+            SUPPORT,
+            "Fan-in delivers responses in nondeterministic order, so this helper pairs each response "
+            "back to its agent name (by executor id, with a positional fallback). Pure bookkeeping.",
+            r'''
     def _labelled_responses(responses: list, agent_names: list) -> list:
         """Pair fan-in responses with agent names by executor_id, position fallback."""
 
@@ -1756,8 +1941,15 @@ _PATTERN_MACHINERY = {
                 name = agent_names[index] if index < len(agent_names) else f"agent{index + 1}"
             labelled.append((name, response_text(response)))
         return labelled
-
-
+    ''',
+        ),
+        (
+            "ConcurrentAggregatorExecutor: fan-in and combine",
+            PRIMITIVE,
+            "The fan-in `Executor`. Its handler receives the whole `list` of specialist responses at "
+            "once and `yield_output`s the labelled combination -- the terminal node when no synthesizer "
+            "is declared.",
+            r'''
     class ConcurrentAggregatorExecutor(Executor):
         def __init__(self, id: str, *, agent_names: list[str]) -> None:
             super().__init__(id=id)
@@ -1767,8 +1959,14 @@ _PATTERN_MACHINERY = {
         async def aggregate(self, responses: list[AgentExecutorResponse], ctx: WorkflowContext[Never, str]) -> None:
             labelled = _labelled_responses(responses, self._agent_names)
             await ctx.yield_output("\n\n".join(f"[{name}]\n{text}" for name, text in labelled))
-
-
+    ''',
+        ),
+        (
+            "ConcurrentSynthesisGateExecutor: forward to a synthesizer",
+            PRIMITIVE,
+            "When the scenario names a synthesizer, this fan-in `Executor` instead forwards the labelled "
+            "findings onward as a new request, so a final agent can reconcile them.",
+            r'''
     class ConcurrentSynthesisGateExecutor(Executor):
         def __init__(self, id: str, *, agent_names: list[str]) -> None:
             super().__init__(id=id)
@@ -1787,8 +1985,14 @@ _PATTERN_MACHINERY = {
                     "Combine these findings into the final deliverable."
                 )
             )
-
-
+    ''',
+        ),
+        (
+            "Terminal output executor",
+            PRIMITIVE,
+            "The terminal `Executor` that yields the joined transcript. It only runs on the synthesizer "
+            "path (after the synthesis gate); the aggregator path ends at the aggregator itself.",
+            r'''
     class SequentialOutputExecutor(Executor):
         def __init__(self, id: str, *, stage_name: str) -> None:
             super().__init__(id=id)
@@ -1798,21 +2002,40 @@ _PATTERN_MACHINERY = {
         async def finish(self, response: AgentExecutorResponse, ctx: WorkflowContext[Never, str]) -> None:
             transcript = _append_transcript(ctx, self._stage_name, response_text(response))
             await ctx.yield_output("\n\n".join(transcript))
-
-
-
+    ''',
+        ),
+        (
+            "Preview fan-in labelling",
+            SUPPORT,
+            "An offline check -- no model call -- of how each parallel lane is labelled before aggregation.",
+            r'''
     # Demo (offline): how fan-in labels each parallel finding before aggregation.
     _parallel = [spec.name for spec in SCENARIO.agents if spec.name != SCENARIO.concurrent_synthesizer][:3]
     print("\n\n".join(f"[{name}]\n{name} would report its independent finding here." for name in _parallel))
     ''',
-    'handoff': r'''
+        ),
+    ],
+    'handoff': [
+        (
+            "Parse the ROUTE directive",
+            SUPPORT,
+            "A regex and a slugifier that read the `ROUTE: <AgentName>` line the triage agent emits. "
+            "Plain text parsing -- the validation lives in the router next.",
+            r'''
     _ROUTE_DIRECTIVE = re.compile(r"route\s*:\s*([A-Za-z][A-Za-z0-9 _-]*)", re.IGNORECASE)
 
 
     def _route_slug(name: str) -> str:
         return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
-
-
+    ''',
+        ),
+        (
+            "HandoffRouterExecutor: validate the model's choice",
+            PRIMITIVE,
+            "The router `Executor`. Its plain methods (`directed`/`decide`/`choose`) score the route, "
+            "and the `@handler` commits it to state and `send_message`s the chosen specialist via "
+            "`target_id` -- the model suggests, code decides.",
+            r'''
     class HandoffRouterExecutor(Executor):
         def __init__(
             self,
@@ -1861,8 +2084,14 @@ _PATTERN_MACHINERY = {
                 make_request(f"Triage routed this to you.\nRequest:\n{prompt}\n\nTriage notes:\n{triage_text}"),
                 target_id=chosen,
             )
-
-
+    ''',
+        ),
+        (
+            "HandoffFinisherGateExecutor: hand off to a fixed finisher",
+            PRIMITIVE,
+            "When the scenario declares a finisher, this `Executor` forwards the routed specialist's "
+            "notes to that fixed owner so it always closes the work.",
+            r'''
     class HandoffFinisherGateExecutor(Executor):
         @handler
         async def gate(self, response: AgentExecutorResponse, ctx: WorkflowContext[AgentExecutorRequest]) -> None:
@@ -1876,8 +2105,14 @@ _PATTERN_MACHINERY = {
                     f"Routed specialist notes:\n{carried}\n\nComplete the final deliverable."
                 )
             )
-
-
+    ''',
+        ),
+        (
+            "HandoffOutputExecutor: yield with a route header",
+            PRIMITIVE,
+            "The terminal `Executor`: it `yield_output`s the answer prefixed with which route was taken "
+            "and whether it came from the model directive or keyword fallback.",
+            r'''
     class HandoffOutputExecutor(Executor):
         def __init__(self, id: str, *, stage_name: str | None = None) -> None:
             super().__init__(id=id)
@@ -1893,17 +2128,28 @@ _PATTERN_MACHINERY = {
                 return
             transcript = _append_transcript(ctx, self._stage_name, response_text(response))
             await ctx.yield_output("\n\n".join([header, *transcript]))
-
-
+    ''',
+        ),
+        (
+            "Derive routing keywords",
+            SUPPORT,
+            "Builds each specialist's keyword list (explicit, or derived from its name/description) that "
+            "the router falls back to when the model gives no usable directive.",
+            r'''
     def _route_keywords(spec: AgentSpec) -> tuple[str, ...]:
         if spec.route_keywords:
             return tuple(spec.route_keywords)
         tokens = re.findall(r"[a-z]+", f"{spec.name} {spec.description}".lower())
         keywords = [token for token in tokens if len(token) > 3 and token not in _STOPWORDS]
         return tuple(dict.fromkeys(keywords))[:6]
-
-
-
+    ''',
+        ),
+        (
+            "Preview routing",
+            SUPPORT,
+            "An offline check -- no model call -- showing a valid ROUTE directive winning and keyword "
+            "scoring as the fallback.",
+            r'''
     # Demo (offline): a valid ROUTE directive wins; keyword scoring is the fallback.
     _specialists = [spec for spec in SCENARIO.agents[1:] if spec.name != SCENARIO.handoff_finisher]
     _demo_routes = {_route_slug(spec.name): _route_keywords(spec) for spec in _specialists}
@@ -1914,7 +2160,16 @@ _PATTERN_MACHINERY = {
     print("directive ->", _demo_router.choose("Triage notes.\nROUTE: " + _specialists[-1].name))
     print("keywords  ->", _demo_router.choose(SAMPLE_PROMPT))
     ''',
-    'group-chat': r'''
+        ),
+    ],
+    'group-chat': [
+        (
+            "Termination condition",
+            SUPPORT,
+            "A factory that returns a `should_stop(messages)` closure. It only fires at a full-cycle "
+            "boundary -- so the closing agent always speaks last -- ending on the scenario's phrases or "
+            "after two cycles. This closure is handed to `GroupChatBuilder` next.",
+            r'''
     def make_group_chat_termination(phrases: tuple[str, ...], participant_count: int, max_cycles: int = 2) -> Any:
         def should_stop(messages: list[Any]) -> bool:
             assistant = [m for m in messages if getattr(m, "role", None) == "assistant"]
@@ -1926,9 +2181,14 @@ _PATTERN_MACHINERY = {
             return bool(phrases) and all(phrase in last_text for phrase in phrases)
 
         return should_stop
-
-
-
+    ''',
+        ),
+        (
+            "Preview termination",
+            SUPPORT,
+            "An offline check -- no model call -- confirming termination only fires when the closing "
+            "agent ends a full cycle, using tiny stand-in messages.",
+            r'''
     # Demo (offline): termination only fires when the closing agent ends a full cycle.
     class _DemoMsg:
         def __init__(self, text: str) -> None:
@@ -1944,25 +2204,57 @@ _PATTERN_MACHINERY = {
     print("cycle end, phrase present  ->", _stop([_DemoMsg("x")] * (_n - 1) + [_DemoMsg(_phrase)]))
     print("after two full cycles      ->", _stop([_DemoMsg("x")] * (2 * _n)))
     ''',
-    'magentic': r'''
+        ),
+    ],
+    'magentic': [
+        (
+            "Ledger limits",
+            SUPPORT,
+            "The bounds that keep the manager's plan/replan loop finite. Just a dict of limits -- the "
+            "actual coordination comes from `MagenticBuilder` in the next section.",
+            r'''
     MAGENTIC_LIMITS = {"max_round_count": 10, "max_stall_count": 3, "max_reset_count": 2}
-
-
+    ''',
+        ),
+        (
+            "Preview the manager split",
+            SUPPORT,
+            "An offline check -- no model call -- of which agent is the manager, which are specialists, "
+            "and the ledger limits that bound replanning.",
+            r'''
     # Demo (offline): the manager/specialist split and the ledger limits that bound replanning.
     print("Manager:    ", SCENARIO.agents[0].name)
     print("Specialists:", ", ".join(spec.name for spec in SCENARIO.agents[1:]))
     for _key, _value in MAGENTIC_LIMITS.items():
         print(f"{_key} = {_value}")
     ''',
+        ),
+    ],
 }
 
 
-def pattern_machinery_cell(pattern: str) -> str:
-    return _PATTERN_MACHINERY[pattern]
+def _segments_to_cells(segments: list[tuple[str, str, str, str]]) -> list[dict[str, Any]]:
+    """Flatten (title, tag, body, code) teaching segments into notebook cells."""
+
+    cells: list[dict[str, Any]] = []
+    for title, tag, body, code_source in segments:
+        cells.extend(teach(title, tag, body, code_source))
+    return cells
+
+
+def pattern_machinery_cells(pattern: str) -> list[dict[str, Any]]:
+    return _segments_to_cells(_PATTERN_MACHINERY[pattern])
 
 
 _PATTERN_BUILDS = {
-    'sequential': r'''
+    'sequential': [
+        (
+            "Wire the graph with WorkflowBuilder",
+            PRIMITIVE,
+            "`WorkflowBuilder` assembles the executors into a graph: `start_executor`/`output_from` set "
+            "the ends, and `add_edge` chains dispatch -> agent -> gate -> agent ... -> output. The topology "
+            "is fixed in code, not chosen by the model.",
+            r'''
     def build_sequential_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         agents = [_agent_executor(i, scenario, config=config) for i in range(len(scenario.agents))]
         dispatch = PromptDispatchExecutor(id="dispatch")
@@ -1975,9 +2267,14 @@ _PATTERN_BUILDS = {
             builder.add_edge(gate, agents[index + 1])
         builder.add_edge(agents[-1], output)
         return builder.build()
-
-
-
+    ''',
+        ),
+        (
+            "Compile and build",
+            SUPPORT,
+            "`build_workflow` resolves the Ollama config and calls the builder above, then `build()` "
+            "compiles the runnable workflow. The wrapper is glue; `build()` is the framework call.",
+            r'''
     def build_workflow(
         scenario: ScenarioSpec = SCENARIO,
         *,
@@ -1994,7 +2291,16 @@ _PATTERN_BUILDS = {
         + type(workflow).__name__
     )
     ''',
-    'concurrent': r'''
+        ),
+    ],
+    'concurrent': [
+        (
+            "Wire fan-out and fan-in with WorkflowBuilder",
+            PRIMITIVE,
+            "`add_fan_out_edges` sends the request to every lane at once and `add_fan_in_edges` collects "
+            "them. With a synthesizer, fan-in targets the synthesis gate and one more agent runs before "
+            "output; without one, it targets the aggregator directly.",
+            r'''
     def build_concurrent_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         synthesizer_name = scenario.concurrent_synthesizer
         parallel = [i for i in range(len(scenario.agents)) if scenario.agents[i].name != synthesizer_name]
@@ -2019,9 +2325,14 @@ _PATTERN_BUILDS = {
         builder.add_edge(gate, synthesizer)
         builder.add_edge(synthesizer, output)
         return builder.build()
-
-
-
+    ''',
+        ),
+        (
+            "Compile and build",
+            SUPPORT,
+            "`build_workflow` resolves the Ollama config and calls the builder above, then `build()` "
+            "compiles the runnable workflow. The wrapper is glue; `build()` is the framework call.",
+            r'''
     def build_workflow(
         scenario: ScenarioSpec = SCENARIO,
         *,
@@ -2038,7 +2349,16 @@ _PATTERN_BUILDS = {
         + type(workflow).__name__
     )
     ''',
-    'handoff': r'''
+        ),
+    ],
+    'handoff': [
+        (
+            "Wire triage, router, and specialists with WorkflowBuilder",
+            PRIMITIVE,
+            "The graph runs dispatch -> triage -> router, then `add_edge`s the router to each specialist. "
+            "With a finisher, specialists flow through a gate to the fixed owner before output; without "
+            "one, each specialist goes straight to output.",
+            r'''
     def build_handoff_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         triage = _agent_executor(0, scenario, config=config)
         finisher_name = scenario.handoff_finisher
@@ -2071,9 +2391,14 @@ _PATTERN_BUILDS = {
         builder.add_edge(finisher_gate, finisher)
         builder.add_edge(finisher, output)
         return builder.build()
-
-
-
+    ''',
+        ),
+        (
+            "Compile and build",
+            SUPPORT,
+            "`build_workflow` resolves the Ollama config and calls the builder above, then `build()` "
+            "compiles the runnable workflow. The wrapper is glue; `build()` is the framework call.",
+            r'''
     def build_workflow(
         scenario: ScenarioSpec = SCENARIO,
         *,
@@ -2090,7 +2415,16 @@ _PATTERN_BUILDS = {
         + type(workflow).__name__
     )
     ''',
-    'group-chat': r'''
+        ),
+    ],
+    'group-chat': [
+        (
+            "Assemble the chat with GroupChatBuilder",
+            PRIMITIVE,
+            "`GroupChatBuilder` takes the participants, a `selection_func` (round-robin here), the "
+            "termination closure from the previous section, and `intermediate_output_from` so every "
+            "turn is visible. `build()` returns the runnable chat.",
+            r'''
     def build_group_chat_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         from agent_framework.orchestrations import GroupChatBuilder
 
@@ -2108,9 +2442,14 @@ _PATTERN_BUILDS = {
             ),
             intermediate_output_from=participants,
         ).build()
-
-
-
+    ''',
+        ),
+        (
+            "Compile and build",
+            SUPPORT,
+            "`build_workflow` resolves the Ollama config and calls the builder above. The wrapper is glue; "
+            "`GroupChatBuilder(...).build()` is the framework call.",
+            r'''
     def build_workflow(
         scenario: ScenarioSpec = SCENARIO,
         *,
@@ -2127,7 +2466,16 @@ _PATTERN_BUILDS = {
         + type(workflow).__name__
     )
     ''',
-    'magentic': r'''
+        ),
+    ],
+    'magentic': [
+        (
+            "Assemble the manager loop with MagenticBuilder",
+            PRIMITIVE,
+            "`MagenticBuilder` wires a `manager_agent` over the specialist `participants` and applies the "
+            "ledger limits so the plan/delegate/replan loop stays bounded. `build()` returns the runnable "
+            "workflow.",
+            r'''
     def build_magentic_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         from agent_framework.orchestrations import MagenticBuilder
 
@@ -2140,9 +2488,14 @@ _PATTERN_BUILDS = {
             manager_agent=manager_agent,
             **MAGENTIC_LIMITS,
         ).build()
-
-
-
+    ''',
+        ),
+        (
+            "Compile and build",
+            SUPPORT,
+            "`build_workflow` resolves the Ollama config and calls the builder above. The wrapper is glue; "
+            "`MagenticBuilder(...).build()` is the framework call.",
+            r'''
     def build_workflow(
         scenario: ScenarioSpec = SCENARIO,
         *,
@@ -2159,11 +2512,13 @@ _PATTERN_BUILDS = {
         + type(workflow).__name__
     )
     ''',
+        ),
+    ],
 }
 
 
-def build_cell(pattern: str) -> str:
-    return _PATTERN_BUILDS[pattern]
+def build_cells(pattern: str) -> list[dict[str, Any]]:
+    return _segments_to_cells(_PATTERN_BUILDS[pattern])
 
 
 def results_cell(include_group_summary: bool) -> str:
@@ -2750,8 +3105,8 @@ def primitives_overview_markdown() -> str:
     """
 
 
-def primitives_environment_cell() -> str:
-    return r'''
+def primitives_environment_cells() -> list[dict[str, Any]]:
+    config = r'''
     import base64
     import html
     import json
@@ -2766,7 +3121,9 @@ def primitives_environment_cell() -> str:
     DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:14b")
     DEFAULT_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     RUN_LIVE_AGENT = os.getenv("RUN_LIVE_AGENT", "0").lower() in {"1", "true", "yes"}
+    '''
 
+    styling = r'''
     _APTOS_STYLE = """
     <style>
     :root { --jp-content-font-family: 'Aptos', 'Segoe UI', 'Helvetica Neue', sans-serif; }
@@ -2806,6 +3163,10 @@ def primitives_environment_cell() -> str:
         return _APTOS_STYLE
 
 
+    apply_notebook_style()
+    '''
+
+    renderers = r'''
     def render_cards(items: list[dict[str, str]]) -> None:
         cards = []
         for item in items:
@@ -2843,7 +3204,6 @@ def primitives_environment_cell() -> str:
         ])
 
 
-    apply_notebook_style()
     render_trace([
         {"stage": "model", "detail": DEFAULT_MODEL},
         {"stage": "host", "detail": DEFAULT_HOST},
@@ -2851,8 +3211,31 @@ def primitives_environment_cell() -> str:
     ])
     '''
 
+    return (
+        teach(
+            "Runtime configuration",
+            SUPPORT,
+            "Imports plus the Ollama model/host and the `RUN_LIVE_AGENT` guard that keeps this lab "
+            "offline by default. Setup only -- no Agent Framework surface here.",
+            config,
+        )
+        + teach(
+            "Notebook styling",
+            SUPPORT,
+            "The Aptos look and the card/trace CSS the render helpers below use. Pure presentation.",
+            styling,
+        )
+        + teach(
+            "Rendering helpers",
+            SUPPORT,
+            "`render_cards`, `render_trace`, `render_transcript`, and `render_roster` present each "
+            "primitive visually. Glue for the lab, not framework API.",
+            renderers,
+        )
+    )
 
-def primitives_scenario_cell(project: dict[str, str], scenario: Any) -> str:
+
+def primitives_scenario_cells(project: dict[str, str], scenario: Any) -> list[dict[str, Any]]:
     sample_attr = project["sample_attr"]
     data = scenario_data(scenario, sample_attr)
     scenario_json = textwrap.indent(json.dumps(data, indent=2), "    ")
@@ -2873,7 +3256,7 @@ def primitives_scenario_cell(project: dict[str, str], scenario: Any) -> str:
             '''
         ).strip()
     )
-    return f'''
+    schema = f'''
     @dataclass(frozen=True)
     class AgentSpec:
         name: str
@@ -2897,8 +3280,9 @@ def primitives_scenario_cell(project: dict[str, str], scenario: Any) -> str:
         handoff_finisher: str | None = None
         concurrent_synthesizer: str | None = None
         termination_phrases: tuple[str, ...] = ()
+    '''
 
-
+    hydrate = f'''
     SCENARIO_DATA = json.loads(
         r"""
 {scenario_json}
@@ -2926,8 +3310,9 @@ def primitives_scenario_cell(project: dict[str, str], scenario: Any) -> str:
         agents=AGENTS,
     )
     {payload_code}
+    '''
 
-
+    roster = f'''
     def agent_capability_map(scenario: ScenarioSpec) -> list[dict[str, Any]]:
         return [
             {{
@@ -2944,6 +3329,30 @@ def primitives_scenario_cell(project: dict[str, str], scenario: Any) -> str:
     print(json.dumps({{"scenario": SCENARIO.id, "pattern": SCENARIO.pattern, "api": "{project['api_name']}"}}, indent=2))
     print(json.dumps(agent_capability_map(SCENARIO), indent=2))
     '''
+
+    return (
+        teach(
+            "Scenario schema",
+            SUPPORT,
+            "Plain frozen dataclasses mirroring the scenario JSON -- the same shapes the packaged "
+            "scenarios use. Not framework types.",
+            schema,
+        )
+        + teach(
+            "Load the scenario",
+            SUPPORT,
+            "Hydrates the embedded JSON into the `SCENARIO` object and sample payload the lab uses. "
+            "Data plumbing only.",
+            hydrate,
+        )
+        + teach(
+            "Roster and capability map",
+            SUPPORT,
+            "`agent_capability_map` and `render_roster` show who is on the team and what each agent "
+            "may call -- supporting inspection, not Agent Framework surface.",
+            roster,
+        )
+    )
 
 
 def primitives_message_cell() -> str:
@@ -2993,8 +3402,8 @@ def primitives_function_tool_cell() -> str:
     '''
 
 
-def primitives_agent_cell() -> str:
-    return r'''
+def primitives_agent_cells() -> list[dict[str, Any]]:
+    make_agent = r'''
     # Primitive: Chat-client-backed agent
     from agent_framework.ollama import OllamaChatClient
 
@@ -3011,8 +3420,9 @@ def primitives_agent_cell() -> str:
             default_options={"temperature": 0.0, "max_tokens": 400, "think": False},
             require_per_service_call_history_persistence=True,
         )
+    '''
 
-
+    grants = r'''
     TOOL_GRANTS = {
         "PrimitiveMapAgent": [lookup_primitive_fact],
         "AgentRuntimeAgent": [lookup_primitive_fact, draft_enablement_check],
@@ -3024,6 +3434,23 @@ def primitives_agent_cell() -> str:
     render_cards(AGENT_BLUEPRINTS)
     print("make_agent(spec) is ready. The notebook delays real model calls until RUN_LIVE_AGENT is enabled.")
     '''
+
+    return (
+        teach(
+            "make_agent",
+            PRIMITIVE,
+            "`client.as_agent(...)` turns an `OllamaChatClient` plus role instructions and tools into "
+            "an agent. Construction is cheap -- the model call happens later, on `run`.",
+            make_agent,
+        )
+        + teach(
+            "Tool grants",
+            SUPPORT,
+            "Which function tools each agent is allowed to call. A plain lookup table -- least-privilege "
+            "wiring, not framework surface.",
+            grants,
+        )
+    )
 
 
 def primitives_session_cell() -> str:
@@ -3121,8 +3548,8 @@ def primitives_a2a_cell() -> str:
     '''
 
 
-def primitives_workflow_cell() -> str:
-    return r'''
+def primitives_workflow_cells() -> list[dict[str, Any]]:
+    imports_and_messages = r'''
     # Primitive: Executor, @handler, WorkflowContext, and Message routing
     import re
     from typing import Never
@@ -3148,16 +3575,18 @@ def primitives_workflow_cell() -> str:
     def response_text(response: AgentExecutorResponse) -> str:
         agent_response = getattr(response, "agent_response", None)
         return (getattr(agent_response, "text", None) or "").strip()
+    '''
 
-
+    dispatch_executor = r'''
     class PromptDispatchExecutor(Executor):
         @handler
         async def dispatch(self, prompt: str, ctx: WorkflowContext[AgentExecutorRequest]) -> None:
             ctx.set_state("prompt", prompt)
             ctx.set_state(TRANSCRIPT_KEY, [])
             await ctx.send_message(make_request(prompt))
+    '''
 
-
+    output_executor = r'''
     class PrimitiveOutputExecutor(Executor):
         @handler
         async def finish(self, response: AgentExecutorResponse, ctx: WorkflowContext[Never, str]) -> None:
@@ -3173,6 +3602,30 @@ def primitives_workflow_cell() -> str:
         {"stage": "WorkflowContext", "detail": "state, sends, target routing, outputs"},
     ])
     '''
+
+    return (
+        teach(
+            "Workflow imports and message helpers",
+            PRIMITIVE,
+            "Imports the workflow primitives and wraps text into an `AgentExecutorRequest`. These are "
+            "the building blocks the executors below extend.",
+            imports_and_messages,
+        )
+        + teach(
+            "PromptDispatchExecutor",
+            PRIMITIVE,
+            "An `Executor` whose `@handler` seeds state and `send_message`s the first request -- the "
+            "entry node of a workflow graph.",
+            dispatch_executor,
+        )
+        + teach(
+            "PrimitiveOutputExecutor",
+            PRIMITIVE,
+            "The terminal `Executor`: its handler `yield_output`s the joined transcript, which becomes "
+            "the workflow's result.",
+            output_executor,
+        )
+    )
 
 
 def primitives_agent_executor_cell() -> str:
@@ -3443,15 +3896,15 @@ def primitives_post_markdown() -> str:
 def build_primitives_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
     cells = [
         md(primitives_title_markdown(project, scenario)),
-        code(primitives_environment_cell()),
+        *primitives_environment_cells(),
         md(primitives_overview_markdown()),
-        code(primitives_scenario_cell(project, scenario)),
+        *primitives_scenario_cells(project, scenario),
         md("## Primitive: Message\n\nMessages are the typed boundary between user, system, assistant, agents, and workflow nodes."),
         code(primitives_message_cell()),
         md("## Primitive: Function Tool\n\nFunction tools are the smallest useful grounding mechanism: a callable with a narrow, testable contract."),
         code(primitives_function_tool_cell()),
         md("## Primitive: Agent\n\nInstruction-led agents combine a chat client, role instructions, optional tools, runtime options, and a run interface."),
-        code(primitives_agent_cell()),
+        *primitives_agent_cells(),
         md("## Primitive: Session Or Thread State\n\nState is explicit. Keep it bounded and visible in local samples; use provider or framework history stores when appropriate."),
         code(primitives_session_cell()),
         md("## Primitive: Run And Stream\n\nNon-streaming returns a final response; streaming exposes incremental updates for UI and logs."),
@@ -3461,7 +3914,7 @@ def build_primitives_notebook(project: dict[str, str], scenario: Any) -> dict[st
         md("## Primitive: A2A\n\nA2A connects an agent orchestration to a peer agent owned by another runtime or organization."),
         code(primitives_a2a_cell()),
         md("## Primitive: Workflow Executor\n\nCustom executors make business logic explicit and testable inside the graph."),
-        code(primitives_workflow_cell()),
+        *primitives_workflow_cells(),
         md("## Primitive: AgentExecutor\n\nAgentExecutor is the bridge from an agent to a workflow node."),
         code(primitives_agent_executor_cell()),
         md("## Primitive: WorkflowBuilder\n\nWorkflowBuilder turns executors and agents into a deterministic graph."),
@@ -3500,42 +3953,90 @@ def build_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
 
     data = scenario_data(scenario, project["sample_attr"])
     server = scenario_mcp_server(scenario)
-    cells = [
-        md(title_markdown(project, scenario)),
-        code(environment_cell()),
-        md(concept_markdown(project, scenario)),
-    ]
+    cells = [md(title_markdown(project, scenario))]
+    cells.extend(environment_cells())
+    cells.append(md(concept_markdown(project, scenario)))
     if server:
         cells.append(md(mcp_markdown(server)))
         if server == "quote_to_cash_context":
-            cells.append(code(quote_to_cash_fixtures_cell()))
-            cells.append(code(quote_to_cash_tools_cell('crm_get_quote_trigger("OPP-5001")')))
+            cells.extend(teach(
+                "Domain fixtures",
+                SUPPORT,
+                "The quote-to-cash records the tools read. Inlined embedded data -- no MCP server, "
+                "no Agent Framework surface.",
+                quote_to_cash_fixtures_cell(),
+            ))
+            cells.extend(teach(
+                "Domain tools",
+                SUPPORT,
+                "Plain callables over the fixtures, registered in `MCP_TOOL_FUNCTIONS`. In production "
+                "these would be a FastMCP stdio server attached via `MCPStdioTool`; here they run inline.",
+                quote_to_cash_tools_cell('crm_get_quote_trigger("OPP-5001")'),
+            ))
         else:
             demo_call = ENTERPRISE_DEMO_CALLS.get(scenario.id, 'search_policy("security review")')
-            cells.append(code(enterprise_fixtures_cell()))
-            cells.append(code(enterprise_tools_cell(demo_call)))
+            cells.extend(teach(
+                "Domain fixtures",
+                SUPPORT,
+                "The enterprise records the tools read. Inlined embedded data -- no MCP server, "
+                "no Agent Framework surface.",
+                enterprise_fixtures_cell(),
+            ))
+            cells.extend(teach(
+                "Domain tools",
+                SUPPORT,
+                "Plain callables over the fixtures, registered in `MCP_TOOL_FUNCTIONS`. In production "
+                "these would be a FastMCP stdio server attached via `MCPStdioTool`; here they run inline.",
+                enterprise_tools_cell(demo_call),
+            ))
     if scenario_uses_a2a(scenario):
         cells.append(md(a2a_markdown()))
-        cells.append(code(a2a_fixtures_cell()))
-        cells.append(code(a2a_server_cell()))
-        cells.append(code(a2a_discovery_cell()))
-        cells.append(code(a2a_client_cell()))
-    cells.extend(
-        [
-            code(scenario_cell(project, data)),
-            code(agent_factory_cell()),
-            code(plumbing_cell()),
-            code(pattern_machinery_cell(scenario.pattern)),
-            code(build_cell(scenario.pattern)),
-            md(flow_diagram_markdown(project, scenario)),
-            code(diagram_cell(project, scenario.pattern, scenario.id.startswith("scenario-16-quote-to-cash"))),
-            code(results_cell(scenario.pattern == "group-chat")),
-            md(live_run_markdown(scenario)),
-            code(live_run_cell()),
-            md(post_run_markdown(scenario)),
-            md(experiments_markdown(project, scenario)),
-        ]
-    )
+        cells.extend(teach(
+            "Partner facts and behavior",
+            SUPPORT,
+            "The partner data and a deterministic `partner_reply` -- the behavior each remote seat serves. "
+            "No LLM, no network yet.",
+            a2a_fixtures_cell(),
+        ))
+        cells.extend(teach(
+            "Host the partner agents",
+            PRIMITIVE,
+            "Wraps each partner in a `BaseAgent`, exposes it through an `A2AExecutor` behind an agent "
+            "card, and serves it over HTTP -- the A2A hosting side of the protocol.",
+            a2a_server_cell(),
+        ))
+        cells.extend(teach(
+            "Discover agent cards",
+            SUPPORT,
+            "Fetches each partner's `agent-card.json` over HTTP -- the discovery step a client does "
+            "before talking to a peer.",
+            a2a_discovery_cell(),
+        ))
+        cells.extend(teach(
+            "One A2A round-trip",
+            PRIMITIVE,
+            "`A2AAgent` connects to a remote peer by URL and `run`s a single message -- the client side "
+            "of A2A, exercised before any orchestration.",
+            a2a_client_cell(),
+        ))
+    cells.extend(scenario_cells(project, data))
+    cells.extend(agent_factory_cells())
+    cells.extend(plumbing_cells())
+    cells.extend(pattern_machinery_cells(scenario.pattern))
+    cells.extend(build_cells(scenario.pattern))
+    cells.append(md(flow_diagram_markdown(project, scenario)))
+    cells.append(code(diagram_cell(project, scenario.pattern, scenario.id.startswith("scenario-16-quote-to-cash"))))
+    cells.extend(teach(
+        "Read the run output",
+        SUPPORT,
+        "Utilities that turn framework run events into readable text -- the only Agent Framework "
+        "touchpoints are `result.get_outputs()` / `get_intermediate_outputs()`; the rest is parsing.",
+        results_cell(scenario.pattern == "group-chat"),
+    ))
+    cells.append(md(live_run_markdown(scenario)))
+    cells.append(code(live_run_cell()))
+    cells.append(md(post_run_markdown(scenario)))
+    cells.append(md(experiments_markdown(project, scenario)))
     add_cell_ids(cells, scenario.id)
     return {
         "cells": cells,
