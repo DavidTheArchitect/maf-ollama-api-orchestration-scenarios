@@ -1,6 +1,6 @@
 # Responses API Scenarios
 
-This sample hosts 22 Microsoft Agent Framework multi-agent scenarios behind the OpenAI-compatible Responses API.
+This sample hosts 27 Microsoft Agent Framework multi-agent scenarios behind the OpenAI-compatible Responses API.
 
 Use this shape when the caller is a chat UI, OpenAI-compatible SDK, DevUI-style frontend, or anything that benefits from standard `/responses` semantics.
 
@@ -38,6 +38,11 @@ Supported scenarios:
 | `scenario-16-quote-to-cash-magentic` | Magentic + MCP | 6 | A quote manager dynamically delegates until the quote package is ready. |
 | `group-chat-partner-launch-review` | Group chat + A2A | 5 | Two seats are remote partner agents reached through Agent2Agent. |
 | `scenario-18-agent-framework-primitives` | Sequential + primitives lab | 5 | A capstone notebook maps common Agent Framework primitives with one concept per cell. |
+| `sequential-loan-origination` | Sequential + MCP | 5 | A regulated underwriting pipeline walks fixed intake, credit, income, pricing, and offer stages. |
+| `concurrent-ma-due-diligence` | Concurrent + MCP | 5 | Independent finance, legal, technology, and market lanes fan in to a deal-lead synthesizer. |
+| `handoff-transaction-dispute` | Handoff + MCP | 5 | Triage routes a disputed charge by its dominant signal; customer comms always finishes. |
+| `group-chat-architecture-review` | Group chat + MCP | 5 | A build-versus-buy board debates cost, security, residency, and delivery before the chair decides. |
+| `magentic-churn-spike-investigation` | Magentic + MCP | 6 | A manager plans, delegates, and replans an ambiguous churn root-cause investigation. |
 
 Each scenario definition lives in its own module under `src/responses_scenarios/scenarios/`. The `notebooks/` directory contains one companion notebook per scenario with executable learning cells.
 Each notebook includes a Mermaid flow diagram cell that renders through `mermaid.ink` at runtime and returns the Mermaid source for inspection or copy/paste.

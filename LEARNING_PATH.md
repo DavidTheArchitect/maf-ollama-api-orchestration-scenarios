@@ -26,7 +26,12 @@ This repository is designed to teach two separate choices that often get mixed t
 8. Run scenario 18 (`18-agent-framework-primitives-lab`) as a capstone map of the framework primitives.
    Each cell teaches one building block: messages, agents, tools, MCP, A2A, workflow executors, graph
    builders, orchestration builders, hosting, and observability.
-9. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
+9. Finish with scenarios `19` to `23`, the best-fit pattern showcases: loan origination (sequential),
+   M&A due diligence (concurrent), transaction dispute routing (handoff), an architecture review
+   board (group chat), and a churn spike investigation (magentic). Each is the canonical business
+   case for its pattern, grounded by the same `enterprise-context` MCP server, and each notebook's
+   pattern deep-dive explains why that pattern wins over the other four for that problem.
+10. Use the HTTP commands in each notebook only after the in-process workflow run is clear.
 
 ## Responses API vs Invocations API
 
@@ -68,6 +73,7 @@ pattern tier end-to-end and check the scenario spotlight is surfaced:
 3. `13-handoff-claims-exception-routing` -- the ROUTE line picks fraud first; comms finishes.
 4. `14-group-chat-policy-exception-board` -- the chair's expiry honors the 60-day cap.
 5. `16e-scenario-16-quote-to-cash-magentic` -- the manager delegates pricing/legal for the 25% discount.
+6. `21-handoff-transaction-dispute` -- the ROUTE line picks fraud review over merchant error per POL-DSP-04.
 
 ## Local Runtime Notes
 

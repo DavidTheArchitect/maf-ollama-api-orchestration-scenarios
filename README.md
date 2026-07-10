@@ -15,7 +15,7 @@ Start with [LEARNING_PATH.md](LEARNING_PATH.md) if your goal is to compare when 
 
 ## Scenario Catalog
 
-Both directories now contain the same twenty-two learning scenarios so the API differences are easy to compare. The first five focus on software delivery/support workflows; the next five focus on enterprise application workflows; scenarios 11-15 teach MCP tool usage; the Scenario 16 quote-to-cash family teaches one shared business story across all five patterns; Scenario 17 teaches the A2A protocol by seating remote partner agents in a group chat; and Scenario 18 teaches the common Microsoft Agent Framework primitives in one lab:
+Both directories now contain the same twenty-seven learning scenarios so the API differences are easy to compare. The first five focus on software delivery/support workflows; the next five focus on enterprise application workflows; scenarios 11-15 teach MCP tool usage; the Scenario 16 quote-to-cash family teaches one shared business story across all five patterns; Scenario 17 teaches the A2A protocol by seating remote partner agents in a group chat; Scenario 18 teaches the common Microsoft Agent Framework primitives in one lab; and scenarios 19-23 are best-fit pattern showcases: five MCP-grounded business cases, each chosen as the canonical real-world use case for its pattern:
 
 | Scenario | Pattern | Core lesson |
 | --- | --- | --- |
@@ -41,8 +41,13 @@ Both directories now contain the same twenty-two learning scenarios so the API d
 | `scenario-16-quote-to-cash-magentic` | Magentic | Manager-led planning that delegates and replans until the quote package is ready. |
 | `group-chat-partner-launch-review` | Group chat + A2A | Two council seats are remote partner agents reached over the A2A protocol; the orchestration is unchanged. |
 | `scenario-18-agent-framework-primitives` | Sequential + primitives lab | One notebook maps the common Agent Framework primitives: messages, agents, tools, MCP, A2A, workflow executors, builders, hosting, and observability. |
+| `sequential-loan-origination` | Sequential | Best-fit showcase: a regulated loan origination pipeline where the stage order is mandatory. |
+| `concurrent-ma-due-diligence` | Concurrent | Best-fit showcase: independent M&A diligence lanes with a deal-lead synthesizer. |
+| `handoff-transaction-dispute` | Handoff | Best-fit showcase: dispute routing where policy breaks the fraud-versus-merchant-error tie. |
+| `group-chat-architecture-review` | Group chat | Best-fit showcase: a build-versus-buy decision board whose chair records the verdict. |
+| `magentic-churn-spike-investigation` | Magentic | Best-fit showcase: an ambiguous churn investigation that needs planning and replanning. |
 
-Scenarios 11-15 attach a local, deterministic `enterprise-context` MCP server (FastMCP over stdio) exposing `lookup_enterprise_record`, `search_policy`, `calculate_priority_score`, `list_playbook_steps`, and `create_decision_log_entry`.
+Scenarios 11-15 and 19-23 attach a local, deterministic `enterprise-context` MCP server (FastMCP over stdio) exposing `lookup_enterprise_record`, `search_policy`, `calculate_priority_score`, `list_playbook_steps`, and `create_decision_log_entry`.
 
 The **Scenario 16 quote-to-cash** family (`16a`-`16e`) uses one quote request to compare how instruction-led LLM agents behave under each orchestration pattern. All five variants reuse the same six roles — `QuoteTriggerAgent`, `CustomerContextAgent`, `SkuDiscoveryAgent`, `ProductFitAgent`, `PricingTermsAgent`, `QuoteGenerationAgent` — grounded by a second local MCP server, `quote-to-cash-context`, exposing `crm_get_quote_trigger`, `crm_get_customer_profile`, `product_search_catalog`, `product_validate_skus`, `pricing_calculate_quote`, `legal_evaluate_terms`, and `quote_format_package`. Every scenario module (01-17) supports `python -m <package>.scenarios.<module>` for a direct run, via a shared `scenarios/_runner.py` helper.
 
