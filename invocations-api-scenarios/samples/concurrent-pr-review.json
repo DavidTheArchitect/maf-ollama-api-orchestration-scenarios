@@ -1,6 +1,6 @@
 {
   "scenario": "concurrent-pr-review",
-  "task": "Review this PR before the release-branch merge. Diff summary: auth middleware caches JWKS keys for 10 minutes; export queries switch from OFFSET to keyset pagination; reconciliation tests drop two flaky cases and add a currency-rounding fixture.",
+  "task": "Review this PR before the release-branch merge. Diff summary: auth middleware caches JWKS keys for 10 minutes (auth/middleware.py, +84/-12); export queries switch from OFFSET to keyset pagination (exports/query.py, +51/-40); reconciliation tests drop two flaky cases and add a currency-rounding fixture (tests/test_reconciliation.py, +66/-31).",
   "subject": "contoso/orders-api pull request 842",
   "artifacts": [
     "src/orders/reconciliation.py",

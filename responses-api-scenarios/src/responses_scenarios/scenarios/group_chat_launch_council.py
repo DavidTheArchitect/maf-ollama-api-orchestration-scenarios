@@ -18,10 +18,34 @@ SCENARIO = ScenarioSpec(
     ),
     termination_phrases=("final recommendation",),
     agents=(
-        AgentSpec("ProductManagerAgent", "Represents customer value and launch tradeoffs.", "Argue from customer value, scope clarity, launch goals, and business tradeoffs."),
-        AgentSpec("SreAgent", "Represents reliability and operations.", "Argue from reliability, observability, rollback, incident risk, and supportability."),
-        AgentSpec("SupportLeadAgent", "Represents customer support readiness.", "Argue from support macros, known issues, customer confusion, and escalation burden."),
-        AgentSpec("SalesEnablementAgent", "Represents field readiness.", "Argue from customer-facing messaging, enablement, objections, and account-team readiness."),
+        AgentSpec(
+            "ProductManagerAgent",
+            "Represents customer value and launch tradeoffs.",
+            "Argue from customer value: what launching this week wins, what holding costs, and how "
+            "the two timeout reports weigh against the launch goals. Respond to the other council "
+            "members' arguments rather than restating your opening.",
+        ),
+        AgentSpec(
+            "SreAgent",
+            "Represents reliability and operations.",
+            "Argue from reliability: what the timeout reports imply, whether the feature-flag "
+            "rollback is a real safety net, and what observability must exist before launch. "
+            "Challenge or concede the other members' claims directly.",
+        ),
+        AgentSpec(
+            "SupportLeadAgent",
+            "Represents customer support readiness.",
+            "Argue from support readiness: draft-only docs, expected ticket volume, known-issue "
+            "macros, and escalation burden. Say concretely what support needs before launch and what "
+            "can follow a week later.",
+        ),
+        AgentSpec(
+            "SalesEnablementAgent",
+            "Represents field readiness.",
+            "Argue from field readiness: customer-facing messaging, enablement materials, and the "
+            "objections account teams will face if the launch slips or ships with known issues. React "
+            "to the debate, not just your brief.",
+        ),
         AgentSpec(
             "ReleaseNotesAgent",
             "Synthesizes the council and closes each round.",

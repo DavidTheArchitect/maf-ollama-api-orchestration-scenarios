@@ -12,16 +12,46 @@ SCENARIO = ScenarioSpec(
     learning_goal="Learn how an invocation can fan out a structured vendor intake payload to independent enterprise risk reviewers.",
     when_to_use="Use Invocations plus concurrent orchestration for procurement, GRC, or vendor-intake workflows with independent review dimensions.",
     sample_task=(
-        "Assess a vendor intake request before procurement approval. Constraints: the annual budget "
-        "cap is 150k USD, a decision is needed within two weeks, and the data science team wants API "
-        "access in the first month."
+        "Assess an intake request for a usage-analytics vendor that will process customer usage data "
+        "and integrate with the warehouse. Constraints: the annual budget cap is 150k USD, a decision "
+        "is needed within two weeks, and the data science team wants API access in the first month."
     ),
     agents=(
-        AgentSpec("SecurityRiskAgent", "Reviews security risk.", "Assess identity, encryption, data access, vulnerability management, and incident-response risk."),
-        AgentSpec("PrivacyRiskAgent", "Reviews privacy risk.", "Assess data minimization, retention, subprocessors, regional transfer, and notice implications."),
-        AgentSpec("LegalRiskAgent", "Reviews contract risk.", "Assess indemnity, liability, audit rights, termination, and compliance clauses."),
-        AgentSpec("FinanceRiskAgent", "Reviews financial risk.", "Assess pricing, renewal terms, hidden costs, budget fit, and procurement risk."),
-        AgentSpec("OperationsRiskAgent", "Reviews operational readiness.", "Assess integration effort, service reliability, support model, monitoring, and fallback."),
+        AgentSpec(
+            "SecurityRiskAgent",
+            "Reviews security risk.",
+            "Assess identity, encryption, data access, vulnerability management, and incident-"
+            "response posture for the proposed vendor. Return your lane's risk rating with the two "
+            "facts that most drive it.",
+        ),
+        AgentSpec(
+            "PrivacyRiskAgent",
+            "Reviews privacy risk.",
+            "Assess data minimization, retention, subprocessors, regional transfer, and notice "
+            "implications of the vendor processing customer usage data. Return your lane's risk "
+            "rating and any conditions that would lower it.",
+        ),
+        AgentSpec(
+            "LegalRiskAgent",
+            "Reviews contract risk.",
+            "Assess indemnity, liability caps, audit rights, termination, and compliance clauses that "
+            "must be negotiated. Return your lane's risk rating plus the clauses you would refuse to "
+            "sign without.",
+        ),
+        AgentSpec(
+            "FinanceRiskAgent",
+            "Reviews financial risk.",
+            "Assess pricing, renewal terms, hidden costs, and fit against the 150k USD annual budget "
+            "cap. Return your lane's risk rating and whether the cap survives year-two renewal "
+            "pricing.",
+        ),
+        AgentSpec(
+            "OperationsRiskAgent",
+            "Reviews operational readiness.",
+            "Assess integration effort against the data science team's first-month API deadline, "
+            "service reliability, support model, monitoring, and fallback. Return your lane's risk "
+            "rating and the biggest operational unknown.",
+        ),
     ),
 )
 

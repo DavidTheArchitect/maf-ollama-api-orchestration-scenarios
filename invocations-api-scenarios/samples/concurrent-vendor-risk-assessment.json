@@ -1,6 +1,6 @@
 {
   "scenario": "concurrent-vendor-risk-assessment",
-  "task": "Assess a vendor intake request before procurement approval. Constraints: the annual budget cap is 150k USD, a decision is needed within two weeks, and the data science team wants API access in the first month.",
+  "task": "Assess an intake request for a usage-analytics vendor that will process customer usage data and integrate with the warehouse. Constraints: the annual budget cap is 150k USD, a decision is needed within two weeks, and the data science team wants API access in the first month.",
   "subject": "vendor: Northstar Analytics",
   "artifacts": [
     "vendor/security-questionnaire.pdf",

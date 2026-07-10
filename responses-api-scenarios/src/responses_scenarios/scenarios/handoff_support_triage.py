@@ -27,25 +27,33 @@ SCENARIO = ScenarioSpec(
         AgentSpec(
             "AuthSpecialistAgent",
             "Handles login, SSO, and permission problems.",
-            "Resolve authentication, SSO, session, permission, and identity-provider concerns.",
+            "Resolve the authentication angle: SSO, session, permission, and identity-provider "
+            "failure modes that produce a 403 right after login while other flows work. State the "
+            "most likely cause, the fastest verification step, and a customer-safe reply.",
             route_keywords=("sso", "login", "auth", "session", "permission", "identity"),
         ),
         AgentSpec(
             "BillingSpecialistAgent",
             "Handles invoices and reconciliation problems.",
-            "Resolve invoice, reconciliation, subscription, and finance-close concerns.",
+            "Resolve the billing angle: invoice state, reconciliation, and subscription status, "
+            "including finance-close impact for the customer. State the most likely cause, what to "
+            "check first, and a customer-safe reply.",
             route_keywords=("invoice", "billing", "reconciliation", "subscription", "finance"),
         ),
         AgentSpec(
             "DataExportSpecialistAgent",
             "Handles dashboard and export failures.",
-            "Resolve report export, file format, query, and dashboard data concerns.",
+            "Resolve the export angle: report export queries, file formats, dashboard state, and "
+            "pipeline data issues. State the most likely cause, the fastest reproduction step, and a "
+            "customer-safe reply.",
             route_keywords=("export", "dashboard", "report", "file format", "query"),
         ),
         AgentSpec(
             "EscalationCoordinatorAgent",
             "Coordinates urgent escalation and next actions.",
-            "Create escalation criteria, next actions, and customer-safe communication for urgent issues.",
+            "Coordinate the urgent path: severity call, escalation criteria, owner handoffs, and "
+            "customer-safe communication given the finance-close deadline. Multiple tenants reporting "
+            "the same 403 is your signal to treat this as a potential incident.",
             route_keywords=("escalation", "urgent", "outage", "executive", "incident"),
         ),
     ),

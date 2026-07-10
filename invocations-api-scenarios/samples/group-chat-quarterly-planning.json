@@ -1,6 +1,6 @@
 {
   "scenario": "group-chat-quarterly-planning",
-  "task": "Produce a quarterly operating plan recommendation from stakeholder inputs. Constraint: headcount is frozen this quarter, so every commitment must trade off against existing capacity.",
+  "task": "Produce a quarterly operating plan focused on improving enterprise customer retention. Constraint: headcount is frozen this quarter, so every commitment must trade off against existing capacity and name what it displaces.",
   "subject": "enterprise retention operating plan",
   "artifacts": [
     "planning/customer-health-dashboard.csv",

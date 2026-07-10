@@ -27,25 +27,33 @@ SCENARIO = ScenarioSpec(
         AgentSpec(
             "AuthSpecialistAgent",
             "Handles SSO and permission issues.",
-            "Assess SSO, login, session, role, and permission failure modes.",
+            "Diagnose the SSO, login, session, role, and permission failure modes the ticket "
+            "describes. State the most likely cause, the fastest verification step, and a customer-"
+            "safe next reply the support team can send today.",
             route_keywords=("sso", "login", "auth", "session", "permission", "identity"),
         ),
         AgentSpec(
             "BillingSpecialistAgent",
             "Handles invoice and reconciliation issues.",
-            "Assess invoices, billing state, reconciliation, and finance-close impact.",
+            "Diagnose the invoice, billing-state, and reconciliation angles of the ticket, including "
+            "finance-close impact. State the most likely cause, what to check in billing state, and a "
+            "customer-safe next reply.",
             route_keywords=("invoice", "billing", "reconciliation", "subscription", "finance"),
         ),
         AgentSpec(
             "ExportSpecialistAgent",
             "Handles export and report failures.",
-            "Assess export queries, formats, dashboard state, and data pipeline issues.",
+            "Diagnose the export-query, file-format, dashboard-state, and data-pipeline angles of the "
+            "ticket. State the most likely cause, the fastest reproduction step, and a customer-safe "
+            "next reply.",
             route_keywords=("export", "dashboard", "report", "file format", "query"),
         ),
         AgentSpec(
             "EscalationCoordinatorAgent",
             "Plans escalation and communications.",
-            "Create escalation actions, owner handoffs, and customer-safe communication.",
+            "Plan the escalation: severity call, owner handoffs, timeline given the finance-close "
+            "deadline, and a customer-safe communication. Multiple tenants reporting the same error "
+            "is your signal to treat this as a potential incident.",
             route_keywords=("escalation", "urgent", "outage", "executive", "incident"),
         ),
     ),

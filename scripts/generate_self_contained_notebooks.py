@@ -2286,6 +2286,37 @@ def agent_factory_cells() -> list[dict[str, Any]]:
     )
 
 
+def _invocation_payload_source(project: dict[str, str], scenario_id: str) -> str:
+    """Inline the scenario's shipped ``samples/<id>.json`` subject, artifacts, and
+    constraints so the notebook's live run exercises the full Invocations request
+    shape instead of an empty placeholder payload."""
+
+    sample_path = ROOT / project["folder"] / "samples" / f"{scenario_id}.json"
+    sample = json.loads(sample_path.read_text(encoding="utf-8"))
+
+    def _list_lines(key: str) -> list[str]:
+        items = sample.get(key, [])
+        if not items:
+            return [f'    "{key}": [],']
+        lines = [f'    "{key}": [']
+        lines.extend(f"        {json.dumps(item)}," for item in items)
+        lines.append("    ],")
+        return lines
+
+    source_lines = [
+        "INVOCATION_PAYLOAD = {",
+        '    "scenario": SCENARIO.id,',
+        '    "pattern": SCENARIO.pattern,',
+        '    "task": SCENARIO.sample_task,',
+        f'    "subject": {json.dumps(sample.get("subject", "notebook sample"))},',
+        *_list_lines("artifacts"),
+        *_list_lines("constraints"),
+        '    "stream": False,',
+        "}",
+    ]
+    return textwrap.indent("\n".join(source_lines), "    ")
+
+
 def scenario_cells(project: dict[str, str], data: dict[str, Any]) -> list[dict[str, Any]]:
     sample_attr = project["sample_attr"]
     scenario_json = textwrap.indent(json.dumps(data, indent=2), "    ")
@@ -2297,22 +2328,7 @@ def scenario_cells(project: dict[str, str], data: dict[str, Any]) -> list[dict[s
     payload = (
         '    RESPONSES_PAYLOAD = {"input": SCENARIO.sample_input, "stream": False}'
         if sample_attr == "sample_input"
-        else textwrap.indent(
-            textwrap.dedent(
-                '''
-            INVOCATION_PAYLOAD = {
-                "scenario": SCENARIO.id,
-                "pattern": SCENARIO.pattern,
-                "task": SCENARIO.sample_task,
-                "subject": "notebook sample",
-                "artifacts": [],
-                "constraints": [],
-                "stream": False,
-            }
-            '''
-            ).strip(),
-            "    ",
-        )
+        else _invocation_payload_source(project, data["id"])
     )
     invocation_prompt = (
         ""
@@ -3990,10 +4006,9 @@ def primitives_environment_cells() -> list[dict[str, Any]]:
     .primitive-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
     .primitive-card {
         border: 1px solid rgba(100, 116, 139, 0.35); border-radius: 8px; padding: 10px 12px;
-        background: linear-gradient(180deg, rgba(248,250,252,.9), rgba(241,245,249,.9));
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+        background: rgba(128, 128, 128, 0.07);
     }
-    .primitive-card b { color: #1d4ed8; display: block; margin-bottom: 4px; }
+    .primitive-card b { color: #3b82f6; display: block; margin-bottom: 4px; }
     .primitive-chip {
         display: inline-block; border-radius: 999px; padding: 2px 8px; margin: 2px 4px 2px 0;
         background: #e0f2fe; color: #075985; font-size: 12px; font-weight: 600;
@@ -4004,7 +4019,7 @@ def primitives_environment_cells() -> list[dict[str, Any]]:
     }
     .transcript-block {
         border: 1px solid rgba(100, 116, 139, 0.35); border-radius: 8px; padding: 10px 12px;
-        background: rgba(255,255,255,.72); white-space: pre-wrap;
+        background: rgba(128, 128, 128, 0.07); white-space: pre-wrap;
     }
     </style>
     """

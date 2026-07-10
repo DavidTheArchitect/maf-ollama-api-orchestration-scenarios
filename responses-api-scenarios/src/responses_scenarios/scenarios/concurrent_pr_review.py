@@ -18,11 +18,41 @@ SCENARIO = ScenarioSpec(
         "cases and add a currency-rounding fixture (tests/test_reconciliation.py, +66/-31)."
     ),
     agents=(
-        AgentSpec("SecurityReviewerAgent", "Reviews auth, data exposure, and abuse risk.", "Review the change for authentication, authorization, secrets, input validation, and data exposure risk."),
-        AgentSpec("PerformanceReviewerAgent", "Reviews latency and scaling risk.", "Review the change for query cost, batching, memory pressure, concurrency, and user-visible latency."),
-        AgentSpec("TestReviewerAgent", "Reviews test coverage and regression risk.", "Assess whether tests cover the changed behavior, edge cases, migrations, and rollback behavior."),
-        AgentSpec("MaintainabilityReviewerAgent", "Reviews code clarity and future debugging cost.", "Review maintainability, interfaces, naming, error handling, and operational debuggability."),
-        AgentSpec("ReleaseRiskAgent", "Reviews release and rollout risk.", "Assess rollout, monitoring, feature flags, customer communications, and release-blocking risk."),
+        AgentSpec(
+            "SecurityReviewerAgent",
+            "Reviews auth, data exposure, and abuse risk.",
+            "Review only the security lane: authentication, authorization, secrets, input validation, "
+            "and data exposure. The JWKS caching change in auth/middleware.py is yours to judge. "
+            "Return a verdict line plus your top findings tied to the diff.",
+        ),
+        AgentSpec(
+            "PerformanceReviewerAgent",
+            "Reviews latency and scaling risk.",
+            "Review only the performance lane: query cost, batching, memory pressure, concurrency, "
+            "and user-visible latency. The OFFSET-to-keyset pagination switch in exports/query.py is "
+            "yours to judge. Return a verdict line plus concrete findings.",
+        ),
+        AgentSpec(
+            "TestReviewerAgent",
+            "Reviews test coverage and regression risk.",
+            "Review only the test lane: whether tests cover the changed behavior, edge cases, "
+            "migrations, and rollback behavior. The dropped flaky cases and new currency-rounding "
+            "fixture are yours to judge. Return a verdict line plus specific gaps.",
+        ),
+        AgentSpec(
+            "MaintainabilityReviewerAgent",
+            "Reviews code clarity and future debugging cost.",
+            "Review only the maintainability lane: interfaces, naming, error handling, and "
+            "operational debuggability across the three changed files. Return a verdict line plus the "
+            "one change most likely to confuse the next engineer.",
+        ),
+        AgentSpec(
+            "ReleaseRiskAgent",
+            "Reviews release and rollout risk.",
+            "Review only the rollout lane: monitoring, feature flags, customer communications, and "
+            "release-blocking risk of merging this change. Return a merge-or-hold verdict line plus "
+            "the conditions that would change it.",
+        ),
     ),
 )
 

@@ -27,25 +27,33 @@ SCENARIO = ScenarioSpec(
         AgentSpec(
             "BillingOpsAgent",
             "Reviews billing state.",
-            "Assess renewal, invoice, payment, SKU, and subscription-status explanations for entitlement loss.",
+            "Assess the renewal, invoice, payment, SKU, and subscription-status explanations for the "
+            "entitlement loss. Billing shows the subscription active, so explain what else in billing "
+            "state could drop a feature; return a diagnosis and the fix path you own.",
             route_keywords=("invoice", "billing", "subscription", "renewal", "payment"),
         ),
         AgentSpec(
             "ContractOpsAgent",
             "Reviews contract terms.",
-            "Assess order form terms, purchased modules, amendments, and account exceptions.",
+            "Assess the order form terms, purchased modules, amendments, and account-specific "
+            "exceptions. The contract shows premium reporting included through year-end -- confirm "
+            "what the entitlement should be and produce the evidence the account team can cite.",
             route_keywords=("contract", "order form", "terms", "amendment", "commercial"),
         ),
         AgentSpec(
             "CustomerSupportAgent",
             "Plans support response.",
-            "Prepare customer-safe communication, workaround options, escalation notes, and case updates.",
+            "Prepare the customer-safe communication for a strategic account on a same-day clock: "
+            "what happened, the workaround if any, the fix timeline, and internal case notes with the "
+            "escalation path.",
             route_keywords=("communication", "workaround", "case update", "apology"),
         ),
         AgentSpec(
             "ProductEngineeringAgent",
             "Reviews entitlement systems.",
-            "Assess feature flags, provisioning jobs, entitlement service defects, and remediation steps.",
+            "Assess feature flags, provisioning jobs, and entitlement-service defects that could drop "
+            "a purchased feature after renewal. Name the most likely mechanism, the verification "
+            "query, and the remediation steps.",
             route_keywords=("feature flag", "provisioning", "entitlement service", "defect", "engineering"),
         ),
     ),

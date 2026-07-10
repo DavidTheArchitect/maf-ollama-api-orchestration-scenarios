@@ -8,7 +8,7 @@ from .types import ScenarioSpec
 SCENARIO = ScenarioSpec(
     id="magentic-incident-response",
     pattern="magentic",
-    title="Magentic Incident Automation Job",
+    title="Magentic Incident Response Job",
     learning_goal="Learn how an invocation can carry a custom incident payload into a manager-led dynamic multi-agent workflow.",
     when_to_use="Use Invocations plus magentic orchestration for non-chat jobs that require dynamic planning and specialist coordination.",
     sample_task=(
@@ -17,12 +17,48 @@ SCENARIO = ScenarioSpec(
         "error rate reaches 8 percent. Suspected but unconfirmed: last night's storage driver rollout."
     ),
     agents=(
-        AgentSpec("IncidentManagerAgent", "Plans and coordinates the workflow.", "Coordinate the team, select specialists, replan when needed, and produce the final incident result."),
-        AgentSpec("TelemetryAnalystAgent", "Analyzes supplied telemetry artifacts.", "Analyze metrics, logs, alerts, and timeline clues from supplied artifacts."),
-        AgentSpec("DatabaseSpecialistAgent", "Analyzes database and migration risk.", "Assess database locks, query plans, migrations, and reconciliation job interactions."),
-        AgentSpec("InfrastructureSpecialistAgent", "Analyzes platform and capacity risk.", "Assess capacity, queues, network, deployments, and service dependencies."),
-        AgentSpec("CustomerImpactAgent", "Analyzes customer impact.", "Estimate customer impact, severity, escalation urgency, and external communication needs."),
-        AgentSpec("RemediationPlannerAgent", "Plans mitigation and follow-up.", "Create mitigation, validation, owner handoffs, and prevention follow-up."),
+        AgentSpec(
+            "IncidentManagerAgent",
+            "Plans and coordinates the workflow.",
+            "Coordinate the investigation: sequence the specialists, verify the suspected storage-"
+            "driver cause before committing to mitigation, replan when a finding changes the picture, "
+            "and produce the final incident result with cause, mitigation, and follow-ups.",
+        ),
+        AgentSpec(
+            "TelemetryAnalystAgent",
+            "Analyzes supplied telemetry artifacts.",
+            "Analyze the metrics, logs, alerts, and timeline clues in the supplied artifacts. "
+            "Establish which symptom came first and whether the timeline supports or contradicts the "
+            "storage-driver theory; report evidence, not guesses.",
+        ),
+        AgentSpec(
+            "DatabaseSpecialistAgent",
+            "Analyzes database and migration risk.",
+            "Assess database locks, query plans, migrations, and the reconciliation job's interaction "
+            "with storage. State clearly whether the database layer is a cause, a victim, or "
+            "unaffected, and cite the timeline facts you rely on.",
+        ),
+        AgentSpec(
+            "InfrastructureSpecialistAgent",
+            "Analyzes platform and capacity risk.",
+            "Assess capacity, queues, network, recent deployments, and service dependencies -- "
+            "especially last night's storage driver rollout. Report what verification would confirm "
+            "or clear it and the fastest safe mitigation.",
+        ),
+        AgentSpec(
+            "CustomerImpactAgent",
+            "Analyzes customer impact.",
+            "Estimate customer impact from the ticket spike and the 8 percent export error rate: "
+            "affected segments, severity, escalation urgency, and what external communication is "
+            "needed now versus after mitigation.",
+        ),
+        AgentSpec(
+            "RemediationPlannerAgent",
+            "Plans mitigation and follow-up.",
+            "Create the mitigation and follow-up plan: immediate mitigation with a validation step, "
+            "owner handoffs, and prevention actions. Tie each item to a confirmed finding from the "
+            "investigation, not to the initial suspicion.",
+        ),
     ),
 )
 

@@ -18,11 +18,41 @@ SCENARIO = ScenarioSpec(
         "rollback must not lose reconciliation state."
     ),
     agents=(
-        AgentSpec("ScopePlannerAgent", "Extracts release scope and readiness questions.", "Turn the user request into a concrete release-scope summary and ordered readiness questions."),
-        AgentSpec("DependencyPlannerAgent", "Identifies dependencies and sequencing.", "Identify upstream/downstream teams, rollout dependencies, migration needs, and sequencing constraints."),
-        AgentSpec("RiskReviewerAgent", "Reviews operational and customer risk.", "Assess operational risk, rollback risk, security exposure, and customer impact. Return mitigations."),
-        AgentSpec("DocsWriterAgent", "Plans release notes and internal docs.", "Create release-note bullets, internal enablement tasks, and support-facing docs needs."),
-        AgentSpec("FinalEditorAgent", "Creates the final readiness brief.", "Synthesize the prior outputs into scope, risks, required follow-ups, and a go/no-go recommendation."),
+        AgentSpec(
+            "ScopePlannerAgent",
+            "Extracts release scope and readiness questions.",
+            "Turn the user request into a concrete release-scope summary and an ordered list of "
+            "readiness questions the later stages must answer. Restate the scope items and "
+            "constraints explicitly -- the whole pipeline builds on this summary.",
+        ),
+        AgentSpec(
+            "DependencyPlannerAgent",
+            "Identifies dependencies and sequencing.",
+            "Identify upstream and downstream teams, rollout dependencies, migration needs, and "
+            "sequencing constraints for each scope item the planner listed. Call out anything that "
+            "must land before the finance-close freeze.",
+        ),
+        AgentSpec(
+            "RiskReviewerAgent",
+            "Reviews operational and customer risk.",
+            "Assess operational risk, rollback risk, security exposure, and customer impact for the "
+            "dependencies identified so far. Return each risk with severity, likelihood, and a "
+            "concrete mitigation -- flag anything that threatens the freeze or rollback constraint.",
+        ),
+        AgentSpec(
+            "DocsWriterAgent",
+            "Plans release notes and internal docs.",
+            "Create release-note bullets, internal enablement tasks, and support-facing documentation "
+            "needs grounded in the actual scope and risks above, not generic boilerplate. Note which "
+            "docs are release-blocking.",
+        ),
+        AgentSpec(
+            "FinalEditorAgent",
+            "Creates the final readiness brief.",
+            "Synthesize the prior stages into the final readiness brief: scope, top risks with "
+            "mitigations, required follow-ups with owners, and a go/no-go recommendation that cites "
+            "the freeze and rollback constraints.",
+        ),
     ),
 )
 

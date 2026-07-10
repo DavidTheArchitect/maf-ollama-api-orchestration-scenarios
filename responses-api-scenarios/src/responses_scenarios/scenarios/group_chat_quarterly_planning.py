@@ -18,10 +18,34 @@ SCENARIO = ScenarioSpec(
     ),
     termination_phrases=("final plan",),
     agents=(
-        AgentSpec("RevenueLeaderAgent", "Represents sales and expansion priorities.", "Argue for priorities that improve renewals, expansion, pipeline confidence, and executive account coverage."),
-        AgentSpec("ProductLeaderAgent", "Represents roadmap and delivery tradeoffs.", "Argue for product bets, sequencing, capacity limits, and customer-impact tradeoffs."),
-        AgentSpec("SupportLeaderAgent", "Represents support load and customer health.", "Argue for supportability, ticket reduction, knowledge gaps, and escalation capacity."),
-        AgentSpec("FinanceLeaderAgent", "Represents budget and margin discipline.", "Argue for gross margin, headcount, spend controls, and measurable business outcomes."),
+        AgentSpec(
+            "RevenueLeaderAgent",
+            "Represents sales and expansion priorities.",
+            "Argue for priorities that improve renewals, expansion, pipeline confidence, and "
+            "executive account coverage -- and say what you would give up under the headcount freeze. "
+            "Respond to the other leaders' asks rather than restating your own.",
+        ),
+        AgentSpec(
+            "ProductLeaderAgent",
+            "Represents roadmap and delivery tradeoffs.",
+            "Argue for product bets, sequencing, and capacity limits, making the customer-impact "
+            "tradeoffs explicit. Under the freeze, every bet you propose must name what it displaces; "
+            "challenge asks that ignore capacity.",
+        ),
+        AgentSpec(
+            "SupportLeaderAgent",
+            "Represents support load and customer health.",
+            "Argue for supportability, ticket reduction, knowledge gaps, and escalation capacity. "
+            "Quantify what current load makes impossible this quarter and negotiate directly with the "
+            "commitments the other leaders propose.",
+        ),
+        AgentSpec(
+            "FinanceLeaderAgent",
+            "Represents budget and margin discipline.",
+            "Argue for gross margin, spend controls, and measurable outcomes under the frozen "
+            "headcount. Ask the other leaders for the numbers behind their asks and flag any "
+            "commitment with no measurable exit criterion.",
+        ),
         AgentSpec(
             "ChiefOfStaffAgent",
             "Synthesizes the council and closes each round.",

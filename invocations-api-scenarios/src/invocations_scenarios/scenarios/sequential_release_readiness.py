@@ -17,11 +17,41 @@ SCENARIO = ScenarioSpec(
         "finance close freeze starts Friday, and rollback must not lose reconciliation state."
     ),
     agents=(
-        AgentSpec("JobIntakeAgent", "Normalizes the incoming job payload.", "Normalize the structured invocation into a concise work order. Preserve supplied fields."),
-        AgentSpec("DependencyAuditAgent", "Audits dependencies and rollout sequencing.", "Identify dependencies, rollout ordering, migration concerns, and blocked prerequisites."),
-        AgentSpec("RiskClassifierAgent", "Classifies release-blocking risks.", "Classify risks by severity, likelihood, owner, and required mitigation."),
-        AgentSpec("EvidenceCheckAgent", "Checks evidence and test sufficiency.", "Assess whether supplied artifacts support the requested release decision."),
-        AgentSpec("ActionPlannerAgent", "Produces the final action plan.", "Synthesize the pipeline into next actions, required approvals, and a release recommendation."),
+        AgentSpec(
+            "JobIntakeAgent",
+            "Normalizes the incoming job payload.",
+            "Normalize the structured invocation into a concise work order: restate the scope items, "
+            "the finance-freeze date, and the rollback requirement as explicit checklist entries. "
+            "Preserve every supplied field -- later stages build on this work order.",
+        ),
+        AgentSpec(
+            "DependencyAuditAgent",
+            "Audits dependencies and rollout sequencing.",
+            "Identify dependencies, rollout ordering, migration concerns, and blocked prerequisites "
+            "for each scope item in the work order. Call out anything that must land before the "
+            "freeze and any ordering the rollback plan forces.",
+        ),
+        AgentSpec(
+            "RiskClassifierAgent",
+            "Classifies release-blocking risks.",
+            "Classify the release-blocking risks the dependency audit surfaced by severity, "
+            "likelihood, owner, and required mitigation. Flag explicitly any risk that violates the "
+            "finance-freeze or rollback constraint from the work order.",
+        ),
+        AgentSpec(
+            "EvidenceCheckAgent",
+            "Checks evidence and test sufficiency.",
+            "Assess whether the supplied artifacts actually support the requested release decision: "
+            "name the evidence that exists, the evidence that is missing, and which classified risks "
+            "remain unproven either way.",
+        ),
+        AgentSpec(
+            "ActionPlannerAgent",
+            "Produces the final action plan.",
+            "Synthesize the full pipeline into a release brief: next actions with owners, required "
+            "approvals, and a clear go/no-go recommendation that cites the freeze constraint, the "
+            "rollback requirement, and the highest-severity risk.",
+        ),
     ),
 )
 

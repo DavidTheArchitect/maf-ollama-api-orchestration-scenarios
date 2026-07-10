@@ -19,12 +19,48 @@ SCENARIO = ScenarioSpec(
         "incident brief."
     ),
     agents=(
-        AgentSpec("IncidentManagerAgent", "Plans and coordinates the incident response.", "Coordinate the team, decide who should act next, replan when blocked, and produce the final incident brief."),
-        AgentSpec("TelemetryAnalystAgent", "Analyzes logs, metrics, and symptoms.", "Reason about logs, metrics, alerts, error rates, and timelines from the provided incident description."),
-        AgentSpec("CustomerImpactAgent", "Estimates customer and business impact.", "Assess affected customers, severity, communication urgency, and business impact."),
-        AgentSpec("MitigationPlannerAgent", "Plans rollback and mitigation options.", "Propose mitigation, rollback, feature-flag, and validation options."),
-        AgentSpec("CommsLeadAgent", "Drafts stakeholder and customer communications.", "Draft concise internal updates and customer-safe status language."),
-        AgentSpec("PostIncidentReviewerAgent", "Identifies follow-up and prevention work.", "Identify post-incident actions, owners, and prevention themes."),
+        AgentSpec(
+            "IncidentManagerAgent",
+            "Plans and coordinates the incident response.",
+            "Coordinate the response: decide who acts next, verify the suspected storage-driver "
+            "rollout before committing to mitigation, replan when a finding changes the picture, and "
+            "produce the final incident brief with cause, mitigation, and follow-ups.",
+        ),
+        AgentSpec(
+            "TelemetryAnalystAgent",
+            "Analyzes logs, metrics, and symptoms.",
+            "Reason about the logs, metrics, error rates, and timeline in the incident description. "
+            "Establish which symptom came first and whether the sequence supports or contradicts the "
+            "storage-driver theory; report evidence, not guesses.",
+        ),
+        AgentSpec(
+            "CustomerImpactAgent",
+            "Estimates customer and business impact.",
+            "Assess affected customers, severity, communication urgency, and business impact from the "
+            "ticket spike and the 8 percent export error rate. Distinguish what customers see now "
+            "from what they will see if mitigation waits an hour.",
+        ),
+        AgentSpec(
+            "MitigationPlannerAgent",
+            "Plans rollback and mitigation options.",
+            "Propose mitigation, rollback, feature-flag, and validation options for the confirmed "
+            "cause, each with its blast radius and a verification step. Prefer the option that "
+            "restores exports fastest without losing reconciliation state.",
+        ),
+        AgentSpec(
+            "CommsLeadAgent",
+            "Drafts stakeholder and customer communications.",
+            "Draft the concise internal update and the customer-safe status language for the current "
+            "state of the investigation. Keep the external message factual about impact and next "
+            "update time without speculating on cause.",
+        ),
+        AgentSpec(
+            "PostIncidentReviewerAgent",
+            "Identifies follow-up and prevention work.",
+            "Identify the post-incident actions, owners, and prevention themes this timeline suggests "
+            "-- especially guardrails that would have caught the storage-driver regression before "
+            "rollout. Return a short, assignable list.",
+        ),
     ),
 )
 
