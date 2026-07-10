@@ -11,7 +11,11 @@ SCENARIO = ScenarioSpec(
     title="Handoff Customer Entitlement Job",
     learning_goal="Learn how a triage agent names the owning enterprise specialist with a ROUTE directive that a code-defined router validates before handing off the entitlement case.",
     when_to_use="Use Invocations plus handoff orchestration for CRM, support, or account workflows where ownership depends on case context and the model should name the owner.",
-    sample_task="Route and resolve a customer entitlement case.",
+    sample_task=(
+        "Route and resolve entitlement case 88421: Contoso, a strategic account, lost access to its "
+        "purchased premium reporting feature after last week's plan renewal, billing shows the "
+        "subscription as active, and the account team needs a same-day answer."
+    ),
     agents=(
         AgentSpec(
             "EntitlementTriageAgent",

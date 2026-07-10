@@ -1,0 +1,15 @@
+{
+  "scenario": "handoff-transaction-dispute",
+  "task": "Run a dispute routing job for transaction dispute DISPUTE-90455 (duplicate charge with a lost-card report) and return the resolution and customer communication.",
+  "subject": "DISPUTE-90455 card dispute",
+  "artifacts": [
+    "records/DISPUTE-90455.json",
+    "policies/dispute-routing.md"
+  ],
+  "constraints": [
+    "Route to exactly one specialist.",
+    "Fraud indicators outrank merchant-error signals per policy.",
+    "End with the customer communication and the regulatory clock."
+  ],
+  "stream": false
+}

@@ -57,6 +57,8 @@ class NotebookCompanionTests(unittest.TestCase):
                 self.assertIn("gemma4:12b", source_text)
                 self.assertIn("_APTOS_STYLE", source_text)
                 self.assertIn("Pattern Anatomy", source_text)
+                self.assertIn("Pattern Comparison", source_text)
+                self.assertIn("Which pattern would we actually choose?", source_text)
                 self.assertIn("Flow Diagram", source_text)
                 self.assertIn("display_scenario_flow", source_text)
                 self.assertIn("apply_notebook_style", source_text)

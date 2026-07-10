@@ -21,6 +21,11 @@ ENTERPRISE_MCP_SCENARIOS = {
     "handoff-claims-exception-routing",
     "group-chat-policy-exception-board",
     "magentic-business-continuity-drill",
+    "sequential-loan-origination",
+    "concurrent-ma-due-diligence",
+    "handoff-transaction-dispute",
+    "group-chat-architecture-review",
+    "magentic-churn-spike-investigation",
 }
 
 QUOTE_TO_CASH_SCENARIOS = {

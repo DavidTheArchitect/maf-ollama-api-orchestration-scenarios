@@ -1,6 +1,6 @@
 {
   "scenario": "handoff-support-triage",
-  "task": "Route a support ticket about invoice export failures after SSO login.",
+  "task": "Route urgent ticket 10492: an enterprise admin reports invoice exports fail with a 403 immediately after SSO login while other exports still work, finance close is today, and two more tenants reported the same error this morning.",
   "subject": "urgent customer ticket 10492",
   "artifacts": [
     "ticket transcript: invoice export fails immediately after SSO login",

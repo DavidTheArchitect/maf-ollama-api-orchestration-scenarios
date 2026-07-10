@@ -1,6 +1,6 @@
 {
   "scenario": "handoff-customer-entitlement",
-  "task": "Route and resolve a customer entitlement case.",
+  "task": "Route and resolve entitlement case 88421: Contoso, a strategic account, lost access to its purchased premium reporting feature after last week's plan renewal, billing shows the subscription as active, and the account team needs a same-day answer.",
   "subject": "account: Contoso premium reporting entitlement",
   "artifacts": [
     "crm/account-renewal.json",

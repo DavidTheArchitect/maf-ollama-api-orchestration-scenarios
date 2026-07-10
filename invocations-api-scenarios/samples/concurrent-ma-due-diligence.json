@@ -1,0 +1,15 @@
+{
+  "scenario": "concurrent-ma-due-diligence",
+  "task": "Run a due diligence job for acquisition target TARGET-ACQ-STELLAR across finance, legal, technology, and market lanes and return a deal recommendation.",
+  "subject": "TARGET-ACQ-STELLAR acquisition review",
+  "artifacts": [
+    "records/TARGET-ACQ-STELLAR.json",
+    "policies/due-diligence-gate.md"
+  ],
+  "constraints": [
+    "Run the four diligence lanes independently.",
+    "Any unmitigated red flag blocks a proceed recommendation.",
+    "Return proceed, renegotiate, or walk away with rationale."
+  ],
+  "stream": false
+}

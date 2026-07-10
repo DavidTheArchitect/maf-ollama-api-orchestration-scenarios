@@ -1,6 +1,6 @@
 {
   "scenario": "sequential-employee-onboarding",
-  "task": "Build an onboarding execution plan for a new enterprise employee.",
+  "task": "Build an onboarding execution plan for a new regional sales director starting in ten business days. Details: remote hire, needs CRM and billing-system access, the background check is still pending, payroll spans two states, and the manager wants a first-week enablement plan.",
   "subject": "new-hire: regional sales director",
   "artifacts": [
     "hris/new-hire-profile.json",

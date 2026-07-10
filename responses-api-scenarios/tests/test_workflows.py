@@ -39,7 +39,7 @@ class WorkflowSelectionTests(unittest.TestCase):
         pattern_counts = {pattern: [scenario.pattern for scenario in SCENARIOS].count(pattern) for pattern in PATTERNS}
         self.assertEqual(
             pattern_counts,
-            {"sequential": 5, "concurrent": 4, "handoff": 4, "group-chat": 5, "magentic": 4},
+            {"sequential": 6, "concurrent": 5, "handoff": 5, "group-chat": 6, "magentic": 5},
         )
         self.assertEqual(len(SCENARIOS), sum(pattern_counts.values()))
 

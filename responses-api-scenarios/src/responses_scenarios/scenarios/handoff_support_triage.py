@@ -11,7 +11,11 @@ SCENARIO = ScenarioSpec(
     title="Handoff Support Triage",
     learning_goal="Learn how a triage agent names the owning specialist with a ROUTE directive while a code-defined router validates the choice against the allowed routes.",
     when_to_use="Use Responses plus handoff when the right specialist depends on the conversation and the model should pick the owner within a code-validated routing graph.",
-    sample_input="A customer says their invoice export fails after SSO login and they need an answer before finance close.",
+    sample_input=(
+        "An enterprise admin says invoice exports fail with a 403 immediately after SSO login while "
+        "other exports still work, finance close is today, and two more tenants reported the same "
+        "error this morning."
+    ),
     agents=(
         AgentSpec(
             "SupportTriageAgent",

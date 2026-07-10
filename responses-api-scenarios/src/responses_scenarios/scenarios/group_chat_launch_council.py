@@ -11,7 +11,11 @@ SCENARIO = ScenarioSpec(
     title="Group Chat Launch Council",
     learning_goal="Learn how a Responses API chat can expose a collaborative council that iteratively improves an answer, with a closing synthesizer whose verdict ends the discussion.",
     when_to_use="Use Responses plus group chat when transparency, critique, and iterative refinement matter more than a fixed pipeline.",
-    sample_input="Should we launch the new dashboard export feature this week or hold for another beta cohort?",
+    sample_input=(
+        "Should we launch the new dashboard export feature this week or hold for another beta cohort? "
+        "Context: beta feedback is positive but includes two timeout reports, rollback is a feature "
+        "flag, and the support docs are still in draft."
+    ),
     termination_phrases=("final recommendation",),
     agents=(
         AgentSpec("ProductManagerAgent", "Represents customer value and launch tradeoffs.", "Argue from customer value, scope clarity, launch goals, and business tradeoffs."),

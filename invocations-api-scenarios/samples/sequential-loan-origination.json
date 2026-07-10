@@ -1,0 +1,15 @@
+{
+  "scenario": "sequential-loan-origination",
+  "task": "Run a loan origination job for application LOAN-73021 (home purchase mortgage) and return an offer packet with a pricing decision.",
+  "subject": "LOAN-73021 mortgage application",
+  "artifacts": [
+    "records/LOAN-73021.json",
+    "policies/manual-underwriting-referral.md"
+  ],
+  "constraints": [
+    "Walk every stage in order; no stage may be skipped.",
+    "Ground ratios and referral limits in MCP tool results.",
+    "Return an approve, refer, or decline decision with conditions."
+  ],
+  "stream": false
+}

@@ -1,0 +1,15 @@
+{
+  "scenario": "magentic-churn-spike-investigation",
+  "task": "Run an investigation job for the Q3 churn spike METRIC-CHURN-Q3 concentrated in SEGMENT-ENT-EU, identify the dominant driver, and return a remediation plan.",
+  "subject": "METRIC-CHURN-Q3 churn anomaly",
+  "artifacts": [
+    "records/METRIC-CHURN-Q3.json",
+    "records/SEGMENT-ENT-EU.json"
+  ],
+  "constraints": [
+    "Confirm or eliminate each candidate cause with evidence.",
+    "Name a single dominant driver.",
+    "Return a remediation plan with an early-warning metric."
+  ],
+  "stream": false
+}

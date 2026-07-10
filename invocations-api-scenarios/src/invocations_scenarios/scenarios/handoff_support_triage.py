@@ -11,7 +11,11 @@ SCENARIO = ScenarioSpec(
     title="Handoff Support Triage Job",
     learning_goal="Learn how a triage agent names the owning specialist with a ROUTE directive while a code-defined router validates the choice, all behind a job-style invocation payload.",
     when_to_use="Use Invocations plus handoff for ticket, webhook, or service-desk automation where the model should pick the owner within a code-validated routing graph.",
-    sample_task="Route a support ticket about invoice export failures after SSO login.",
+    sample_task=(
+        "Route urgent ticket 10492: an enterprise admin reports invoice exports fail with a 403 "
+        "immediately after SSO login while other exports still work, finance close is today, and two "
+        "more tenants reported the same error this morning."
+    ),
     agents=(
         AgentSpec(
             "TicketTriageAgent",

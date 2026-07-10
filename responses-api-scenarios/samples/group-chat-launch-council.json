@@ -1,4 +1,4 @@
 {
-  "input": "Should we launch the new dashboard export feature this week or hold for another beta cohort?",
+  "input": "Should we launch the new dashboard export feature this week or hold for another beta cohort? Context: beta feedback is positive but includes two timeout reports, rollback is a feature flag, and the support docs are still in draft.",
   "stream": false
 }

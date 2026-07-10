@@ -1,4 +1,4 @@
 {
-  "input": "A customer says their invoice export fails after SSO login and they need an answer before finance close.",
+  "input": "An enterprise admin says invoice exports fail with a 403 immediately after SSO login while other exports still work, finance close is today, and two more tenants reported the same error this morning.",
   "stream": false
 }

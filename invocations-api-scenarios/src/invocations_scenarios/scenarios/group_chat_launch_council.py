@@ -11,7 +11,11 @@ SCENARIO = ScenarioSpec(
     title="Group Chat Change Advisory Job",
     learning_goal="Learn how an invocation can return a structured result from a transparent multi-agent advisory conversation, with a facilitator whose verdict closes the discussion.",
     when_to_use="Use Invocations plus group chat when an internal system wants a decision record from several named stakeholders.",
-    sample_task="Create a change advisory recommendation for launching dashboard export changes this week.",
+    sample_task=(
+        "Create a change advisory recommendation for launching dashboard export changes this week. "
+        "Context: beta cohort feedback is positive but includes two timeout reports, rollback is a "
+        "feature flag, and the support docs are still in draft."
+    ),
     termination_phrases=("final recommendation",),
     agents=(
         AgentSpec("SecurityAdvisorAgent", "Represents security constraints.", "Evaluate security and compliance objections or approvals."),

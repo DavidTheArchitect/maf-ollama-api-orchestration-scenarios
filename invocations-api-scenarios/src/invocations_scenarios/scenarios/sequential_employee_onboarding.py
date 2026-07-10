@@ -11,7 +11,11 @@ SCENARIO = ScenarioSpec(
     title="Sequential Employee Onboarding Job",
     learning_goal="Learn how an invocation can move a structured onboarding job through required enterprise departments, where each stage consumes a concrete artifact from the stage before it.",
     when_to_use="Use Invocations plus sequential orchestration for HRIS, ticketing, or workflow jobs where later stages depend on earlier artifacts — if departments only shared the same intake payload, concurrent orchestration would fit better.",
-    sample_task="Build an onboarding execution plan for a new enterprise employee.",
+    sample_task=(
+        "Build an onboarding execution plan for a new regional sales director starting in ten business "
+        "days. Details: remote hire, needs CRM and billing-system access, the background check is still "
+        "pending, payroll spans two states, and the manager wants a first-week enablement plan."
+    ),
     agents=(
         AgentSpec(
             "HrCoordinatorAgent",

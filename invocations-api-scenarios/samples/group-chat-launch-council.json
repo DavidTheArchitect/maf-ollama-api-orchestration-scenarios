@@ -1,6 +1,6 @@
 {
   "scenario": "group-chat-launch-council",
-  "task": "Create a change advisory recommendation for launching dashboard export changes this week.",
+  "task": "Create a change advisory recommendation for launching dashboard export changes this week. Context: beta cohort feedback is positive but includes two timeout reports, rollback is a feature flag, and the support docs are still in draft.",
   "subject": "dashboard export launch decision",
   "artifacts": [
     "beta cohort feedback: positive but two timeout reports",

@@ -1,0 +1,14 @@
+{
+  "scenario": "group-chat-architecture-review",
+  "task": "Run an architecture review board job for ADR-2209 (customer notification service, build versus buy) and return a decision with conditions and an exit strategy.",
+  "subject": "ADR-2209 build versus buy",
+  "artifacts": [
+    "records/ADR-2209.json",
+    "policies/build-versus-buy-review.md"
+  ],
+  "constraints": [
+    "Every board voice must speak before the chair decides.",
+    "The decision must cover cost, security, residency, and exit strategy."
+  ],
+  "stream": false
+}
