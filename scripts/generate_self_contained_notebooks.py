@@ -243,7 +243,7 @@ SCENARIO_SPOTLIGHTS: dict[str, tuple[str, str]] = {
     ),
     "scenario-16-quote-to-cash-concurrent": (
         "The product-fit and pricing lanes discover SKUs independently -- check whether their SKU sets disagree and how the synthesizer reconciles them.",
-        "Lower the discount to 15 percent in the payload and confirm the legal-approval requirement disappears.",
+        "Switch the payload to opportunity OPP-5002 -- its trigger is blocked -- and watch how the lanes and the synthesizer report a quote that cannot proceed.",
     ),
     "scenario-16-quote-to-cash-handoff": (
         "The trigger agent names the specialist the quote needs most; whichever route it picks, QuoteGenerationAgent must still finish the package.",
@@ -251,7 +251,7 @@ SCENARIO_SPOTLIGHTS: dict[str, tuple[str, str]] = {
     ),
     "scenario-16-quote-to-cash-group-chat": (
         "The 25 percent discount gives the pricing reviewer a real objection -- check the debate surfaces the legal-approval requirement before the readiness verdict.",
-        "Lower the discount to 15 percent in the payload and compare how quickly the council converges.",
+        "Repoint the quote at customer ACC-3301 (mid-market terms) and compare how the pricing and legal reviewers' objections change.",
     ),
     "group-chat-partner-launch-review": (
         "The partner certification expires mid launch window and one compliance finding is open -- both facts live only behind the A2A seats, so the chair's verdict must cite what the remote agents reported.",
@@ -261,7 +261,552 @@ SCENARIO_SPOTLIGHTS: dict[str, tuple[str, str]] = {
         "The discount crosses the legal threshold, so the manager should delegate to pricing/terms before formatting the package -- watch the delegation order.",
         "Lower the discount to 15 percent in the payload and compare the manager's plan.",
     ),
+    "sequential-loan-origination": (
+        "LOAN-73021 passes every stage cleanly while POL-LEND-01 sets referral limits at DTI 0.43 and LTV 0.90 -- the offer packet should state why no manual referral was needed.",
+        "Point the payload at LOAN-73022 (DTI 0.44, LTV 0.92) and watch the risk-pricing stage refer the file instead of pricing it.",
+    ),
+    "concurrent-ma-due-diligence": (
+        "Each lane finds a different red flag on TARGET-ACQ-STELLAR (customer concentration, open litigation, missing SOC 2) -- under the POL-MA-02 gate the deal lead cannot recommend a clean proceed.",
+        "Switch the payload to TARGET-ACQ-HARBOR (clean but slower-growing) and compare the lanes' findings and the final recommendation.",
+    ),
+    "handoff-transaction-dispute": (
+        "DISPUTE-90455 carries both a merchant-error signal (duplicate posting) and a fraud signal (lost card) -- POL-DSP-04 says fraud review wins that tie; check the ROUTE line honors it.",
+        "Switch the payload to DISPUTE-90456 (a post-cancellation subscription charge with no fraud signal) and confirm the route moves to the subscription specialist.",
+    ),
+    "group-chat-architecture-review": (
+        "ADR-2209 gives every seat a real objection -- US-only vendor data residency, 85 percent platform utilization, 96k per year -- watch which concern the DECISION line resolves with conditions.",
+        "Reword the payload to say the vendor now offers an EU data region and see whether the chair's decision flips or just loses a condition.",
+    ),
+    "magentic-churn-spike-investigation": (
+        "Three candidate causes overlap the spike window (pricing change, billing migration, P1 outages) -- watch whether the manager delegates elimination work before accepting a driver.",
+        "Remove the pricing-change mention from the payload and compare which specialist the manager schedules first.",
+    ),
 }
+
+#: Per-pattern row for the cross-pattern comparison table rendered in every
+#: notebook: (control flow, coordination cost, latency and cost, fails when,
+#: choose it when). Keep cells short -- the five rows render side by side.
+PATTERN_COMPARISON_ROWS: dict[str, tuple[str, str, str, str, str]] = {
+    "sequential": (
+        "Fixed pipeline; each stage consumes the previous stage's output",
+        "None at runtime -- the graph is the plan",
+        "Slowest wall-clock for independent work; easiest to debug and audit",
+        "A stage needs information only a later stage produces",
+        "The order is mandated: compliance gates, artifact chains, staged approvals",
+    ),
+    "concurrent": (
+        "One fan-out to parallel lanes, one code-defined fan-in",
+        "None between lanes; the fan-in labels and combines",
+        "Best wall-clock when lanes are truly independent",
+        "Lanes secretly depend on each other's findings",
+        "Independent expert reviews of the same input, under time pressure",
+    ),
+    "handoff": (
+        "Triage names one owner; a router validates the choice",
+        "One routing decision, code-checked against allowed routes",
+        "Cheapest -- only the owner (plus an optional finisher) runs",
+        "The case genuinely needs several specialists to collaborate",
+        "Ownership depends on case facts and most specialists should not run",
+    ),
+    "group-chat": (
+        "Round-robin turns in a shared transcript; a closer ends each cycle",
+        "High -- every turn rereads the whole discussion",
+        "Slow and token-hungry; the transcript itself is the product",
+        "Participants never actually react to each other",
+        "Deliberation and critique must be visible in a recorded decision",
+    ),
+    "magentic": (
+        "A manager plans, delegates, observes a ledger, and replans",
+        "Highest -- planning, delegation, and replan loops",
+        "Most expensive and least predictable run shape",
+        "The task was really a known pipeline all along",
+        "Ambiguous work where the plan must change as evidence arrives",
+    ),
+}
+
+#: Per-scenario pattern notes shared by both projects: how the taught pattern
+#: executes THIS scenario (role-based, since rosters differ per package) and an
+#: honest verdict on which pattern we would actually choose for the problem.
+SCENARIO_PATTERN_NOTES: dict[str, dict[str, str]] = {
+    "sequential-release-readiness": {
+        "walkthrough": (
+            "The job arrives naming the release scope and two hard constraints: a finance-freeze "
+            "date and a rollback requirement. The intake stage turns it into a work order, the "
+            "dependency stage audits what the release touches, the risk stage classifies severity "
+            "using the dependency findings, the evidence stage checks test proof, and the final "
+            "stage writes the go/no-go brief. Each stage reads the original request plus everything "
+            "produced before it, so the brief can cite the freeze and the rollback plan without "
+            "re-deriving them."
+        ),
+        "verdict": (
+            "Sequential is the right call. The stages have real data dependencies -- risk "
+            "classification is meaningless before the dependency audit -- so concurrent lanes would "
+            "each rebuild the same context, and a group chat would add turn-taking cost without "
+            "adding information. Reach for concurrent only if your gates become genuinely "
+            "independent checklists."
+        ),
+    },
+    "concurrent-pr-review": {
+        "walkthrough": (
+            "One diff summary fans out to four reviewers at once -- security, performance, tests, "
+            "and style -- each judging only its own lane. A code-defined aggregator labels each "
+            "verdict with its lane and stitches the findings into one review, so no reviewer waits "
+            "on, or is anchored by, another."
+        ),
+        "verdict": (
+            "Concurrent wins. The lanes are independent by construction (a security opinion does "
+            "not depend on a style opinion), so running them in order only slows the review down, "
+            "and a group chat would let early speakers anchor later ones. Sequential earns its "
+            "place only when one reviewer's output feeds another's judgment."
+        ),
+    },
+    "handoff-support-triage": {
+        "walkthrough": (
+            "The ticket deliberately mixes symptoms: exports fail right after SSO login, which "
+            "reads as auth, billing, or export depending on which detail you weight. Triage reads "
+            "the ticket, names one owner in a ROUTE line, and a code-defined router validates that "
+            "choice against the allowed specialists (falling back to keyword scoring) before "
+            "exactly one specialist answers."
+        ),
+        "verdict": (
+            "Handoff is the right call: only one specialist should spend tokens per ticket, and "
+            "ownership genuinely depends on the ticket's content. Concurrent would wake every "
+            "specialist for every ticket; sequential would force a fixed order onto a decision "
+            "that is the whole point. If tickets routinely needed several specialists to "
+            "collaborate, magentic or group chat would enter the conversation."
+        ),
+    },
+    "group-chat-launch-council": {
+        "walkthrough": (
+            "Four advisors and a facilitator debate one question -- launch this week or hold -- in "
+            "a visible round-robin transcript. Each advisor reacts to what has already been said "
+            "(the reliability advisor can rebut the QA advisor's evidence), and the facilitator "
+            "closes each cycle; the chat ends when the facilitator's turn carries the FINAL "
+            "RECOMMENDATION line or the cycle cap is reached."
+        ),
+        "verdict": (
+            "Group chat earns its cost here because the advisors' concerns interact -- two timeout "
+            "reports matter less once rollback-by-feature-flag is on the table, and only a shared "
+            "transcript surfaces that rebuttal. If your advisors never need to answer each other, "
+            "concurrent with a synthesizer gives the same coverage faster and cheaper."
+        ),
+    },
+    "magentic-incident-response": {
+        "walkthrough": (
+            "The payload is a timeline of symptoms with a suspected but unconfirmed cause. The "
+            "manager plans an investigation, delegates verification and mitigation to specialists, "
+            "watches the progress ledger, and replans when a delegation stalls or a finding changes "
+            "the picture -- the run's shape is decided at runtime, not in the graph."
+        ),
+        "verdict": (
+            "Magentic fits because the incident's shape is unknown up front: if verification "
+            "disproves the storage-driver theory the plan must change, and no fixed pipeline can "
+            "encode that. Handoff could route the incident to one owner but cannot replan; "
+            "sequential would hard-code an investigation order the evidence might contradict. Once "
+            "your incidents follow a stable runbook, sequential over that runbook is cheaper and "
+            "more auditable."
+        ),
+    },
+    "sequential-employee-onboarding": {
+        "walkthrough": (
+            "HR produces the role profile; IT provisions against that profile; security reviews "
+            "what IT provisioned; payroll enrolls against the confirmed profile; enablement builds "
+            "the first-week plan from all of it. Every stage consumes a concrete artifact from the "
+            "stage before, which is exactly what this pattern is for."
+        ),
+        "verdict": (
+            "Sequential is correct because of the artifact chain -- IT cannot provision before HR "
+            "defines the role, and security reviews IT's output, not the intake form. The honest "
+            "caveat lives in the scenario's own when-to-use note: if your departments only shared "
+            "the intake payload and produced independent checklists, concurrent would finish "
+            "faster."
+        ),
+    },
+    "concurrent-vendor-risk-assessment": {
+        "walkthrough": (
+            "One vendor intake fans out to five independent risk lanes -- security, privacy, "
+            "legal, finance, operations -- each applying its own criteria to the same request and "
+            "its budget cap. Fan-in labels each lane's finding, so the combined assessment "
+            "preserves who said what."
+        ),
+        "verdict": (
+            "Concurrent wins: the five reviews share input but not reasoning, and the two-week "
+            "decision deadline rewards parallel wall-clock. Sequential adds latency with no "
+            "dependency payoff. If the lanes needed to negotiate -- finance trading scope against "
+            "security's demands -- group chat would become the honest choice."
+        ),
+    },
+    "handoff-customer-entitlement": {
+        "walkthrough": (
+            "A strategic account lost a purchased feature after renewal while billing still shows "
+            "the subscription active -- so the owner could plausibly be billing, contract, "
+            "support, or engineering. Triage weighs the case facts, names the owner in a ROUTE "
+            "line, and the router validates it before the single specialist resolves the case."
+        ),
+        "verdict": (
+            "Handoff is right: the case needs one accountable owner chosen from context, on a "
+            "same-day clock. Concurrent would draft four conflicting answers for one customer; "
+            "magentic's planning loop is overkill for a single routing decision. If entitlement "
+            "cases regularly required multi-team fixes, a manager-led magentic flow would start "
+            "to pay."
+        ),
+    },
+    "group-chat-quarterly-planning": {
+        "walkthrough": (
+            "Stakeholders with competing asks negotiate one operating plan under a frozen-headcount "
+            "constraint. Every proposal lands in the shared transcript where the next stakeholder "
+            "must respond to it, and the closing planner ends a converged cycle with the FINAL "
+            "PLAN line."
+        ),
+        "verdict": (
+            "Group chat is the honest fit: planning under a shared constraint is a negotiation, "
+            "and the medium of negotiation is exactly a transcript where commitments can be "
+            "challenged. Concurrent would collect five wish lists that still need reconciling; "
+            "sequential would give whoever goes last the only veto. The runner-up is magentic with "
+            "a planning manager, which trades the visible debate for speed."
+        ),
+    },
+    "magentic-supply-chain-disruption": {
+        "walkthrough": (
+            "A disruption threatens two product lines under an expedite-budget cap and contractual "
+            "penalties. The manager plans response options, delegates costing and feasibility to "
+            "specialists, and replans as quotes and constraints come back -- the option set at the "
+            "end is not knowable at the start."
+        ),
+        "verdict": (
+            "Magentic fits because the response is genuinely open-ended: which specialists matter "
+            "depends on which options survive costing, and that is a replanning loop by "
+            "definition. Group chat could debate a known option set but cannot generate and retire "
+            "options iteratively. If your disruptions resolve with a fixed escalation checklist, "
+            "sequential is cheaper."
+        ),
+    },
+    "sequential-procurement-approval": {
+        "walkthrough": (
+            "The job walks VENDOR-4471 through intake, budget, security, legal, and packet stages "
+            "in policy order. Each stage grounds its check in MCP tools -- the vendor record, the "
+            "spend policy, the security-review status -- and the packet stage assembles what every "
+            "prior stage found into one go/no-go recommendation with a decision-log entry."
+        ),
+        "verdict": (
+            "Sequential is the taught and defensible choice: approval chains are audited as "
+            "ordered gates, and the packet must cite each gate's finding. The honest observation "
+            "is that budget, security, and legal each read the same vendor record independently, "
+            "so concurrent lanes feeding a packet synthesizer would reach the same answer faster "
+            "-- choose sequential when auditability and fixed order are requirements, not "
+            "conveniences."
+        ),
+    },
+    "concurrent-security-alert-enrichment": {
+        "walkthrough": (
+            "ALERT-2298 fans out to four enrichment lanes -- identity, endpoint, network, and "
+            "data-loss -- each pulling its own slice of context from the MCP tools. The lanes fan "
+            "in with labels, and the summary agent, held out of the fan-out, reads all four to "
+            "assemble the incident summary."
+        ),
+        "verdict": (
+            "Concurrent is exactly right: enrichment lanes are independent reads against the same "
+            "alert, minutes matter, and the synthesizer-after-fan-in shape means the agent that "
+            "writes the summary actually saw every lane. Sequential enrichment would serialize "
+            "work with no ordering constraint; magentic would add planning overhead to a task "
+            "whose shape never changes."
+        ),
+    },
+    "handoff-claims-exception-routing": {
+        "walkthrough": (
+            "CLAIM-88120 exceeds the auto-approval threshold and carries a fraud signal, so per "
+            "POL-CLM-09 triage must route fraud-first even though a payment specialist also has a "
+            "claim on it. The router validates the ROUTE line, the fraud specialist investigates, "
+            "and the communication agent always finishes with the customer message."
+        ),
+        "verdict": (
+            "Handoff wins because policy makes ownership conditional on case facts -- the same "
+            "claim without a fraud signal routes elsewhere -- and the finisher guarantees every "
+            "path ends with a customer communication. Sequential would run specialists the claim "
+            "does not need; group chat would debate what policy has already decided."
+        ),
+    },
+    "group-chat-policy-exception-board": {
+        "walkthrough": (
+            "The board debates POLICY-EX-77: a 90-day residency waiver request against a policy "
+            "that caps waivers at 60 days. Risk, business need, and compliance each ground their "
+            "argument in MCP facts, and the chair closes each cycle -- approving only with a "
+            "compensating control and an expiry that respects the cap."
+        ),
+        "verdict": (
+            "Group chat is the right instrument for a governance board: the output is not just a "
+            "decision but a documented deliberation, and the compensating control typically "
+            "emerges from compliance answering risk in-transcript. Concurrent position papers "
+            "would leave the 90-versus-60-day conflict unresolved; a single handoff owner cannot "
+            "represent three interests."
+        ),
+    },
+    "magentic-business-continuity-drill": {
+        "walkthrough": (
+            "The manager scopes a drill for FACILITY-DC-EAST, 410 days overdue, while "
+            "FACILITY-DC-WEST offers a current-drill contrast. It delegates facility, IT, "
+            "communications, finance, and operations planning, and replans as the scope firms up."
+        ),
+        "verdict": (
+            "Magentic is defensible because the scoping decision -- what the drill must cover "
+            "given two facilities and shared dependencies -- benefits from a manager weighing "
+            "specialist input and replanning. The honest runner-up is sequential over the "
+            "continuity-drill playbook: if your drill scope is settled up front, the five playbook "
+            "steps are a pipeline and magentic's planning loop is overhead."
+        ),
+    },
+    "scenario-16-quote-to-cash-sequential": {
+        "walkthrough": (
+            "The quote for OPP-5001 builds in dependency order: the trigger confirms the request "
+            "is quotable, customer context sets the terms baseline, SKU discovery and product fit "
+            "define what is being sold, pricing applies the 25 percent discount that crosses the "
+            "legal threshold, and quote generation packages everything with the required legal "
+            "approval flagged."
+        ),
+        "verdict": (
+            "For quote-to-cash, sequential is the pattern we would actually ship: each stage "
+            "consumes the previous stage's output (you cannot price SKUs you have not validated), "
+            "and the audit trail mirrors the pipeline. Compare 16b-16e to see the same roles under "
+            "the other patterns -- instructive, but each pays a coordination cost this business "
+            "process does not need."
+        ),
+    },
+    "scenario-16-quote-to-cash-concurrent": {
+        "walkthrough": (
+            "The same six roles run as self-sufficient lanes: each parallel lane re-derives the "
+            "context it needs (trigger, customer, SKUs, pricing) independently, and the quote "
+            "owner is held out of the fan-out to reconcile the lanes' possibly-disagreeing "
+            "findings after fan-in."
+        ),
+        "verdict": (
+            "Honestly, sequential (16a) fits quote-to-cash better -- the lanes here overlap in "
+            "what they read and can disagree about SKUs, which is exactly why the synthesizer must "
+            "reconcile them. Concurrent earns its keep when quote volume makes wall-clock the "
+            "constraint and reconciliation is cheap; this variant teaches that tradeoff "
+            "deliberately."
+        ),
+    },
+    "scenario-16-quote-to-cash-handoff": {
+        "walkthrough": (
+            "The trigger agent triages the request and routes to the single specialist the quote "
+            "needs most -- customer context, SKU discovery, product fit, or pricing -- and the "
+            "quote owner always finishes the package regardless of route."
+        ),
+        "verdict": (
+            "This variant is instructive overkill: a real quote eventually needs all of these "
+            "roles, so routing to just one is only right for narrow exception passes such as a "
+            "pricing-only revision. We would choose sequential (16a) for a full quote; handoff "
+            "shines in flows like scenarios 13 and 21 where most specialists genuinely should not "
+            "run."
+        ),
+    },
+    "scenario-16-quote-to-cash-group-chat": {
+        "walkthrough": (
+            "The quote's reviewers debate readiness, product fit, SKU validity, and the "
+            "over-threshold discount in a shared transcript, and the quote owner closes each cycle "
+            "-- terminating with the final quote recommendation once the objections have been "
+            "answered."
+        ),
+        "verdict": (
+            "Group chat is worth its token bill only for exception quotes -- the 25 percent "
+            "discount gives the pricing reviewer a genuine objection worth debating. For routine "
+            "quotes we would use sequential (16a) and reserve this board for deals that trip a "
+            "policy threshold, which is exactly how change-advisory boards work in practice."
+        ),
+    },
+    "scenario-16-quote-to-cash-magentic": {
+        "walkthrough": (
+            "A quote manager plans the work, delegates to the customer, SKU, product-fit, and "
+            "pricing specialists in whatever order the request demands, monitors the ledger, and "
+            "replans -- here, discovering the discount crosses the legal threshold and delegating "
+            "terms review before packaging."
+        ),
+        "verdict": (
+            "Magentic is the heaviest tool in the box, and a routine quote does not need it -- "
+            "sequential (16a) produces the same package predictably. This variant teaches when you "
+            "would upgrade: quotes that fail in unpredictable ways (blocked triggers, incompatible "
+            "SKUs, contested terms) reward a manager that can reorder the work mid-run."
+        ),
+    },
+    "group-chat-partner-launch-review": {
+        "walkthrough": (
+            "The launch council seats five voices, two of which are remote partner agents reached "
+            "over A2A -- discovered by agent card and called over JSON-RPC. The "
+            "certification-expiry and open-finding facts live only behind those remote seats, so "
+            "the chair's FINAL RECOMMENDATION must cite what the partners reported; the "
+            "orchestration itself is the same group chat used elsewhere in this repo."
+        ),
+        "verdict": (
+            "Group chat is the right pattern for a joint review where each organization must hear "
+            "and answer the others' constraints in one transcript. The A2A lesson is orthogonal: "
+            "any pattern can seat a remote agent. If the partners only needed to file reports "
+            "rather than deliberate, concurrent lanes calling the same A2A endpoints would be "
+            "cheaper."
+        ),
+    },
+    "sequential-loan-origination": {
+        "walkthrough": (
+            "LOAN-73021 walks the mandated stages in order: intake normalizes the application, "
+            "credit analysis checks the score against POL-LEND-01's referral limits, income "
+            "verification recomputes the debt-to-income ratio, risk pricing assigns the tier or "
+            "refers the file, and the offer packet records the decision. Each stage builds on "
+            "verified facts from the previous one -- income verification confirms the very ratio "
+            "credit analysis relied on."
+        ),
+        "verdict": (
+            "Sequential is the textbook choice, which is why this scenario exists: lending "
+            "regulation mandates the stage order, a skipped check is a compliance failure, and the "
+            "marginal file LOAN-73022 shows the pipeline correctly diverting to manual "
+            "underwriting. No other pattern can promise that every application takes the same "
+            "auditable path."
+        ),
+    },
+    "concurrent-ma-due-diligence": {
+        "walkthrough": (
+            "Four diligence lanes attack TARGET-ACQ-STELLAR at once -- finance finds the "
+            "customer-concentration risk, legal the open litigation, technology the missing SOC 2, "
+            "market the churn story -- and the deal lead, held out of the fan-out, applies the "
+            "POL-MA-02 gate to the labelled findings: any unmitigated red flag blocks a proceed."
+        ),
+        "verdict": (
+            "Concurrent is the textbook choice: the workstreams are independent by professional "
+            "design (legal does not wait for finance), deal timelines punish serialization, and "
+            "the synthesizer-after-fan-in shape guarantees the recommendation was written by an "
+            "agent that saw every lane. Sequential would roughly quadruple wall-clock for zero "
+            "dependency benefit."
+        ),
+    },
+    "handoff-transaction-dispute": {
+        "walkthrough": (
+            "DISPUTE-90455 carries conflicting signals -- a duplicate posting says merchant error, "
+            "a lost-card report says fraud -- and POL-DSP-04 breaks the tie: any fraud indicator "
+            "routes to fraud review before provisional credit. Triage names the owner in a ROUTE "
+            "line, the router validates it, the specialist resolves the case, and the "
+            "communications agent always closes with the customer letter and the regulatory clock."
+        ),
+        "verdict": (
+            "Handoff is the textbook choice: routing is the decision -- running the merchant-error "
+            "specialist on a fraud case is precisely the mistake the policy exists to prevent -- "
+            "most specialists must not run, and the finisher guarantees the regulated customer "
+            "communication. Concurrent would produce contradictory resolutions; the contrast case "
+            "DISPUTE-90456 shows the route flipping cleanly."
+        ),
+    },
+    "group-chat-architecture-review": {
+        "walkthrough": (
+            "ADR-2209 gives every seat a genuine objection -- platform engineering argues the "
+            "two-quarter build against 85 percent utilization, security argues the vendor's "
+            "US-only data region, finance argues the 96k annual cost, delivery argues on-call load "
+            "-- and the chair closes each cycle, ending with a DECISION line that carries "
+            "conditions and an exit strategy."
+        ),
+        "verdict": (
+            "Group chat is the textbook choice: build-versus-buy is decided by tradeoffs that live "
+            "in different heads, the decision is only defensible if the objections were visibly "
+            "answered, and the transcript is the decision record POL-ARCH-07 requires. Concurrent "
+            "position papers would leave residency-versus-capacity unresolved; one handoff owner "
+            "cannot represent four interests."
+        ),
+    },
+    "magentic-churn-spike-investigation": {
+        "walkthrough": (
+            "The manager starts from METRIC-CHURN-Q3 -- churn more than doubled while support "
+            "tickets stayed flat -- and three candidate causes overlapping the spike window. It "
+            "delegates quantification first, then billing, pricing, and reliability "
+            "investigations in whatever order the evidence suggests, replans as candidates are "
+            "eliminated, and hands the surviving driver to the retention planner for remediation."
+        ),
+        "verdict": (
+            "Magentic is the textbook choice: the investigation's shape is unknowable up front -- "
+            "eliminating the pricing theory changes what to ask next -- and that replanning loop "
+            "is the pattern's whole value. A sequential pipeline would hard-code an investigation "
+            "order the evidence might contradict; concurrent lanes would investigate all three "
+            "causes fully even after one is disproven."
+        ),
+    },
+}
+
+PATTERN_ORDER = ("sequential", "concurrent", "handoff", "group-chat", "magentic")
+
+
+def pattern_comparison_table(current: str | None) -> str:
+    """Markdown table comparing all five patterns, highlighting ``current``."""
+
+    lines = [
+        "| Pattern | Control flow | Coordination cost | Latency and cost | Fails when | Choose it when |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for pattern in PATTERN_ORDER:
+        control, coordination, latency, fails, choose = PATTERN_COMPARISON_ROWS[pattern]
+        label = pattern.replace("-", " ")
+        if pattern == current:
+            label = f"**{label} (this notebook)**"
+        lines.append(f"| {label} | {control} | {coordination} | {latency} | {fails} | {choose} |")
+    return "\n".join(lines)
+
+
+def _pattern_seat_line(scenario: Any) -> str:
+    """One sentence mapping this project's actual roster onto the pattern shape."""
+
+    names = [f"`{spec.name}`" for spec in scenario.agents]
+    if scenario.pattern == "sequential":
+        return "In this notebook the stages run " + " -> ".join(names) + "."
+    if scenario.pattern == "concurrent":
+        synthesizer = getattr(scenario, "concurrent_synthesizer", None)
+        lanes = [name for name in names if name != f"`{synthesizer}`"] if synthesizer else names
+        line = "In this notebook the parallel lanes are " + ", ".join(lanes)
+        if synthesizer:
+            line += f", and `{synthesizer}` runs after fan-in to combine them"
+        return line + "."
+    if scenario.pattern == "handoff":
+        finisher = getattr(scenario, "handoff_finisher", None)
+        specialists = [name for name in names[1:] if name != f"`{finisher}`"] if finisher else names[1:]
+        line = f"In this notebook {names[0]} triages and the router hands off to one of " + ", ".join(specialists)
+        if finisher:
+            line += f"; `{finisher}` always finishes"
+        return line + "."
+    if scenario.pattern == "group-chat":
+        return (
+            "In this notebook the speaking order is "
+            + " -> ".join(names)
+            + ", cycling until the closer's verdict (or the cycle cap) ends the chat."
+        )
+    return f"In this notebook {names[0]} is the manager and the specialists are " + ", ".join(names[1:]) + "."
+
+
+def pattern_deep_dive_markdown(project: dict[str, str], scenario: Any) -> str:
+    notes = SCENARIO_PATTERN_NOTES[scenario.id]
+    pattern_heading = scenario.pattern.replace("-", " ").title()
+    return f"""
+    ## How {pattern_heading} Plays Out in This Scenario
+
+    {notes["walkthrough"]}
+
+    {_pattern_seat_line(scenario)}
+
+    ## Pattern Comparison
+
+    {pattern_comparison_table(scenario.pattern)}
+
+    > **Which pattern would we actually choose?** {notes["verdict"]}
+    """
+
+
+def primitives_pattern_comparison_markdown() -> str:
+    return f"""
+    ## Pattern Comparison
+
+    This lab runs all five orchestration builders over the same roster, so keep this comparison
+    close while you work through the pattern cells below -- each row summarizes what you are
+    about to see the builders do differently.
+
+    {pattern_comparison_table(None)}
+
+    > **Which pattern would we actually choose?** For this enablement brief the honest answer is
+    > sequential -- the deliverable is a fixed document with known sections. The lab intentionally
+    > runs every builder anyway, because its job is to show the mechanics side by side; scenarios
+    > 19-23 each pick the single best-fit pattern for a real business case.
+    """
 
 def cell_source(source: str) -> list[str]:
     text = textwrap.dedent(source).strip("\n")
@@ -340,6 +885,11 @@ def notebook_paths_by_id(project: dict[str, str], scenarios: tuple[Any, ...]) ->
 NEW_NOTEBOOK_FILENAMES = {
     "group-chat-partner-launch-review": "17-group-chat-partner-launch-review.ipynb",
     PRIMITIVES_SCENARIO_ID: "18-agent-framework-primitives-lab.ipynb",
+    "sequential-loan-origination": "19-sequential-loan-origination.ipynb",
+    "concurrent-ma-due-diligence": "20-concurrent-ma-due-diligence.ipynb",
+    "handoff-transaction-dispute": "21-handoff-transaction-dispute.ipynb",
+    "group-chat-architecture-review": "22-group-chat-architecture-review.ipynb",
+    "magentic-churn-spike-investigation": "23-magentic-churn-spike-investigation.ipynb",
 }
 
 
@@ -822,22 +1372,31 @@ def environment_cells() -> list[dict[str, Any]]:
         teach(
             "Runtime configuration",
             SUPPORT,
-            "Reads the Ollama model/host from the environment and creates the shared "
-            "`MCP_TOOL_FUNCTIONS` registry that later cells populate and agents read from.",
+            "Reads the Ollama model and host from environment variables so the same notebook runs "
+            "against any local setup without edits -- override `OLLAMA_MODEL` or `OLLAMA_HOST` "
+            "before this cell to retarget it. It also creates `MCP_TOOL_FUNCTIONS`, the shared "
+            "registry that fixture cells populate and `make_agent` later reads to grant tools by "
+            "name. Nothing here touches the Agent Framework; this is the notebook's runtime dial.",
             config,
         )
         + teach(
             "Notebook styling",
             SUPPORT,
-            "Loads the Aptos look and the per-agent accent colors the render helpers reuse. "
-            "Pure presentation -- no Agent Framework surface here.",
+            "Injects the Aptos-inspired CSS the rendering helpers rely on: roster cards, tool "
+            "chips, and the per-agent accent bar that colors each transcript turn. `agent_color` "
+            "hashes an agent's name to a stable palette entry, which is why the same agent keeps "
+            "the same color across every cell and every run. Pure presentation -- no Agent "
+            "Framework surface here.",
             styling,
         )
         + teach(
             "Rendering helpers",
             SUPPORT,
-            "`render_roster` and `render_transcript` turn scenario specs and workflow output "
-            "into readable HTML and markdown. Glue for the notebook, not framework API.",
+            "`render_roster` draws one accent-colored card per agent listing its granted tools, "
+            "and `render_transcript` splits workflow output on `[AgentName]` turn labels, "
+            "rendering each turn's body as markdown beneath a colored label bar. This is what "
+            "turns raw multi-agent output into the readable, color-coded conversation you see "
+            "after the live run. Glue for the notebook, not framework API.",
             render_helpers,
         )
     )
@@ -931,6 +1490,114 @@ def enterprise_fixtures_cell() -> str:
             "owner": "Operations",
             "notes": "Secondary site with a current drill; a contrast case when prioritizing scope.",
         },
+        "LOAN-73021": {
+            "type": "loan_application",
+            "name": "Home purchase mortgage application",
+            "amount_usd": 384000,
+            "credit_score": 764,
+            "dti_ratio": 0.31,
+            "ltv_ratio": 0.80,
+            "employment_years": 6,
+            "owner": "Lending",
+            "notes": "Salaried applicant with two years of W-2s on file; a clean pass through every underwriting stage.",
+        },
+        "LOAN-73022": {
+            "type": "loan_application",
+            "name": "Home purchase mortgage application (marginal)",
+            "amount_usd": 402000,
+            "credit_score": 668,
+            "dti_ratio": 0.44,
+            "ltv_ratio": 0.92,
+            "employment_years": 1,
+            "owner": "Lending",
+            "notes": "Self-employed applicant; DTI and LTV both exceed the POL-LEND-01 referral limits, so manual underwriting and compensating factors are required.",
+        },
+        "TARGET-ACQ-STELLAR": {
+            "type": "acquisition_target",
+            "name": "Stellar Metrics Ltd",
+            "sector": "SaaS product analytics",
+            "arr_usd": 24000000,
+            "arr_growth_pct": 38,
+            "logo_churn_pct": 9,
+            "top_customer_revenue_share": 0.34,
+            "open_litigation": 1,
+            "soc2_status": "none",
+            "owner": "Corporate Development",
+            "notes": "Fast grower with one pending patent dispute, no SOC 2, a single-region deployment, and a third of revenue from one customer.",
+        },
+        "TARGET-ACQ-HARBOR": {
+            "type": "acquisition_target",
+            "name": "Harbor Data GmbH",
+            "sector": "EU data-residency analytics",
+            "arr_usd": 11000000,
+            "arr_growth_pct": 12,
+            "logo_churn_pct": 4,
+            "top_customer_revenue_share": 0.11,
+            "open_litigation": 0,
+            "soc2_status": "current",
+            "owner": "Corporate Development",
+            "notes": "Slower but clean: current certifications, diversified revenue, and an EU footprint; the contrast case for the diligence lanes.",
+        },
+        "DISPUTE-90455": {
+            "type": "transaction_dispute",
+            "name": "Duplicate charge with lost-card report",
+            "amount_usd": 1249.99,
+            "merchant": "TechnoMart Online",
+            "duplicate_posting": True,
+            "card_reported_lost": True,
+            "cardholder_present": False,
+            "days_since_posting": 3,
+            "owner": "Card Services",
+            "notes": "The same amount posted twice (a merchant-error signal) and the cardholder reported the card lost the same week (a fraud signal); POL-DSP-04 makes fraud review win that tie.",
+        },
+        "DISPUTE-90456": {
+            "type": "transaction_dispute",
+            "name": "Subscription billed after cancellation",
+            "amount_usd": 29.99,
+            "merchant": "StreamBox Media",
+            "duplicate_posting": False,
+            "card_reported_lost": False,
+            "cancellation_confirmed": True,
+            "days_since_posting": 12,
+            "owner": "Card Services",
+            "notes": "A recurring charge posted twelve days after a confirmed cancellation; a clean subscription dispute with no fraud signal.",
+        },
+        "ADR-2209": {
+            "type": "architecture_decision",
+            "name": "Customer notification service: build versus buy",
+            "annual_buy_cost_usd": 96000,
+            "build_estimate_eng_quarters": 2,
+            "vendor_sla_pct": 99.9,
+            "vendor_data_region": "us-only",
+            "platform_team_utilization_pct": 85,
+            "owner": "Architecture",
+            "notes": "The vendor processes data in the US only while a quarter of customers are in the EU; the build option lands on a platform team already at 85% utilization.",
+        },
+        "METRIC-CHURN-Q3": {
+            "type": "metric_anomaly",
+            "name": "Q3 enterprise churn spike",
+            "baseline_monthly_churn_pct": 1.8,
+            "current_monthly_churn_pct": 4.1,
+            "spike_start": "week of Sep 8",
+            "support_ticket_trend": "flat",
+            "nps_delta": -12,
+            "owner": "Customer Success",
+            "notes": "Churn more than doubled while support volume stayed flat; the spike overlaps a Sep 1 pricing change and billing migration wave 2, so the cause is genuinely ambiguous.",
+        },
+        "SEGMENT-ENT-EU": {
+            "type": "customer_segment",
+            "name": "Enterprise EU segment",
+            "account_count": 214,
+            "arr_usd": 18600000,
+            "renewal_concentration": "Q4-heavy",
+            "recent_events": [
+                "billing migration wave 2 (Sep 5-12)",
+                "new DPA requirement emails",
+                "P1 outages on Aug 28 and Sep 9",
+            ],
+            "owner": "Customer Success",
+            "notes": "The segment where the churn spike concentrates; three overlapping candidate causes give an investigation real material to eliminate.",
+        },
     }
 
     _POLICY_CATALOG: tuple[dict[str, Any], ...] = (
@@ -976,6 +1643,30 @@ def enterprise_fixtures_cell() -> str:
             "summary": "Tier-1 facilities must complete a continuity drill at least every 365 days.",
             "keywords": ("continuity", "drill", "facility", "tier-1", "operations", "recovery"),
         },
+        {
+            "id": "POL-LEND-01",
+            "title": "Manual Underwriting Referral",
+            "summary": "Loan applications with a debt-to-income ratio above 0.43 or a loan-to-value ratio above 0.90 require senior underwriter review and documented compensating factors before pricing.",
+            "keywords": ("loan", "underwriting", "dti", "ltv", "credit", "referral", "lending"),
+        },
+        {
+            "id": "POL-MA-02",
+            "title": "Due Diligence Gate",
+            "summary": "Acquisition recommendations require findings from the finance, legal, technology, and market workstreams; any single red flag blocks a proceed recommendation until a documented mitigation exists.",
+            "keywords": ("acquisition", "diligence", "merger", "workstream", "target", "gate"),
+        },
+        {
+            "id": "POL-DSP-04",
+            "title": "Dispute Routing and Provisional Credit",
+            "summary": "Disputes with any fraud indicator route to fraud review before provisional credit; pure merchant errors receive provisional credit within two business days; every dispute is acknowledged within ten business days.",
+            "keywords": ("dispute", "fraud", "chargeback", "credit", "merchant", "routing", "card"),
+        },
+        {
+            "id": "POL-ARCH-07",
+            "title": "Build-versus-Buy Review",
+            "summary": "Build-versus-buy decisions above 50k USD annual impact require a decision record covering total cost of ownership, security posture, data residency, and an exit strategy.",
+            "keywords": ("architecture", "build", "buy", "vendor", "decision", "residency", "review"),
+        },
     )
 
     _PLAYBOOKS: dict[str, list[str]] = {
@@ -1013,6 +1704,41 @@ def enterprise_fixtures_cell() -> str:
             "Define IT failover and recovery objectives.",
             "Define communications and stakeholder updates.",
             "Define finance and operations contingencies.",
+        ],
+        "loan-origination": [
+            "Normalize the application and confirm required documents.",
+            "Pull credit and flag scores below the referral threshold.",
+            "Verify income and recompute the debt-to-income ratio.",
+            "Price the risk tier or refer for manual underwriting per policy.",
+            "Assemble the offer packet with conditions and disclosures.",
+        ],
+        "due-diligence": [
+            "Confirm the target profile and the deal thesis.",
+            "Run finance, legal, technology, and market workstreams in parallel.",
+            "Collect red flags and quantify each one.",
+            "Check every red flag for a documented mitigation.",
+            "Synthesize a proceed, renegotiate, or walk-away recommendation.",
+        ],
+        "dispute-resolution": [
+            "Capture the dispute, the transaction, and the customer's account of events.",
+            "Screen for fraud indicators before any credit decision.",
+            "Route to the owning specialist based on the dominant signal.",
+            "Resolve per policy and record the provisional credit decision.",
+            "Send the customer the outcome and the regulatory-clock status.",
+        ],
+        "architecture-review": [
+            "State the decision, the options, and the deadline.",
+            "Score total cost of ownership for each option.",
+            "Assess security posture and data residency for each option.",
+            "Document the exit strategy for the preferred option.",
+            "Record the board's decision with dissents and conditions.",
+        ],
+        "churn-investigation": [
+            "Quantify the anomaly against baseline and segment it.",
+            "List candidate causes with their supporting evidence.",
+            "Assign specialists to confirm or eliminate each candidate.",
+            "Reconcile findings and identify the dominant driver.",
+            "Recommend remediation and an early-warning metric.",
         ],
     }
 
@@ -1528,23 +2254,33 @@ def agent_factory_cells() -> list[dict[str, Any]]:
         teach(
             "Ollama configuration",
             SUPPORT,
-            "Frozen `OllamaAgentConfig` plus env-driven defaults. This is local-runtime "
-            "plumbing, independent of any Agent Framework class.",
+            "A frozen `OllamaAgentConfig` dataclass captures everything one agent's chat client "
+            "needs -- model, host, temperature, context window, the scenario's token budget, "
+            "keep-alive, and the think flag -- with environment variables as the override "
+            "channel. Freezing it guarantees every agent in a run shares identical runtime "
+            "settings. Local-runtime plumbing, independent of any Agent Framework class.",
             config,
         )
         + teach(
             "Chat-client shim",
             SUPPORT,
-            "A thin `OllamaChatClient` subclass that filters out chat options the local "
-            "Ollama server rejects -- an adapter, not framework surface.",
+            "A thin `OllamaChatClient` subclass that strips chat options the local Ollama server "
+            "would reject before each request goes out. Adapters like this are common at the edge "
+            "between a framework and a specific model server: the framework speaks a superset, "
+            "the server accepts a subset, and the shim reconciles them without touching any agent "
+            "code.",
             client_subclass,
         )
         + teach(
             "make_agent",
             PRIMITIVE,
-            "The factory: `client.as_agent(...)` turns a chat client + role instructions "
-            "+ granted tools into an agent (or an `A2AAgent` for remote peers). This is the "
-            "Agent Framework's core agent-construction call.",
+            "The factory this whole repo pivots on: `client.as_agent(...)` combines a chat "
+            "client, the spec's role instructions (prefixed with the agent's name), and any "
+            "granted tools into a runnable agent -- or returns an `A2AAgent` when the spec points "
+            "at a remote peer. Every orchestration pattern downstream consumes agents built "
+            "exactly here, which is why instructions and tool grants live in the scenario spec "
+            "rather than in pattern code. This is the Agent Framework's core agent-construction "
+            "call.",
             make_agent,
         )
     )
@@ -1741,29 +2477,42 @@ def scenario_cells(project: dict[str, str], data: dict[str, Any]) -> list[dict[s
             "Scenario schema",
             SUPPORT,
             "Plain frozen dataclasses -- `AgentSpec` and `ScenarioSpec` -- that mirror the "
-            "scenario JSON. Not framework types; just the shape every later cell reads.",
+            "embedded scenario JSON: identity, pattern, roster, token budget, and the pattern- "
+            "specific fields (`handoff_finisher`, `concurrent_synthesizer`, "
+            "`termination_phrases`). They are deliberately not framework types: keeping the "
+            "scenario contract in plain data is what lets the same spec drive five different "
+            "orchestrations and both API shapes.",
             schema,
         )
         + teach(
             "Load the scenario",
             SUPPORT,
-            "Hydrates the embedded JSON into the `SCENARIO` object this notebook drives. "
-            "Data plumbing, no Agent Framework surface.",
+            "Hydrates the embedded JSON into the `SCENARIO` object every later cell reads -- the "
+            "roster the agent factory builds from, the sample prompt the live run sends, and the "
+            "budget the config uses. Change a field here (an instruction, a route keyword, the "
+            "budget) and rerun the downstream cells to see how behavior shifts. Data plumbing, no "
+            "Agent Framework surface.",
             hydrate,
         )
         + teach(
             "Inspection helpers",
             SUPPORT,
-            "`agent_capability_map`, `mcp_tool_context`, and `tools_for_agent` let you read "
-            "the roster and resolve each agent's granted tools by name -- supporting utilities "
-            "used later by `make_agent`.",
+            "`agent_capability_map` summarizes who can do what, `mcp_tool_context` reports which "
+            "domain tools exist, and `tools_for_agent` resolves an agent's granted tool names to "
+            "the actual callables `make_agent` will attach. Inspecting the roster this way before "
+            "running is a habit worth keeping: most orchestration surprises trace back to an "
+            "agent having more, fewer, or different tools than you assumed.",
             helpers,
         )
         + teach(
             "Sample prompt and budget",
             SUPPORT,
-            "Fixes the token budget and the exact `SAMPLE_PROMPT` the live run will send, then "
-            "prints the roster so you can see who is on the team before any orchestration.",
+            "Pins the two run-defining inputs: `MAX_TOKENS`, the per-turn generation budget (this "
+            "scenario's recommended value unless `OLLAMA_MAX_TOKENS` overrides it), and "
+            "`SAMPLE_PROMPT`, the exact text the live run will dispatch. It then renders the "
+            "roster so you can see the team -- and each agent's accent color -- before any "
+            "orchestration happens. Budgets matter locally: too low truncates an agent mid- "
+            "thought, too high slows every turn.",
             finalize,
         )
     )
@@ -1840,30 +2589,43 @@ def plumbing_cells() -> list[dict[str, Any]]:
         teach(
             "Framework imports and message helpers",
             PRIMITIVE,
-            "Imports the workflow primitives (`Executor`, `WorkflowBuilder`, "
-            "`WorkflowContext`, `AgentExecutor`, `handler`, ...) and wraps text into an "
-            "`AgentExecutorRequest`. This is the Agent Framework surface every pattern builds on.",
+            "Imports the workflow surface every pattern in this repo builds on -- `Executor`, "
+            "`WorkflowBuilder`, `WorkflowContext`, `AgentExecutor`, and the `@handler` decorator "
+            "-- plus `make_request` and `response_text`, two helpers that wrap plain text into an "
+            "`AgentExecutorRequest` and pull it back out of a response. Messages are the typed "
+            "boundary between workflow nodes: everything an agent receives or returns passes "
+            "through these shapes.",
             imports_and_messages,
         )
         + teach(
             "Transcript state",
             SUPPORT,
-            "A helper that appends a labelled turn to workflow state via "
-            "`ctx.get_state`/`set_state`. Bookkeeping the executors reuse -- not framework API itself.",
+            "A helper that appends a `[AgentName] text` line to the shared transcript stored in "
+            "workflow state via `ctx.get_state`/`ctx.set_state`. Keeping the transcript in state "
+            "-- rather than inside any single executor -- is what lets gates, routers, and output "
+            "executors all read the same running history. Bookkeeping the executors reuse, not "
+            "framework API itself.",
             transcript_state,
         )
         + teach(
             "Your first executor",
             PRIMITIVE,
-            "`PromptDispatchExecutor` subclasses `Executor` and marks its method with `@handler`. "
-            "It seeds state and `send_message`s the first request -- the entry node of every graph here.",
+            "`PromptDispatchExecutor` is the minimal custom executor: subclass `Executor`, mark "
+            "an async method with `@handler`, and the framework routes matching messages to it. "
+            "This one seeds the prompt and an empty transcript into state, then `send_message`s "
+            "the first request -- the entry node of every graph in this repo. The handler "
+            "signature (input type plus `WorkflowContext[OutputType]`) is how the framework knows "
+            "what a node consumes and emits.",
             dispatch_executor,
         )
         + teach(
             "Agents as workflow nodes",
             PRIMITIVE,
-            "`_agent_executor` wraps an agent in an `AgentExecutor` so it can sit in the graph. "
-            "This is the bridge from a standalone agent to a workflow node.",
+            "`_agent_executor` wraps a factory-built agent in an `AgentExecutor`, giving it a "
+            "graph id and making it addressable as a workflow node -- the bridge between the "
+            "agent world (instructions, tools, chat client) and the workflow world (edges, "
+            "handlers, state). The slugified id matters more than it looks: the handoff router "
+            "targets specialists by exactly these ids.",
             agent_nodes,
         )
     )
@@ -1874,9 +2636,12 @@ _PATTERN_MACHINERY = {
         (
             "StageGateExecutor: carry the transcript forward",
             PRIMITIVE,
-            "A custom `Executor` whose `@handler` runs after each stage: it appends the stage's "
-            "output to the transcript and `send_message`s the next stage the original request plus "
-            "the accumulated work.",
+            "The sequential pattern's engine. After each stage responds, this gate appends the "
+            "stage's output to the shared transcript and sends the next agent a fresh request "
+            "containing the original prompt plus all accumulated work -- so stage N+1 sees "
+            "everything stages 1 through N produced, not just the last message. The explicit 'do "
+            "not repeat the earlier stages' instruction is a small but real guard against agents "
+            "re-answering the whole task.",
             r'''
     class StageGateExecutor(Executor):
         def __init__(self, id: str, *, stage_name: str) -> None:
@@ -1899,8 +2664,10 @@ _PATTERN_MACHINERY = {
         (
             "SequentialOutputExecutor: yield the final transcript",
             PRIMITIVE,
-            "The terminal `Executor`: instead of forwarding, its handler calls `ctx.yield_output(...)` "
-            "with the joined transcript, which becomes the workflow's result.",
+            "The terminal node: instead of forwarding another request, its handler calls "
+            "`ctx.yield_output(...)` with the joined transcript, and that value becomes the "
+            "workflow's result. Every pattern in this repo ends at an executor that yields rather "
+            "than sends -- yielding is how a graph declares 'this is the answer'.",
             r'''
     class SequentialOutputExecutor(Executor):
         def __init__(self, id: str, *, stage_name: str) -> None:
@@ -1916,8 +2683,10 @@ _PATTERN_MACHINERY = {
         (
             "Preview the stage handoff",
             SUPPORT,
-            "An offline sanity check -- no model call -- showing the exact prompt one stage hands "
-            "the next, so you can see what each agent actually receives.",
+            "An offline sanity check -- no model call -- that prints the exact prompt one stage "
+            "gate hands the next, using stand-in findings. Read it once before the live run: when "
+            "a later stage misbehaves, the first question is always 'what did it actually "
+            "receive?', and this cell shows you precisely that shape.",
             r'''
     # Demo (offline): the exact prompt a stage gate hands to the next stage.
     _demo_transcript = [
@@ -1932,8 +2701,11 @@ _PATTERN_MACHINERY = {
         (
             "Attribute each parallel result",
             SUPPORT,
-            "Fan-in delivers responses in nondeterministic order, so this helper pairs each response "
-            "back to its agent name (by executor id, with a positional fallback). Pure bookkeeping.",
+            "Fan-in delivers the parallel responses in nondeterministic completion order, so this "
+            "helper pairs each response back to its agent by executor id, with a positional "
+            "fallback. Without this labelling the combined output would be anonymous paragraphs; "
+            "with it, every finding stays attributable to its lane -- which is most of the value "
+            "of a concurrent review.",
             r'''
     def _labelled_responses(responses: list, agent_names: list) -> list:
         """Pair fan-in responses with agent names by executor_id, position fallback."""
@@ -1951,9 +2723,11 @@ _PATTERN_MACHINERY = {
         (
             "ConcurrentAggregatorExecutor: fan-in and combine",
             PRIMITIVE,
-            "The fan-in `Executor`. Its handler receives the whole `list` of specialist responses at "
-            "once and `yield_output`s the labelled combination -- the terminal node when no synthesizer "
-            "is declared.",
+            "The fan-in `Executor`. Note the handler's input type -- "
+            "`list[AgentExecutorResponse]` -- the framework collects every parallel lane's "
+            "response and delivers them in a single call, which is what makes this node a fan-in "
+            "rather than an ordinary edge. It labels the findings and `yield_output`s the "
+            "combination; this is the terminal node when the scenario declares no synthesizer.",
             r'''
     class ConcurrentAggregatorExecutor(Executor):
         def __init__(self, id: str, *, agent_names: list[str]) -> None:
@@ -1969,8 +2743,11 @@ _PATTERN_MACHINERY = {
         (
             "ConcurrentSynthesisGateExecutor: forward to a synthesizer",
             PRIMITIVE,
-            "When the scenario names a synthesizer, this fan-in `Executor` instead forwards the labelled "
-            "findings onward as a new request, so a final agent can reconcile them.",
+            "When the scenario names a synthesizer, this fan-in gate takes the aggregator's "
+            "place: it labels the parallel findings into the transcript and forwards them onward "
+            "as a new request so the synthesis agent can reconcile them. That ordering is the "
+            "point -- the agent that combines the perspectives actually sees them, instead of "
+            "summarizing from its own imagination.",
             r'''
     class ConcurrentSynthesisGateExecutor(Executor):
         def __init__(self, id: str, *, agent_names: list[str]) -> None:
@@ -1995,8 +2772,10 @@ _PATTERN_MACHINERY = {
         (
             "Terminal output executor",
             PRIMITIVE,
-            "The terminal `Executor` that yields the joined transcript. It only runs on the synthesizer "
-            "path (after the synthesis gate); the aggregator path ends at the aggregator itself.",
+            "The terminal `Executor` that yields the joined transcript. It exists only on the "
+            "synthesizer path -- after the synthesis gate and the synthesis agent -- because on "
+            "the plain path the aggregator itself terminates the workflow. Two closing shapes, "
+            "one pattern: check which one your scenario built.",
             r'''
     class SequentialOutputExecutor(Executor):
         def __init__(self, id: str, *, stage_name: str) -> None:
@@ -2012,7 +2791,10 @@ _PATTERN_MACHINERY = {
         (
             "Preview fan-in labelling",
             SUPPORT,
-            "An offline check -- no model call -- of how each parallel lane is labelled before aggregation.",
+            "An offline check -- no model call -- of how each parallel lane's finding will be "
+            "labelled before aggregation. The labels come straight from the roster, so if a lane "
+            "seems to vanish from live output, compare its name here against the executor ids "
+            "first.",
             r'''
     # Demo (offline): how fan-in labels each parallel finding before aggregation.
     _parallel = [spec.name for spec in SCENARIO.agents if spec.name != SCENARIO.concurrent_synthesizer][:3]
@@ -2024,8 +2806,11 @@ _PATTERN_MACHINERY = {
         (
             "Parse the ROUTE directive",
             SUPPORT,
-            "A regex and a slugifier that read the `ROUTE: <AgentName>` line the triage agent emits. "
-            "Plain text parsing -- the validation lives in the router next.",
+            "A regex and a slugifier that read the `ROUTE: <AgentName>` line the triage agent was "
+            "instructed to end with. Notice how forgiving the pattern is -- case-insensitive, "
+            "tolerant of spacing -- because models format directives inconsistently; and notice "
+            "what it does not do: validate. Deciding whether the named route is allowed belongs "
+            "to the router, not the parser.",
             r'''
     _ROUTE_DIRECTIVE = re.compile(r"route\s*:\s*([A-Za-z][A-Za-z0-9 _-]*)", re.IGNORECASE)
 
@@ -2037,9 +2822,12 @@ _PATTERN_MACHINERY = {
         (
             "HandoffRouterExecutor: validate the model's choice",
             PRIMITIVE,
-            "The router `Executor`. Its plain methods (`directed`/`decide`/`choose`) score the route, "
-            "and the `@handler` commits it to state and `send_message`s the chosen specialist via "
-            "`target_id` -- the model suggests, code decides.",
+            "The heart of the pattern: the model suggests, code decides. The plain methods are "
+            "testable without a workflow -- `directed` honors a valid ROUTE line, `decide` falls "
+            "back to scoring each specialist's keywords against the triage text and records which "
+            "mechanism won -- and the `@handler` commits the choice to state and `send_message`s "
+            "the chosen specialist via `target_id`. That `target_id` argument is the framework "
+            "primitive that makes dynamic routing possible: one node, many possible next hops.",
             r'''
     class HandoffRouterExecutor(Executor):
         def __init__(
@@ -2094,8 +2882,11 @@ _PATTERN_MACHINERY = {
         (
             "HandoffFinisherGateExecutor: hand off to a fixed finisher",
             PRIMITIVE,
-            "When the scenario declares a finisher, this `Executor` forwards the routed specialist's "
-            "notes to that fixed owner so it always closes the work.",
+            "When the scenario declares a finisher, every routed specialist's output flows "
+            "through this gate to that fixed owner -- guaranteeing the run ends with the same "
+            "accountable closing step (a customer letter, a final packet) no matter which route "
+            "was taken. Route variance in the middle, an invariant ending: a very common "
+            "compliance shape.",
             r'''
     class HandoffFinisherGateExecutor(Executor):
         @handler
@@ -2115,8 +2906,11 @@ _PATTERN_MACHINERY = {
         (
             "HandoffOutputExecutor: yield with a route header",
             PRIMITIVE,
-            "The terminal `Executor`: it `yield_output`s the answer prefixed with which route was taken "
-            "and whether it came from the model directive or keyword fallback.",
+            "The terminal `Executor` for handoff runs: it yields the answer prefixed with a "
+            "`[routed to X via Y]` header, where Y is `model-directive` or `keyword-score`. That "
+            "header is deliberately part of the output -- when you evaluate a handoff system, how "
+            "often the model's routing was usable (versus rescued by the keyword fallback) is a "
+            "metric you want visible on every run.",
             r'''
     class HandoffOutputExecutor(Executor):
         def __init__(self, id: str, *, stage_name: str | None = None) -> None:
@@ -2138,8 +2932,11 @@ _PATTERN_MACHINERY = {
         (
             "Derive routing keywords",
             SUPPORT,
-            "Builds each specialist's keyword list (explicit, or derived from its name/description) that "
-            "the router falls back to when the model gives no usable directive.",
+            "Builds each specialist's keyword list -- the explicit `route_keywords` when the spec "
+            "declares them, otherwise tokens derived from the agent's name and description with "
+            "stopwords removed. This fallback vocabulary is the router's safety net when the "
+            "model emits no usable directive, so skim it: if two specialists share their "
+            "strongest keywords, ambiguous inputs will route unpredictably.",
             r'''
     def _route_keywords(spec: AgentSpec) -> tuple[str, ...]:
         if spec.route_keywords:
@@ -2152,8 +2949,10 @@ _PATTERN_MACHINERY = {
         (
             "Preview routing",
             SUPPORT,
-            "An offline check -- no model call -- showing a valid ROUTE directive winning and keyword "
-            "scoring as the fallback.",
+            "An offline check -- no model call -- that exercises the router both ways: a well- "
+            "formed ROUTE directive winning, then the keyword fallback scoring the sample prompt. "
+            "Rerun it after editing any instruction or keyword; it is the fastest way to catch a "
+            "routing regression before spending a live run on it.",
             r'''
     # Demo (offline): a valid ROUTE directive wins; keyword scoring is the fallback.
     _specialists = [spec for spec in SCENARIO.agents[1:] if spec.name != SCENARIO.handoff_finisher]
@@ -2171,9 +2970,13 @@ _PATTERN_MACHINERY = {
         (
             "Termination condition",
             SUPPORT,
-            "A factory that returns a `should_stop(messages)` closure. It only fires at a full-cycle "
-            "boundary -- so the closing agent always speaks last -- ending on the scenario's phrases or "
-            "after two cycles. This closure is handed to `GroupChatBuilder` next.",
+            "A factory returning the `should_stop(messages)` closure that `GroupChatBuilder` "
+            "evaluates as the chat proceeds. It only fires at full-cycle boundaries -- assistant "
+            "count divisible by participant count -- which is the mechanism guaranteeing the "
+            "closing agent always speaks last; it then stops early if the scenario's termination "
+            "phrases all appear in that closing message, and unconditionally after two cycles. "
+            "Termination is the hardest part of group chat to get right: too eager truncates the "
+            "debate, too lax burns tokens.",
             r'''
     def make_group_chat_termination(phrases: tuple[str, ...], participant_count: int, max_cycles: int = 2) -> Any:
         def should_stop(messages: list[Any]) -> bool:
@@ -2191,8 +2994,10 @@ _PATTERN_MACHINERY = {
         (
             "Preview termination",
             SUPPORT,
-            "An offline check -- no model call -- confirming termination only fires when the closing "
-            "agent ends a full cycle, using tiny stand-in messages.",
+            "An offline check -- no model call -- probing the termination closure with tiny "
+            "stand-in messages: mid-cycle with the phrase present (must not stop), a cycle end "
+            "without it (must not stop), a cycle end with it (stops), and the hard two-cycle cap. "
+            "Four probes that document the contract better than prose could.",
             r'''
     # Demo (offline): termination only fires when the closing agent ends a full cycle.
     class _DemoMsg:
@@ -2215,8 +3020,11 @@ _PATTERN_MACHINERY = {
         (
             "Ledger limits",
             SUPPORT,
-            "The bounds that keep the manager's plan/replan loop finite. Just a dict of limits -- the "
-            "actual coordination comes from `MagenticBuilder` in the next section.",
+            "The bounds that keep the manager's plan/delegate/replan loop finite: at most 10 "
+            "rounds, a reset after 3 stalled rounds, and at most 2 resets before the workflow "
+            "gives up. It is just a dict here -- the coordination machinery lives in "
+            "`MagenticBuilder` -- but these numbers are your main cost and latency lever when "
+            "magentic goes to production.",
             r'''
     MAGENTIC_LIMITS = {"max_round_count": 10, "max_stall_count": 3, "max_reset_count": 2}
     ''',
@@ -2224,8 +3032,10 @@ _PATTERN_MACHINERY = {
         (
             "Preview the manager split",
             SUPPORT,
-            "An offline check -- no model call -- of which agent is the manager, which are specialists, "
-            "and the ledger limits that bound replanning.",
+            "An offline check -- no model call -- printing which agent will act as manager "
+            "(always the first in the roster), which agents are delegatable specialists, and the "
+            "ledger limits in force. When a magentic run behaves oddly, confirming the "
+            "manager/specialist split is the first diagnostic.",
             r'''
     # Demo (offline): the manager/specialist split and the ledger limits that bound replanning.
     print("Manager:    ", SCENARIO.agents[0].name)
@@ -2256,9 +3066,11 @@ _PATTERN_BUILDS = {
         (
             "Wire the graph with WorkflowBuilder",
             PRIMITIVE,
-            "`WorkflowBuilder` assembles the executors into a graph: `start_executor`/`output_from` set "
-            "the ends, and `add_edge` chains dispatch -> agent -> gate -> agent ... -> output. The topology "
-            "is fixed in code, not chosen by the model.",
+            "`WorkflowBuilder` assembles the executors into a fixed graph: `start_executor` and "
+            "`output_from` declare the ends, and `add_edge` chains dispatch -> agent -> gate -> "
+            "agent ... -> output, weaving a `StageGateExecutor` between consecutive agents. Read "
+            "the loop and notice what is absent -- no model input, no branching. The topology is "
+            "decided entirely in code, which is the sequential pattern's promise.",
             r'''
     def build_sequential_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         agents = [_agent_executor(i, scenario, config=config) for i in range(len(scenario.agents))]
@@ -2277,8 +3089,12 @@ _PATTERN_BUILDS = {
         (
             "Compile and build",
             SUPPORT,
-            "`build_workflow` resolves the Ollama config and calls the builder above, then `build()` "
-            "compiles the runnable workflow. The wrapper is glue; `build()` is the framework call.",
+            "`build_workflow` resolves the Ollama config (model, host, and this scenario's token "
+            "budget) and hands it to the builder above; `build()` then compiles the executor "
+            "graph into a runnable workflow object. The wrapper is notebook glue so later cells "
+            "can rebuild with overrides -- try `build_workflow(max_tokens=250)` for a faster "
+            "smoke run -- while `build()` is the actual framework call. The printed type confirms "
+            "what the framework produced.",
             r'''
     def build_workflow(
         scenario: ScenarioSpec = SCENARIO,
@@ -2302,9 +3118,12 @@ _PATTERN_BUILDS = {
         (
             "Wire fan-out and fan-in with WorkflowBuilder",
             PRIMITIVE,
-            "`add_fan_out_edges` sends the request to every lane at once and `add_fan_in_edges` collects "
-            "them. With a synthesizer, fan-in targets the synthesis gate and one more agent runs before "
-            "output; without one, it targets the aggregator directly.",
+            "`add_fan_out_edges` gives the dispatch node an edge to every lane at once, and "
+            "`add_fan_in_edges` declares that the collector receives all of their responses as "
+            "one list -- these two calls are the entire concurrency story; no threads or queues "
+            "appear in user code. The builder then branches on the scenario: with a synthesizer, "
+            "fan-in feeds the synthesis gate and one more agent runs before output; without one, "
+            "fan-in terminates at the aggregator.",
             r'''
     def build_concurrent_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         synthesizer_name = scenario.concurrent_synthesizer
@@ -2335,8 +3154,12 @@ _PATTERN_BUILDS = {
         (
             "Compile and build",
             SUPPORT,
-            "`build_workflow` resolves the Ollama config and calls the builder above, then `build()` "
-            "compiles the runnable workflow. The wrapper is glue; `build()` is the framework call.",
+            "`build_workflow` resolves the Ollama config (model, host, and this scenario's token "
+            "budget) and hands it to the builder above; `build()` then compiles the executor "
+            "graph into a runnable workflow object. The wrapper is notebook glue so later cells "
+            "can rebuild with overrides -- try `build_workflow(max_tokens=250)` for a faster "
+            "smoke run -- while `build()` is the actual framework call. The printed type confirms "
+            "what the framework produced.",
             r'''
     def build_workflow(
         scenario: ScenarioSpec = SCENARIO,
@@ -2360,9 +3183,12 @@ _PATTERN_BUILDS = {
         (
             "Wire triage, router, and specialists with WorkflowBuilder",
             PRIMITIVE,
-            "The graph runs dispatch -> triage -> router, then `add_edge`s the router to each specialist. "
-            "With a finisher, specialists flow through a gate to the fixed owner before output; without "
-            "one, each specialist goes straight to output.",
+            "The graph runs dispatch -> triage -> router, then `add_edge`s the router to every "
+            "specialist -- but at runtime the router's `target_id` picks exactly one of those "
+            "edges to use. Compare the two closing shapes: without a finisher each specialist "
+            "connects straight to output; with one, every specialist funnels through the finisher "
+            "gate to the fixed owner. Edges define what is possible; the router decides what "
+            "happens.",
             r'''
     def build_handoff_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         triage = _agent_executor(0, scenario, config=config)
@@ -2401,8 +3227,12 @@ _PATTERN_BUILDS = {
         (
             "Compile and build",
             SUPPORT,
-            "`build_workflow` resolves the Ollama config and calls the builder above, then `build()` "
-            "compiles the runnable workflow. The wrapper is glue; `build()` is the framework call.",
+            "`build_workflow` resolves the Ollama config (model, host, and this scenario's token "
+            "budget) and hands it to the builder above; `build()` then compiles the executor "
+            "graph into a runnable workflow object. The wrapper is notebook glue so later cells "
+            "can rebuild with overrides -- try `build_workflow(max_tokens=250)` for a faster "
+            "smoke run -- while `build()` is the actual framework call. The printed type confirms "
+            "what the framework produced.",
             r'''
     def build_workflow(
         scenario: ScenarioSpec = SCENARIO,
@@ -2426,9 +3256,13 @@ _PATTERN_BUILDS = {
         (
             "Assemble the chat with GroupChatBuilder",
             PRIMITIVE,
-            "`GroupChatBuilder` takes the participants, a `selection_func` (round-robin here), the "
-            "termination closure from the previous section, and `intermediate_output_from` so every "
-            "turn is visible. `build()` returns the runnable chat.",
+            "`GroupChatBuilder` is a higher-level primitive than `WorkflowBuilder`: hand it the "
+            "participants, a `selection_func` (plain round-robin here -- code, not a model, picks "
+            "who speaks), the termination closure from the previous section, and "
+            "`intermediate_output_from` so every turn surfaces in the results, and `build()` "
+            "returns the runnable chat. Swapping the selector for something smarter -- a "
+            "moderator model, expertise matching -- is the natural first experiment once you "
+            "outgrow round-robin.",
             r'''
     def build_group_chat_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         from agent_framework.orchestrations import GroupChatBuilder
@@ -2452,8 +3286,11 @@ _PATTERN_BUILDS = {
         (
             "Compile and build",
             SUPPORT,
-            "`build_workflow` resolves the Ollama config and calls the builder above. The wrapper is glue; "
-            "`GroupChatBuilder(...).build()` is the framework call.",
+            "`build_workflow` resolves the Ollama config (including this scenario's 1500-token "
+            "budget -- debate turns need room) and calls the builder above. The wrapper is "
+            "notebook glue; `GroupChatBuilder(...).build()` is the framework call, and the "
+            "printed type shows the chat compiles to the same workflow machinery as the graph "
+            "patterns.",
             r'''
     def build_workflow(
         scenario: ScenarioSpec = SCENARIO,
@@ -2477,9 +3314,11 @@ _PATTERN_BUILDS = {
         (
             "Assemble the manager loop with MagenticBuilder",
             PRIMITIVE,
-            "`MagenticBuilder` wires a `manager_agent` over the specialist `participants` and applies the "
-            "ledger limits so the plan/delegate/replan loop stays bounded. `build()` returns the runnable "
-            "workflow.",
+            "`MagenticBuilder` wires the roster's first agent in as `manager_agent` and the rest "
+            "as delegatable `participants`, applies the ledger limits, and `build()` returns the "
+            "runnable workflow. Unlike every other builder in this repo, the resulting run's "
+            "shape is decided at runtime by the manager's planning -- the builder defines who "
+            "exists and the bounds, not the order of work.",
             r'''
     def build_magentic_workflow(scenario: ScenarioSpec, *, config: OllamaAgentConfig) -> Any:
         from agent_framework.orchestrations import MagenticBuilder
@@ -2498,8 +3337,10 @@ _PATTERN_BUILDS = {
         (
             "Compile and build",
             SUPPORT,
-            "`build_workflow` resolves the Ollama config and calls the builder above. The wrapper is glue; "
-            "`MagenticBuilder(...).build()` is the framework call.",
+            "`build_workflow` resolves the Ollama config (including this scenario's 1500-token "
+            "budget -- planning and replanning are token-hungry) and calls the builder above. The "
+            "wrapper is notebook glue; `MagenticBuilder(...).build()` is the framework call. "
+            "Expect this workflow to issue more LLM calls than any other pattern in the repo.",
             r'''
     def build_workflow(
         scenario: ScenarioSpec = SCENARIO,
@@ -3040,6 +3881,11 @@ ENTERPRISE_DEMO_CALLS = {
     "handoff-claims-exception-routing": 'lookup_enterprise_record("CLAIM-88120")',
     "group-chat-policy-exception-board": 'lookup_enterprise_record("POLICY-EX-77")',
     "magentic-business-continuity-drill": 'lookup_enterprise_record("FACILITY-DC-EAST")',
+    "sequential-loan-origination": 'lookup_enterprise_record("LOAN-73021")',
+    "concurrent-ma-due-diligence": 'lookup_enterprise_record("TARGET-ACQ-STELLAR")',
+    "handoff-transaction-dispute": 'lookup_enterprise_record("DISPUTE-90455")',
+    "group-chat-architecture-review": 'lookup_enterprise_record("ADR-2209")',
+    "magentic-churn-spike-investigation": 'lookup_enterprise_record("METRIC-CHURN-Q3")',
 }
 
 
@@ -3221,21 +4067,28 @@ def primitives_environment_cells() -> list[dict[str, Any]]:
         teach(
             "Runtime configuration",
             SUPPORT,
-            "Imports plus the Ollama model/host and the `RUN_LIVE_AGENT` guard that keeps this lab "
-            "offline by default. Setup only -- no Agent Framework surface here.",
+            "Imports plus the Ollama model/host defaults and the `RUN_LIVE_AGENT` guard that "
+            "keeps this lab offline by default -- every primitive demonstrates itself "
+            "deterministically, and only the guarded cells touch a live model. Set "
+            "`RUN_LIVE_AGENT=1` before this cell when you want the real calls. Setup only; no "
+            "Agent Framework surface here.",
             config,
         )
         + teach(
             "Notebook styling",
             SUPPORT,
-            "The Aptos look and the card/trace CSS the render helpers below use. Pure presentation.",
+            "The Aptos look plus the card, chip, and trace CSS the lab's render helpers use to "
+            "present each primitive visually. Styling is isolated in this one cell so every later "
+            "cell can stay focused on exactly one framework concept. Pure presentation.",
             styling,
         )
         + teach(
             "Rendering helpers",
             SUPPORT,
-            "`render_cards`, `render_trace`, `render_transcript`, and `render_roster` present each "
-            "primitive visually. Glue for the lab, not framework API.",
+            "`render_cards` lays concepts out as a grid, `render_trace` shows step-by-step event "
+            "rows, and `render_transcript`/`render_roster` present agent output and the team. "
+            "Each primitive section below ends by handing its result to one of these, so you "
+            "always see the concept, not raw dicts. Glue for the lab, not framework API.",
             renderers,
         )
     )
@@ -3342,22 +4195,28 @@ def primitives_scenario_cells(project: dict[str, str], scenario: Any) -> list[di
         teach(
             "Scenario schema",
             SUPPORT,
-            "Plain frozen dataclasses mirroring the scenario JSON -- the same shapes the packaged "
-            "scenarios use. Not framework types.",
+            "Plain frozen dataclasses mirroring the scenario JSON -- the same "
+            "`AgentSpec`/`ScenarioSpec` shapes the packaged scenarios use, including the per- "
+            "scenario `max_tokens` budget. Keeping the contract in plain data is what lets one "
+            "spec drive every orchestration builder this lab demonstrates. Not framework types.",
             schema,
         )
         + teach(
             "Load the scenario",
             SUPPORT,
-            "Hydrates the embedded JSON into the `SCENARIO` object and sample payload the lab uses. "
-            "Data plumbing only.",
+            "Hydrates the embedded JSON into the `SCENARIO` object and the sample payload the "
+            "rest of the lab reads. The same roster flows through every primitive below -- "
+            "messages, tools, agents, and all five orchestration builders -- so you can watch one "
+            "team of agents recur across concepts. Data plumbing only.",
             hydrate,
         )
         + teach(
             "Roster and capability map",
             SUPPORT,
-            "`agent_capability_map` and `render_roster` show who is on the team and what each agent "
-            "may call -- supporting inspection, not Agent Framework surface.",
+            "`agent_capability_map` and `render_roster` show who is on the team, what each agent "
+            "may call, and the scenario's token budget. Make roster inspection a reflex: when a "
+            "later primitive behaves unexpectedly, the roster is where tool grants and role "
+            "mismatches show up first. Supporting inspection, not Agent Framework surface.",
             roster,
         )
     )
@@ -3448,15 +4307,19 @@ def primitives_agent_cells() -> list[dict[str, Any]]:
         teach(
             "make_agent",
             PRIMITIVE,
-            "`client.as_agent(...)` turns an `OllamaChatClient` plus role instructions and tools into "
-            "an agent. Construction is cheap -- the model call happens later, on `run`.",
+            "`client.as_agent(...)` turns an `OllamaChatClient` plus role instructions and "
+            "granted tools into an agent -- the same factory call every scenario notebook uses. "
+            "Construction is cheap and offline; the model is only contacted later, on `run`, "
+            "which is why this cell executes instantly even with Ollama stopped.",
             make_agent,
         )
         + teach(
             "Tool grants",
             SUPPORT,
-            "Which function tools each agent is allowed to call. A plain lookup table -- least-privilege "
-            "wiring, not framework surface.",
+            "A plain lookup table declaring which function tools each agent may call. This is "
+            "least-privilege wiring: an agent can only invoke what its spec grants, so a "
+            "compromised or confused prompt cannot reach tools outside its role. Not framework "
+            "surface, but a habit worth copying into production systems.",
             grants,
         )
     )
@@ -3616,22 +4479,29 @@ def primitives_workflow_cells() -> list[dict[str, Any]]:
         teach(
             "Workflow imports and message helpers",
             PRIMITIVE,
-            "Imports the workflow primitives and wraps text into an `AgentExecutorRequest`. These are "
-            "the building blocks the executors below extend.",
+            "Imports the workflow primitives -- `Executor`, `WorkflowBuilder`, `WorkflowContext`, "
+            "`AgentExecutor`, `@handler` -- and the request/response helpers that wrap plain text "
+            "into an `AgentExecutorRequest` and back. Every executor below extends exactly these "
+            "building blocks; this is the framework surface the whole workflow half of the lab "
+            "stands on.",
             imports_and_messages,
         )
         + teach(
             "PromptDispatchExecutor",
             PRIMITIVE,
-            "An `Executor` whose `@handler` seeds state and `send_message`s the first request -- the "
-            "entry node of a workflow graph.",
+            "An `Executor` whose `@handler` seeds workflow state and `send_message`s the first "
+            "request -- the entry node of a graph. The `@handler` decorator plus the typed "
+            "signature is the whole registration mechanism: the framework reads the types to know "
+            "which messages this node receives and what it may emit.",
             dispatch_executor,
         )
         + teach(
             "PrimitiveOutputExecutor",
             PRIMITIVE,
-            "The terminal `Executor`: its handler `yield_output`s the joined transcript, which becomes "
-            "the workflow's result.",
+            "The terminal `Executor`: its handler calls `ctx.yield_output(...)` with the joined "
+            "transcript, and that value becomes the workflow's result. Yielding instead of "
+            "sending is how a graph node declares the run finished -- every pattern in this repo "
+            "terminates this way.",
             output_executor,
         )
     )
@@ -3907,40 +4777,41 @@ def build_primitives_notebook(project: dict[str, str], scenario: Any) -> dict[st
         md(primitives_title_markdown(project, scenario)),
         *primitives_environment_cells(),
         md(primitives_overview_markdown()),
+        md(primitives_pattern_comparison_markdown()),
         *primitives_scenario_cells(project, scenario),
-        md("## Primitive: Message\n\nMessages are the typed boundary between user, system, assistant, agents, and workflow nodes."),
+        md("## Primitive: Message\n\nMessages are the typed boundary between user, system, assistant, agents, and workflow nodes. Every hop in every orchestration -- a prompt entering, an agent replying, a gate forwarding -- is one of these shapes, so learning to read a message is learning to read a run. The cell below builds each role by hand so you can see exactly what agents exchange."),
         code(primitives_message_cell()),
-        md("## Primitive: Function Tool\n\nFunction tools are the smallest useful grounding mechanism: a callable with a narrow, testable contract."),
+        md("## Primitive: Function Tool\n\nFunction tools are the smallest useful grounding mechanism: a callable with a narrow, testable contract. The agent decides when to call and with what arguments; your code decides what happens -- that split is the whole tool-use story. Notice the fixtures are deterministic, so a tool call here always returns the same answer."),
         code(primitives_function_tool_cell()),
-        md("## Primitive: Agent\n\nInstruction-led agents combine a chat client, role instructions, optional tools, runtime options, and a run interface."),
+        md("## Primitive: Agent\n\nInstruction-led agents combine a chat client, role instructions, optional tools, runtime options, and a run interface. There is no hidden magic: an agent is configuration around a model call, which is why the factory below can build a whole roster in a loop. Everything the orchestration patterns coordinate is instances of this primitive."),
         *primitives_agent_cells(),
-        md("## Primitive: Session Or Thread State\n\nState is explicit. Keep it bounded and visible in local samples; use provider or framework history stores when appropriate."),
+        md("## Primitive: Session Or Thread State\n\nState is explicit. An agent remembers nothing between runs unless you hand history back to it, so multi-turn behavior is always a choice you make, not a default you inherit. Keep state bounded and visible in local samples; move to provider or framework history stores when a real application needs durability."),
         code(primitives_session_cell()),
-        md("## Primitive: Run And Stream\n\nNon-streaming returns a final response; streaming exposes incremental updates for UI and logs."),
+        md("## Primitive: Run And Stream\n\nNon-streaming returns one final response; streaming exposes incremental updates as they are generated. The choice is about your caller, not the model -- a webhook wants the finished answer, a chat UI wants tokens as they arrive. The offline demo below fakes the stream so you can see the event shapes without a live model."),
         code(primitives_run_stream_cell()),
-        md("## Primitive: MCP\n\nMCP connects an agent to tools. Local stdio MCP is the right primitive for this local teaching repo."),
+        md("## Primitive: MCP\n\nMCP connects an agent to tools through a protocol instead of in-process function references -- the tool server can be a different process, language, or team, and the agent's contract does not change. Local stdio MCP is the right variant for this teaching repo: no network, no credentials, fully reproducible. Scenarios 11-16 and 19-23 run entire businesses on this primitive."),
         code(primitives_mcp_cell()),
-        md("## Primitive: A2A\n\nA2A connects an agent orchestration to a peer agent owned by another runtime or organization."),
+        md("## Primitive: A2A\n\nA2A connects an orchestration to a peer agent owned by another runtime or organization: discovery via an agent card, calls via JSON-RPC, no shared code. Where MCP grounds an agent in tools, A2A seats a whole other agent at your table. Scenario 17 runs a group chat where two seats live behind this protocol."),
         code(primitives_a2a_cell()),
-        md("## Primitive: Workflow Executor\n\nCustom executors make business logic explicit and testable inside the graph."),
+        md("## Primitive: Workflow Executor\n\nCustom executors make business logic explicit and testable inside the graph: subclass `Executor`, decorate an async method with `@handler`, and the typed signature declares what the node consumes and emits. Every gate, router, and aggregator in this repo is this one primitive specialized -- master it and the pattern machinery reads itself."),
         *primitives_workflow_cells(),
-        md("## Primitive: AgentExecutor\n\nAgentExecutor is the bridge from an agent to a workflow node."),
+        md("## Primitive: AgentExecutor\n\nAgentExecutor is the bridge from an agent to a workflow node: it gives the agent a graph id, receives `AgentExecutorRequest`s, runs the agent, and emits its response into the graph. This is how the agent world (instructions, tools) and the workflow world (edges, state) stay separate concerns that compose."),
         code(primitives_agent_executor_cell()),
-        md("## Primitive: WorkflowBuilder\n\nWorkflowBuilder turns executors and agents into a deterministic graph."),
+        md("## Primitive: WorkflowBuilder\n\nWorkflowBuilder turns executors and agents into a deterministic graph: `start_executor` and `output_from` mark the ends, `add_edge` wires the middle. The topology is fixed before anything runs -- the sequential pipeline below is code deciding order, with no model in the loop."),
         code(primitives_sequential_graph_cell()),
-        md("## Primitive: Handoff Routing\n\nA router lets the model suggest ownership while code validates the allowed route."),
+        md("## Primitive: Handoff Routing\n\nA router lets the model suggest ownership while code validates the allowed route -- the ROUTE directive is honored only if it names a real specialist, with keyword scoring as the fallback. This suggest-then-validate split is the safest way to let a model steer control flow. The demo exercises both paths offline."),
         code(primitives_handoff_cell()),
-        md("## Primitive: Fan-Out And Fan-In\n\nConcurrent work is useful only when aggregation keeps each lane attributable."),
+        md("## Primitive: Fan-Out And Fan-In\n\nConcurrent work is useful only when aggregation keeps each lane attributable. `add_fan_out_edges` starts every lane at once; `add_fan_in_edges` delivers all responses to one collector as a single list -- and labelling each response by its lane is what keeps the combined output auditable rather than a blur."),
         code(primitives_concurrent_cell()),
-        md("## Primitive: Group Chat\n\nGroup chat is a visible discussion with code-defined speaker selection and termination."),
+        md("## Primitive: Group Chat\n\nGroup chat is a visible discussion with code-defined speaker selection and termination: a selector chooses who talks next, and a termination closure -- checked only at cycle boundaries so the closer always speaks last -- decides when the debate has earned its verdict. The transcript is the deliverable."),
         code(primitives_group_chat_cell()),
-        md("## Primitive: Magentic\n\nMagentic coordination uses a manager agent plus bounded progress-ledger behavior."),
+        md("## Primitive: Magentic\n\nMagentic coordination uses a manager agent plus bounded progress-ledger behavior: the manager plans, delegates, watches for stalls, and replans, while `max_round_count`, `max_stall_count`, and `max_reset_count` keep the loop finite. It is the most powerful and most expensive pattern here -- the bounds are the difference between adaptive and runaway."),
         code(primitives_magentic_cell()),
-        md("## Primitive: Hosting\n\nThe same workflow can sit behind different API contracts."),
+        md("## Primitive: Hosting\n\nThe same workflow can sit behind different API contracts -- this repo hosts identical scenarios behind an OpenAI-compatible Responses API and a custom Invocations API. Orchestration choice and API-boundary choice are independent decisions; conflating them is the most common architecture mistake this repo exists to untangle."),
         code(primitives_hosting_cell(project)),
-        md("## Primitive: Observability\n\nGood agent systems are inspectable by construction."),
+        md("## Primitive: Observability\n\nGood agent systems are inspectable by construction: labelled transcripts, route-source headers, intermediate outputs, and decision logs are built into the executors in this repo, not bolted on afterward. When an orchestration misbehaves, these artifacts -- not rerunning and hoping -- are how you find out why."),
         code(primitives_observability_cell()),
-        md("## Flow Diagram\n\nThis diagram connects the primitives from request to hosted, observable workflow."),
+        md("## Flow Diagram\n\nThis diagram connects the primitives from request to hosted, observable workflow -- messages enter, agents and executors coordinate, tools and peers ground the work, and outputs surface with attribution. If you can trace this picture, you can read any scenario notebook in the repo."),
         code(primitives_flow_diagram_cell(project)),
         md(primitives_post_markdown()),
     ]
@@ -3965,21 +4836,32 @@ def build_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
     cells = [md(title_markdown(project, scenario))]
     cells.extend(environment_cells())
     cells.append(md(concept_markdown(project, scenario)))
+    cells.append(md(pattern_deep_dive_markdown(project, scenario)))
     if server:
         cells.append(md(mcp_markdown(server)))
         if server == "quote_to_cash_context":
             cells.extend(teach(
                 "Domain fixtures",
                 SUPPORT,
-                "The quote-to-cash records the tools read. Inlined embedded data -- no MCP server, "
-                "no Agent Framework surface.",
+                "The embedded quote-to-cash records the tools read: two opportunity triggers (one "
+                "ready, one blocked), two customer profiles with different contract terms, a "
+                "small SKU catalog with an incompatibility and an availability wrinkle, and the "
+                "legal thresholds. The teaching tensions live in this data -- the 25 percent "
+                "discount crossing the legal threshold is a fixture fact, not a prompt trick. "
+                "Inlined so the notebook stays self-contained; no MCP server, no Agent Framework "
+                "surface.",
                 quote_to_cash_fixtures_cell(),
             ))
             cells.extend(teach(
                 "Domain tools",
                 SUPPORT,
-                "Plain callables over the fixtures, registered in `MCP_TOOL_FUNCTIONS`. In production "
-                "these would be a FastMCP stdio server attached via `MCPStdioTool`; here they run inline.",
+                "Plain callables over the fixtures, registered in `MCP_TOOL_FUNCTIONS` so "
+                "`make_agent` can grant them to agents by name -- each returns the same "
+                "deterministic dict every run. In production these functions would sit behind a "
+                "FastMCP stdio server attached via `MCPStdioTool`; inlining them keeps the "
+                "notebook runnable anywhere while preserving the exact tool contract the agents "
+                "see. The cell ends with a real call so you see a grounded result before any "
+                "agent does.",
                 quote_to_cash_tools_cell('crm_get_quote_trigger("OPP-5001")'),
             ))
         else:
@@ -3987,15 +4869,25 @@ def build_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
             cells.extend(teach(
                 "Domain fixtures",
                 SUPPORT,
-                "The enterprise records the tools read. Inlined embedded data -- no MCP server, "
-                "no Agent Framework surface.",
+                "The embedded enterprise records the tools read: vendors, alerts, claims, "
+                "facilities, loan applications, acquisition targets, disputes, and the policy "
+                "catalog and playbooks that govern them. Each record carries an engineered "
+                "tension -- an expired review, a conflicting policy, a fraud signal tied with a "
+                "merchant-error signal -- that this scenario's agents are supposed to surface. "
+                "Inlined so the notebook stays self-contained; no MCP server, no Agent Framework "
+                "surface.",
                 enterprise_fixtures_cell(),
             ))
             cells.extend(teach(
                 "Domain tools",
                 SUPPORT,
-                "Plain callables over the fixtures, registered in `MCP_TOOL_FUNCTIONS`. In production "
-                "these would be a FastMCP stdio server attached via `MCPStdioTool`; here they run inline.",
+                "Plain callables over the fixtures, registered in `MCP_TOOL_FUNCTIONS` so "
+                "`make_agent` can grant them by name: record lookups, keyword policy search, a "
+                "deterministic priority score, playbook steps, and a write-shaped decision log "
+                "that never persists. In production these would be a FastMCP stdio server "
+                "attached via `MCPStdioTool`; inlining preserves the exact tool contract while "
+                "keeping the notebook self-contained. The cell ends with this scenario's "
+                "grounding call so you see a real tool result before any agent runs.",
                 enterprise_tools_cell(demo_call),
             ))
     if scenario_uses_a2a(scenario):
@@ -4003,29 +4895,40 @@ def build_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
         cells.extend(teach(
             "Partner facts and behavior",
             SUPPORT,
-            "The partner data and a deterministic `partner_reply` -- the behavior each remote seat serves. "
-            "No LLM, no network yet.",
+            "The partner data plus a deterministic `partner_reply` that selects facts based on "
+            "the question asked -- the behavior each remote seat will serve. No LLM, no network "
+            "yet. Read the fixtures closely: the certification expiring mid-window and the open "
+            "compliance finding are the facts the whole scenario turns on, and they exist only on "
+            "this side of the A2A boundary.",
             a2a_fixtures_cell(),
         ))
         cells.extend(teach(
             "Host the partner agents",
             PRIMITIVE,
-            "Wraps each partner in a `BaseAgent`, exposes it through an `A2AExecutor` behind an agent "
-            "card, and serves it over HTTP -- the A2A hosting side of the protocol.",
+            "The hosting side of A2A: each partner behavior is wrapped in a `BaseAgent`, exposed "
+            "through an `A2AExecutor`, given an agent card at `/.well-known/agent-card.json`, and "
+            "served over HTTP from an in-process server. After this cell there are real agents "
+            "listening on localhost that any A2A client -- this notebook or another "
+            "organization's runtime -- could discover and call.",
             a2a_server_cell(),
         ))
         cells.extend(teach(
             "Discover agent cards",
             SUPPORT,
-            "Fetches each partner's `agent-card.json` over HTTP -- the discovery step a client does "
-            "before talking to a peer.",
+            "Fetches each partner's `agent-card.json` over plain HTTP -- the discovery step an "
+            "A2A client performs before talking to a peer. The card is the protocol's public "
+            "contract: name, description, capabilities, endpoint. Notice everything the client "
+            "does not need: the partner's code, model, or prompts.",
             a2a_discovery_cell(),
         ))
         cells.extend(teach(
             "One A2A round-trip",
             PRIMITIVE,
-            "`A2AAgent` connects to a remote peer by URL and `run`s a single message -- the client side "
-            "of A2A, exercised before any orchestration.",
+            "`A2AAgent` connects to a remote peer by URL and `run`s a single message -- the "
+            "client side of the protocol, exercised once before any orchestration depends on it. "
+            "The returned object behaves like a normal Agent Framework agent, which is the "
+            "punchline: after this cell, remote seats and local seats are interchangeable to the "
+            "group chat.",
             a2a_client_cell(),
         ))
     cells.extend(scenario_cells(project, data))
@@ -4038,8 +4941,12 @@ def build_notebook(project: dict[str, str], scenario: Any) -> dict[str, Any]:
     cells.extend(teach(
         "Read the run output",
         SUPPORT,
-        "Utilities that turn framework run events into readable text -- the only Agent Framework "
-        "touchpoints are `result.get_outputs()` / `get_intermediate_outputs()`; the rest is parsing.",
+        "Utilities that unpack a finished run: `result.get_outputs()` returns the workflow's "
+        "yielded outputs, and `get_intermediate_outputs()` exposes per-participant turns where "
+        "the orchestration surfaces them (group chat and magentic). Everything else is string "
+        "parsing that feeds `render_transcript`, so the color-coded turns you see below are "
+        "exactly what the executors yielded -- those two calls are the only Agent Framework "
+        "touchpoints.",
         results_cell(scenario.pattern == "group-chat"),
     ))
     cells.append(md(live_run_markdown(scenario)))
